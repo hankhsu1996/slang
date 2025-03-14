@@ -27,8 +27,17 @@ CMakeUserPresets.json
 .vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
-
+.cursor/
 .idea/
 .vs/
 *.code-workspace
 .claude
+
+# Bazel ignores.
+/bazel-*
+/bazel-bin/
+/bazel-out/
+/bazel-testlogs/
+/bazel-workspace/
+.bazel/
+.bazelrc.user
