@@ -43,6 +43,7 @@ genrule(
         "//scripts:syntax",
         "//scripts:trivia",
         "//scripts:tokenkinds",
+        "//scripts:systemnames",
     ],
     outs = [
         "slang/syntax/AllSyntax.h",
@@ -50,6 +51,7 @@ genrule(
         "SyntaxClone.cpp",
         "slang/syntax/SyntaxKind.h",
         "slang/syntax/SyntaxFwd.h",
+        "slang/syntax/CSTJsonVisitorGen.h",
         "slang/parsing/TokenKind.h",
         "TokenKind.cpp",
     ],
