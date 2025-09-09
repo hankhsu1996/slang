@@ -53,7 +53,9 @@ genrule(
         "slang/syntax/SyntaxFwd.h",
         "slang/syntax/CSTJsonVisitorGen.h",
         "slang/parsing/TokenKind.h",
+        "slang/parsing/KnownSystemName.h",
         "TokenKind.cpp",
+        "KnownSystemName.cpp",
     ],
     cmd = """
         python3 $(location //scripts:syntax_gen) \
@@ -111,38 +113,11 @@ cc_library(
         "-std=c++20",
         "-Wall",
         "-Wextra",
-        "-DSLANG_BOOST_SINGLE_HEADER",
-        "-fvisibility=hidden",
-        "-fvisibility-inlines-hidden",
-    ] + select({
-        "//:use_mimalloc": ["-DSLANG_USE_MIMALLOC"],
-        "//conditions:default": [],
-    }) + select({
-        "//:use_cpptrace": ["-DSLANG_USE_CPPTRACE"],
-        "//conditions:default": [],
-    }) + select({
-        "//:include_pylib": [
-            "-fPIC",
-            "-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR",
-        ],
-        "//conditions:default": [],
-    }) + select({
-        "//:fuzz_target": ["-DSLANG_ASSERT_ENABLED"],
-        "//conditions:default": [],
-    }),
-    defines = select({
-        "//:use_mimalloc": ["SLANG_USE_MIMALLOC"],
-        "//conditions:default": [],
-    }) + select({
-        "//:use_cpptrace": ["SLANG_USE_CPPTRACE"],
-        "//conditions:default": [],
-    }) + select({
-        "//:fuzz_target": ["SLANG_ASSERT_ENABLED"],
-        "//conditions:default": [],
-    }),
+        "-Wno-deprecated-declarations",
+    ],
     includes = [
         ".",
-        "../external",
+        "../third_party",
         "analysis",
         "ast",
         "ast/builtins",
@@ -156,15 +131,12 @@ cc_library(
     ],
     deps = [
         "//include:slang_headers",
-        "@external//:slang_external",
+        "//third_party:third_party",
         "@fmt",
-    ] + select({
-        "//:use_mimalloc": ["@com_github_microsoft_mimalloc//:mimalloc"],
-        "//conditions:default": [],
-    }) + select({
-        "//:use_cpptrace": ["@com_github_jeremy-rifkin_cpptrace//:cpptrace"],
-        "//conditions:default": [],
-    }),
+        "@boost.unordered",
+    ],
+    linkstatic = True,
+    visibility = ["//visibility:public"],
 )
 
 # Alias
