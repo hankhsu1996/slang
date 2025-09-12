@@ -41,3 +41,4 @@ CMakeUserPresets.json
 /bazel-workspace/
 .bazel/
 .bazelrc.user
+*.local.md

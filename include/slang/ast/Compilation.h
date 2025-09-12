@@ -113,9 +113,14 @@ enum class SLANG_EXPORT CompilationFlags {
     DisallowRefsToUnknownInstances = 1 << 12,
 
     /// Allow unnamed generate blocks (e.g. genblk) to be referenced
-    AllowUnnamedGenerate = 1 << 13
+    AllowUnnamedGenerate = 1 << 13,
+
+    /// Enable language server mode where all modules get fake interface instances
+    /// for interface ports, regardless of being top-level. This enables proper
+    /// symbol resolution for uninstantiated modules in single-file analysis.
+    LanguageServerMode = 1 << 14
 };
-SLANG_BITMASK(CompilationFlags, AllowUnnamedGenerate)
+SLANG_BITMASK(CompilationFlags, LanguageServerMode)
 
 /// Contains various options that can control compilation behavior.
 struct SLANG_EXPORT CompilationOptions {

@@ -826,7 +826,8 @@ void InstanceSymbol::resolvePortConnections() const {
         // If this is a top level module and we have interface ports, the user has
         // the option of allowing it by automatically instantiating interface instances
         // to connect them to.
-        if (isTopLevel() && comp.hasFlag(CompilationFlags::AllowTopLevelIfacePorts))
+        if ((isTopLevel() && comp.hasFlag(CompilationFlags::AllowTopLevelIfacePorts)) ||
+            comp.hasFlag(CompilationFlags::LanguageServerMode))
             connectDefaultIfacePorts();
         return;
     }
