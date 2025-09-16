@@ -2056,6 +2056,11 @@ void Compilation::checkModportExports(
 }
 
 void Compilation::checkElemTimeScale(std::optional<TimeScale> timeScale, SourceRange sourceRange) {
+    // Skip timescale consistency checks in LanguageServerMode since LSP analyzes
+    // individual modules in isolation without full design context
+    if (hasFlag(CompilationFlags::LanguageServerMode))
+        return;
+
     if (timeScale) {
         if (anyElemsWithTimescales)
             return;
