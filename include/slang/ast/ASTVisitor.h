@@ -78,6 +78,10 @@ public:
                 return;
         }
 
+        // Universal pre-visit hook for symbols
+        if constexpr (requires { (DERIVED).preVisit(t); })
+            (DERIVED).preVisit(t);
+
         if constexpr (requires { (DERIVED).handle(t); })
             (DERIVED).handle(t);
         else if constexpr (requires { (DERIVED)(DERIVED, t); })
