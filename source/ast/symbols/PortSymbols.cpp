@@ -182,15 +182,27 @@ public:
             }
             case SyntaxKind::InterfacePortHeader: {
                 auto& header = syntax.header->as<InterfacePortHeaderSyntax>();
+                
+                // Extract interface name range
+                SourceRange interfaceNameRange = header.nameOrKeyword.range();
+                
+                // Extract modport name range (if present)
+                SourceRange modportNameRange;
+                if (header.modport) {
+                    modportNameRange = header.modport->member.range();
+                }
+                
                 if (header.nameOrKeyword.kind == TokenKind::InterfaceKeyword) {
                     std::string_view modport;
                     if (header.modport)
                         modport = header.modport->member.valueText();
-                    return add(decl, nullptr, modport, /* isGeneric */ true, syntax.attributes);
+                    return add(decl, nullptr, modport, /* isGeneric */ true, syntax.attributes,
+                              interfaceNameRange, modportNameRange);
                 }
 
                 auto [definition, modport] = getInterfacePortInfo(scope, header);
-                return add(decl, definition, modport, /* isGeneric */ false, syntax.attributes);
+                return add(decl, definition, modport, /* isGeneric */ false, syntax.attributes,
+                          interfaceNameRange, modportNameRange);
             }
             default:
                 SLANG_UNREACHABLE;
@@ -322,6 +334,31 @@ private:
                 std::string_view modport, bool isGeneric,
                 std::span<const AttributeInstanceSyntax* const> attrs) {
         auto port = comp.emplace<InterfacePortSymbol>(decl.name.valueText(), decl.name.location());
+        port->interfaceDef = iface;
+        port->modport = modport;
+        port->isGeneric = isGeneric;
+        port->setSyntax(decl);
+        port->setAttributes(scope, attrs);
+
+        if (decl.initializer)
+            scope.addDiag(diag::AnsiIfacePortDefault, decl.initializer->sourceRange());
+
+        lastDirection = ArgumentDirection::InOut;
+        lastType = nullptr;
+        lastNetType = nullptr;
+        lastInterface = iface;
+        lastModport = modport;
+        lastGenericIface = isGeneric;
+
+        return port;
+    }
+
+    Symbol* add(const DeclaratorSyntax& decl, const DefinitionSymbol* iface,
+                std::string_view modport, bool isGeneric,
+                std::span<const AttributeInstanceSyntax* const> attrs,
+                SourceRange interfaceNameRange, SourceRange modportNameRange) {
+        auto port = comp.emplace<InterfacePortSymbol>(decl.name.valueText(), decl.name.location(),
+                                                      interfaceNameRange, modportNameRange);
         port->interfaceDef = iface;
         port->modport = modport;
         port->isGeneric = isGeneric;
