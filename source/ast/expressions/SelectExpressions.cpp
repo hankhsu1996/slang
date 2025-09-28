@@ -976,7 +976,7 @@ Expression& MemberAccessExpression::fromSelector(
         case SymbolKind::Field: {
             auto& field = member->as<FieldSymbol>();
             return *compilation.emplace<MemberAccessExpression>(field.getType(), expr, field,
-                                                                range);
+                                                                range, selector.nameRange);
         }
         case SymbolKind::ClassProperty: {
             Lookup::ensureVisible(*member, context, selector.nameRange);
@@ -986,7 +986,7 @@ Expression& MemberAccessExpression::fromSelector(
                 return badExpr(compilation, &expr);
             }
 
-            return *compilation.emplace<MemberAccessExpression>(prop.getType(), expr, prop, range);
+            return *compilation.emplace<MemberAccessExpression>(prop.getType(), expr, prop, range, selector.nameRange);
         }
         case SymbolKind::Subroutine: {
             Lookup::ensureVisible(*member, context, selector.nameRange);
@@ -1006,7 +1006,7 @@ Expression& MemberAccessExpression::fromSelector(
             if (errorIfNotProcedural())
                 return badExpr(compilation, &expr);
             return *compilation.emplace<MemberAccessExpression>(compilation.getVoidType(), expr,
-                                                                *member, range);
+                                                                *member, range, selector.nameRange);
         }
         case SymbolKind::EnumValue:
             // The thing being selected from doesn't actually matter, since the
@@ -1016,7 +1016,7 @@ Expression& MemberAccessExpression::fromSelector(
             if (member->isValue()) {
                 auto& value = member->as<ValueSymbol>();
                 return *compilation.emplace<MemberAccessExpression>(value.getType(), expr, value,
-                                                                    range);
+                                                                    range, selector.nameRange);
             }
 
             auto& diag = context.addDiag(diag::InvalidClassAccess, selector.dotLocation);
