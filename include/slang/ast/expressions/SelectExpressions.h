@@ -131,15 +131,18 @@ public:
     const Symbol& member;
 
     MemberAccessExpression(const Type& type, Expression& value, const Symbol& member,
-                           SourceRange sourceRange) :
+                           SourceRange sourceRange, SourceRange memberNameRange = {}) :
         Expression(ExpressionKind::MemberAccess, type, sourceRange), member(member),
-        value_(&value) {}
+        value_(&value), memberNameRange_(memberNameRange.start().valid() ? memberNameRange : sourceRange) {}
 
     /// @returns the value being selected from
     const Expression& value() const { return *value_; }
 
     /// @returns the value being selected from
     Expression& value() { return *value_; }
+
+    /// @returns the source range of just the member name (for LSP precision)
+    SourceRange memberNameRange() const { return memberNameRange_; }
 
     ConstantValue evalImpl(EvalContext& context) const;
     LValue evalLValueImpl(EvalContext& context) const;
@@ -169,6 +172,7 @@ public:
 
 private:
     Expression* value_;
+    SourceRange memberNameRange_;
 };
 
 } // namespace slang::ast
