@@ -144,6 +144,11 @@ public:
     InterfacePortSymbol(std::string_view name, SourceLocation loc) :
         Symbol(SymbolKind::InterfacePort, name, loc) {}
 
+    InterfacePortSymbol(std::string_view name, SourceLocation loc, 
+                       SourceRange interfaceNameRange, SourceRange modportNameRange) :
+        Symbol(SymbolKind::InterfacePort, name, loc), 
+        interfaceNameRange_(interfaceNameRange), modportNameRange_(modportNameRange) {}
+
     bool isInvalid() const { return !interfaceDef && !isGeneric; }
 
     /// Gets the set of dimensions for specifying interface arrays.
@@ -161,10 +166,18 @@ public:
 
     void serializeTo(ASTSerializer& serializer) const;
 
+    /// Gets the source range of the interface name (e.g., "MemBus" in "MemBus.cpu mem_if")
+    SourceRange interfaceNameRange() const { return interfaceNameRange_; }
+
+    /// Gets the source range of the modport name (e.g., "cpu" in "MemBus.cpu mem_if")  
+    SourceRange modportNameRange() const { return modportNameRange_; }
+
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::InterfacePort; }
 
 private:
     mutable std::optional<std::span<const ConstantRange>> range;
+    SourceRange interfaceNameRange_;
+    SourceRange modportNameRange_;
 };
 
 class SLANG_EXPORT PortConnection {
