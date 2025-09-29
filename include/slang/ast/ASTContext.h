@@ -15,6 +15,7 @@
 #include "slang/numeric/ConstantValue.h"
 #include "slang/syntax/SyntaxFwd.h"
 #include "slang/util/FlatMap.h"
+#include "slang/util/SmallVector.h"
 #include "slang/util/Util.h"
 
 namespace slang::ast {
@@ -238,6 +239,9 @@ struct SLANG_EXPORT EvaluatedDimension {
     /// If the dimension is for a queue type, this is the optionally specified
     /// max queue size.
     uint32_t queueMaxSize = 0;
+
+    /// Bound expressions used in dimension evaluation (for LSP symbol tracking)
+    SmallVector<const Expression*, 2> expressions;
 
     /// Indicates whether the dimension is for a range (as opposed to a single
     /// index or an associative array access, for example).

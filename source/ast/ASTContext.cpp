@@ -298,7 +298,12 @@ EvaluatedDimension ASTContext::evalDimension(const VariableDimensionSyntax& synt
                 auto maxSizeClause =
                     syntax.specifier->as<QueueDimensionSpecifierSyntax>().maxSizeClause;
                 if (maxSizeClause) {
-                    auto value = evalInteger(*maxSizeClause->expr);
+                    // Store bound expression before evaluation
+                    auto& maxSizeExpr = Expression::bind(*maxSizeClause->expr, *this);
+                    result.expressions.push_back(&maxSizeExpr);
+                    
+                    // Evaluate as normal
+                    auto value = evalInteger(maxSizeExpr);
                     if (requireGtZero(value, maxSizeClause->expr->sourceRange()))
                         result.queueMaxSize = uint32_t(*value);
                 }
@@ -440,6 +445,10 @@ void ASTContext::evalRangeDimension(const SelectorSyntax& syntax, bool isPacked,
                     addDiag(diag::InvalidAssociativeIndexType, expr.sourceRange);
             }
             else {
+                // Store bound expression before evaluation
+                result.expressions.push_back(&expr);
+                
+                // Evaluate as normal
                 auto value = evalInteger(expr);
                 if (!requireGtZero(value, syntax.sourceRange()))
                     return;
@@ -451,8 +460,16 @@ void ASTContext::evalRangeDimension(const SelectorSyntax& syntax, bool isPacked,
         }
         case SyntaxKind::SimpleRangeSelect: {
             auto& rangeSyntax = syntax.as<RangeSelectSyntax>();
-            auto left = evalInteger(*rangeSyntax.left);
-            auto right = evalInteger(*rangeSyntax.right);
+            
+            // Store bound expressions before evaluation
+            auto& leftExpr = Expression::bind(*rangeSyntax.left, *this);
+            auto& rightExpr = Expression::bind(*rangeSyntax.right, *this);
+            result.expressions.push_back(&leftExpr);
+            result.expressions.push_back(&rightExpr);
+            
+            // Evaluate as normal
+            auto left = evalInteger(leftExpr);
+            auto right = evalInteger(rightExpr);
             if (!left || !right)
                 return;
 
