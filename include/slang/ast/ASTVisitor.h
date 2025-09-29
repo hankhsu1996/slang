@@ -177,6 +177,7 @@ decltype(auto) Symbol::visit(TVisitor&& visitor, Args&&... args) const {
         case SymbolKind::Unknown: return visitor.visit(InvalidSymbol::Instance, std::forward<Args>(args)...);
         case SymbolKind::DeferredMember: return visitor.visit(InvalidSymbol::Instance, std::forward<Args>(args)...);
         case SymbolKind::TypeAlias: return visitor.visit(*static_cast<const TypeAliasType*>(this), std::forward<Args>(args)...);
+        case SymbolKind::TypeReference: return visitor.visit(*static_cast<const TypeReferenceSymbol*>(this), std::forward<Args>(args)...);
         SYMBOL(Root);
         SYMBOL(CompilationUnit);
         SYMBOL(Definition);

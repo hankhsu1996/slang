@@ -56,6 +56,7 @@ enum class RandMode;
     x(PropertyType) \
     x(VirtualInterfaceType) \
     x(TypeAlias) \
+    x(TypeReference) \
     x(ErrorType) \
     x(ForwardingTypedef) \
     x(NetType) \

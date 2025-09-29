@@ -97,6 +97,7 @@ public:
     void visit(const ClassType& type, std::string_view overrideName);
     void visit(const CovergroupType& type, std::string_view overrideName);
     void visit(const TypeAliasType& type, std::string_view overrideName);
+    void visit(const TypeReferenceSymbol& type, std::string_view overrideName);
     void visit(const ErrorType& type, std::string_view overrideName);
 
     template<typename T>

@@ -429,6 +429,11 @@ void TypePrinter::visit(const TypeAliasType& type, std::string_view overrideName
     }
 }
 
+void TypePrinter::visit(const TypeReferenceSymbol& type, std::string_view overrideName) {
+    // For TypeReference, delegate to the resolved type for printing
+    type.getResolvedType().visit(*this, overrideName);
+}
+
 void TypePrinter::visit(const ErrorType&, std::string_view) {
     buffer->append("<error>");
 }

@@ -317,6 +317,9 @@ bool Type::isSimpleType() const {
         case SymbolKind::ClassType:
         case SymbolKind::StringType:
             return true;
+        case SymbolKind::TypeReference:
+            // Delegate to the wrapped type - TypeReference is only simple if the wrapped type is simple
+            return as<TypeReferenceSymbol>().getResolvedType().isSimpleType();
         default:
             return false;
     }
@@ -1152,7 +1155,7 @@ const Type& Type::fromSyntax(Compilation& compilation, const Type& elementType,
             case DimensionKind::Range:
             case DimensionKind::AbbreviatedRange:
                 result = &FixedSizeUnpackedArrayType::fromDim(*context.scope, *result, dim.range,
-                                                              syntax);
+                                                              syntax, dim);
                 break;
             case DimensionKind::Dynamic: {
                 auto next = compilation.emplace<DynamicArrayType>(*result);
@@ -1173,7 +1176,7 @@ const Type& Type::fromSyntax(Compilation& compilation, const Type& elementType,
                 break;
             }
             case DimensionKind::Queue: {
-                auto next = compilation.emplace<QueueType>(*result, dim.queueMaxSize);
+                auto next = compilation.emplace<QueueType>(*result, dim.queueMaxSize, dim);
                 next->setSyntax(syntax);
                 result = next;
                 break;
@@ -1259,6 +1262,14 @@ const Type& Type::fromLookupResult(Compilation& compilation, const LookupResult&
     }
 
     const Type* finalType = &symbol->as<Type>();
+    bool isTypedefUsage = (symbol->kind == SymbolKind::TypeAlias);
+
+    // NEW: Handle typedef usage FIRST, wrapping just the base type
+    if (isTypedefUsage) {
+        finalType = &TypeReferenceSymbol::create(*finalType, sourceRange, compilation);
+    }
+
+    // THEN apply array dimensions on top of the (possibly wrapped) base type
     size_t count = result.selectors.size();
     for (size_t i = 0; i < count; i++) {
         // It's not possible to have dotted selectors here because the Lookup
