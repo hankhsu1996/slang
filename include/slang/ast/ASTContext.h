@@ -241,12 +241,28 @@ struct SLANG_EXPORT EvaluatedDimension {
     uint32_t queueMaxSize = 0;
 
     /// Bound expressions used in dimension evaluation (for LSP symbol tracking)
-    SmallVector<const Expression*, 2> expressions;
+    /// These correspond directly to the computed values above:
+    /// - queueMaxSizeExpr: expression that produced queueMaxSize
+    /// - rangeLeftExpr, rangeRightExpr: expressions that produced range
+    /// - associativeTypeExpr: expression that produced associativeType
+    const Expression* queueMaxSizeExpr = nullptr;
+    const Expression* rangeLeftExpr = nullptr;
+    const Expression* rangeRightExpr = nullptr;
+    const Expression* associativeTypeExpr = nullptr;
 
     /// Indicates whether the dimension is for a range (as opposed to a single
     /// index or an associative array access, for example).
     bool isRange() const {
         return kind == DimensionKind::Range || kind == DimensionKind::AbbreviatedRange;
+    }
+
+    /// Visits all expressions used in dimension evaluation (for LSP symbol tracking)
+    template<typename TVisitor>
+    void visitExpressions(TVisitor&& visitor) const {
+        if (queueMaxSizeExpr) visitor(*queueMaxSizeExpr);
+        if (rangeLeftExpr) visitor(*rangeLeftExpr);
+        if (rangeRightExpr) visitor(*rangeRightExpr);
+        if (associativeTypeExpr) visitor(*associativeTypeExpr);
     }
 };
 

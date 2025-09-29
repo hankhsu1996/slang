@@ -183,9 +183,11 @@ const Type& IntegralType::fromSyntax(Compilation& compilation, SyntaxKind intege
     if (dims.size() == 1 && dims[0].first.isRange()) {
         auto range = dims[0].first.range;
         if (range.right == 0 && range.left >= 0) {
-            // if we have the common case of only one dimension and lsb == 0
-            // then we can use the shared representation
-            return compilation.getType(range.width(), flags);
+            // For LSP: preserve expressions even for common case optimizations
+            // Use PackedArrayType::fromSyntax to store expressions alongside the type
+            auto& pair = dims[0];
+            return PackedArrayType::fromSyntax(*context.scope, compilation.getScalarType(flags),
+                                             pair.first, *pair.second);
         }
     }
 
@@ -642,10 +644,10 @@ void EnumValueSymbol::serializeTo(ASTSerializer& serializer) const {
 }
 
 PackedArrayType::PackedArrayType(const Type& elementType, ConstantRange range,
-                                 bitwidth_t fullWidth) :
+                                 bitwidth_t fullWidth, const EvaluatedDimension& evalDim) :
     IntegralType(SymbolKind::PackedArrayType, "", SourceLocation(), fullWidth,
                  elementType.isSigned(), elementType.isFourState()),
-    elementType(elementType), range(range) {
+    elementType(elementType), range(range), evalDim(evalDim) {
 }
 
 const Type& PackedArrayType::fromSyntax(const Scope& scope, const Type& elementType,
@@ -677,11 +679,11 @@ const Type& PackedArrayType::fromSyntax(const Scope& scope, const Type& elementT
         return comp.getErrorType();
     }
 
-    return fromDim(scope, elementType, dimension.range, syntax);
+    return fromDim(scope, elementType, dimension.range, syntax, dimension);
 }
 
 const Type& PackedArrayType::fromDim(const Scope& scope, const Type& elementType, ConstantRange dim,
-                                     DeferredSourceRange sourceRange) {
+                                     DeferredSourceRange sourceRange, const EvaluatedDimension& evalDim) {
     if (elementType.isError())
         return elementType;
 
@@ -694,7 +696,7 @@ const Type& PackedArrayType::fromDim(const Scope& scope, const Type& elementType
         return comp.getErrorType();
     }
 
-    auto result = comp.emplace<PackedArrayType>(elementType, dim, bitwidth_t(*width));
+    auto result = comp.emplace<PackedArrayType>(elementType, dim, bitwidth_t(*width), evalDim);
     if (auto syntax = sourceRange.syntax())
         result->setSyntax(*syntax);
 
@@ -708,9 +710,10 @@ void PackedArrayType::serializeTo(ASTSerializer& serializer) const {
 
 FixedSizeUnpackedArrayType::FixedSizeUnpackedArrayType(const Type& elementType, ConstantRange range,
                                                        uint64_t selectableWidth,
-                                                       uint64_t bitstreamWidth) :
+                                                       uint64_t bitstreamWidth,
+                                                       const EvaluatedDimension& evalDim) :
     Type(SymbolKind::FixedSizeUnpackedArrayType, "", SourceLocation()), elementType(elementType),
-    range(range), selectableWidth(selectableWidth), bitstreamWidth(bitstreamWidth) {
+    range(range), selectableWidth(selectableWidth), bitstreamWidth(bitstreamWidth), evalDim(evalDim) {
 }
 
 const Type& FixedSizeUnpackedArrayType::fromDims(const Scope& scope, const Type& elementType,
@@ -726,7 +729,8 @@ const Type& FixedSizeUnpackedArrayType::fromDims(const Scope& scope, const Type&
 
 const Type& FixedSizeUnpackedArrayType::fromDim(const Scope& scope, const Type& elementType,
                                                 ConstantRange dim,
-                                                DeferredSourceRange sourceRange) {
+                                                DeferredSourceRange sourceRange,
+                                                const EvaluatedDimension& evalDim) {
     if (elementType.isError())
         return elementType;
 
@@ -741,7 +745,7 @@ const Type& FixedSizeUnpackedArrayType::fromDim(const Scope& scope, const Type& 
     }
 
     auto result = comp.emplace<FixedSizeUnpackedArrayType>(elementType, dim, *selectableWidth,
-                                                           *bitstreamWidth);
+                                                           *bitstreamWidth, evalDim);
     if (auto syntax = sourceRange.syntax())
         result->setSyntax(*syntax);
 
@@ -798,9 +802,10 @@ void AssociativeArrayType::serializeTo(ASTSerializer& serializer) const {
         serializer.write("indexType", *indexType);
 }
 
-QueueType::QueueType(const Type& elementType, uint32_t maxBound) :
+QueueType::QueueType(const Type& elementType, uint32_t maxBound,
+                     const EvaluatedDimension& evalDim) :
     Type(SymbolKind::QueueType, "", SourceLocation()), elementType(elementType),
-    maxBound(maxBound) {
+    maxBound(maxBound), evalDim(evalDim) {
 }
 
 ConstantValue QueueType::getDefaultValueImpl() const {
@@ -1363,6 +1368,28 @@ void TypeAliasType::serializeTo(ASTSerializer& serializer) const {
     serializer.write("target", targetType.getType());
     if (firstForward)
         serializer.write("forward", *firstForward);
+}
+
+TypeReferenceSymbol::TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation) :
+    Type(SymbolKind::TypeReference, "", usageLocation.start()), 
+    resolvedType(&resolvedType), usageLocation(usageLocation) {
+    // Set canonical type directly to delegate to the resolved type's canonical form
+    canonical = &resolvedType.getCanonicalType();
+}
+
+const TypeReferenceSymbol& TypeReferenceSymbol::create(const Type& resolvedType, 
+                                                      SourceRange usageLocation,
+                                                      Compilation& compilation) {
+    return *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation);
+}
+
+ConstantValue TypeReferenceSymbol::getDefaultValueImpl() const {
+    return resolvedType->getDefaultValue();
+}
+
+void TypeReferenceSymbol::serializeTo(ASTSerializer& serializer) const {
+    serializer.write("resolvedType", *resolvedType);
+    // Note: usageLocation not serialized as ASTSerializer doesn't support SourceRange
 }
 
 } // namespace slang::ast

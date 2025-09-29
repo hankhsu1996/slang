@@ -7,6 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
+#include "slang/ast/ASTContext.h"
 #include "slang/ast/Scope.h"
 #include "slang/ast/symbols/ValueSymbol.h"
 #include "slang/ast/types/Type.h"
@@ -166,7 +167,11 @@ public:
     /// The range of the array.
     ConstantRange range;
 
-    PackedArrayType(const Type& elementType, ConstantRange range, bitwidth_t fullWidth);
+    /// The evaluated dimension (with expressions for LSP symbol tracking)
+    EvaluatedDimension evalDim;
+
+    PackedArrayType(const Type& elementType, ConstantRange range, bitwidth_t fullWidth, 
+                   const EvaluatedDimension& evalDim = EvaluatedDimension{});
 
     void serializeTo(ASTSerializer& serializer) const;
 
@@ -175,7 +180,8 @@ public:
                                   const syntax::SyntaxNode& syntax);
 
     static const Type& fromDim(const Scope& scope, const Type& elementType, ConstantRange dim,
-                               syntax::DeferredSourceRange sourceRange);
+                               syntax::DeferredSourceRange sourceRange, 
+                               const EvaluatedDimension& evalDim = EvaluatedDimension{});
 
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::PackedArrayType; }
 };
@@ -196,8 +202,12 @@ public:
     /// The bitstream width of the array.
     uint64_t bitstreamWidth;
 
+    /// The evaluated dimension (with expressions for LSP symbol tracking)
+    EvaluatedDimension evalDim;
+
     FixedSizeUnpackedArrayType(const Type& elementType, ConstantRange range,
-                               uint64_t selectableWidth, uint64_t bitstreamWidth);
+                               uint64_t selectableWidth, uint64_t bitstreamWidth,
+                               const EvaluatedDimension& evalDim = EvaluatedDimension{});
 
     void serializeTo(ASTSerializer& serializer) const;
 
@@ -206,7 +216,8 @@ public:
                                 syntax::DeferredSourceRange sourceRange);
 
     static const Type& fromDim(const Scope& scope, const Type& elementType, ConstantRange dim,
-                               syntax::DeferredSourceRange sourceRange);
+                               syntax::DeferredSourceRange sourceRange,
+                               const EvaluatedDimension& evalDim = EvaluatedDimension{});
 
     ConstantValue getDefaultValueImpl() const;
 
@@ -274,7 +285,11 @@ public:
     /// The maximum number of elements allowed in the queue.
     uint32_t maxBound;
 
-    QueueType(const Type& elementType, uint32_t maxBound);
+    /// The evaluated dimension (with expressions for LSP symbol tracking)
+    EvaluatedDimension evalDim;
+
+    QueueType(const Type& elementType, uint32_t maxBound, 
+              const EvaluatedDimension& evalDim = EvaluatedDimension{});
 
     ConstantValue getDefaultValueImpl() const;
     void serializeTo(ASTSerializer& serializer) const;
@@ -601,6 +616,33 @@ private:
     friend class TypeParameterSymbol;
 
     mutable const ForwardingTypedefSymbol* firstForward = nullptr;
+};
+
+/// A type symbol that represents a reference to a typedef, preserving usage location
+/// information for LSP services while maintaining type system compatibility.
+class SLANG_EXPORT TypeReferenceSymbol final : public Type {
+public:
+    /// The type this reference resolves to (typically a TypeAliasType).
+    const Type* resolvedType;
+
+    /// The source range where this type reference appears in the code.
+    SourceRange usageLocation;
+
+    TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation);
+
+    /// Creates a TypeReferenceSymbol for typedef usages to preserve location information.
+    static const TypeReferenceSymbol& create(const Type& resolvedType, SourceRange usageLocation,
+                                            Compilation& compilation);
+
+    /// Returns the usage location where this type reference appears.
+    SourceRange getUsageLocation() const { return usageLocation; }
+
+    /// Returns the resolved type that this reference points to.
+    const Type& getResolvedType() const { return *resolvedType; }
+
+    ConstantValue getDefaultValueImpl() const;
+    void serializeTo(ASTSerializer& serializer) const;
+    static bool isKind(SymbolKind kind) { return kind == SymbolKind::TypeReference; }
 };
 
 /// An empty type symbol that indicates an error occurred while trying to

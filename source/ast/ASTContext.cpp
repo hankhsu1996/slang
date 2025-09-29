@@ -300,8 +300,8 @@ EvaluatedDimension ASTContext::evalDimension(const VariableDimensionSyntax& synt
                 if (maxSizeClause) {
                     // Store bound expression before evaluation
                     auto& maxSizeExpr = Expression::bind(*maxSizeClause->expr, *this);
-                    result.expressions.push_back(&maxSizeExpr);
-                    
+                    result.queueMaxSizeExpr = &maxSizeExpr;
+
                     // Evaluate as normal
                     auto value = evalInteger(maxSizeExpr);
                     if (requireGtZero(value, maxSizeClause->expr->sourceRange()))
@@ -428,6 +428,7 @@ void ASTContext::evalRangeDimension(const SelectorSyntax& syntax, bool isPacked,
             if (expr.kind == ExpressionKind::DataType) {
                 result.kind = DimensionKind::Associative;
                 result.associativeType = expr.as<DataTypeExpression>().type;
+                result.associativeTypeExpr = &expr;
                 switch (result.associativeType->kind) {
                     case SymbolKind::PackedStructType:
                     case SymbolKind::PackedUnionType:
@@ -446,8 +447,8 @@ void ASTContext::evalRangeDimension(const SelectorSyntax& syntax, bool isPacked,
             }
             else {
                 // Store bound expression before evaluation
-                result.expressions.push_back(&expr);
-                
+                result.rangeRightExpr = &expr;
+
                 // Evaluate as normal
                 auto value = evalInteger(expr);
                 if (!requireGtZero(value, syntax.sourceRange()))
@@ -460,13 +461,13 @@ void ASTContext::evalRangeDimension(const SelectorSyntax& syntax, bool isPacked,
         }
         case SyntaxKind::SimpleRangeSelect: {
             auto& rangeSyntax = syntax.as<RangeSelectSyntax>();
-            
+
             // Store bound expressions before evaluation
             auto& leftExpr = Expression::bind(*rangeSyntax.left, *this);
             auto& rightExpr = Expression::bind(*rangeSyntax.right, *this);
-            result.expressions.push_back(&leftExpr);
-            result.expressions.push_back(&rightExpr);
-            
+            result.rangeLeftExpr = &leftExpr;
+            result.rangeRightExpr = &rightExpr;
+
             // Evaluate as normal
             auto left = evalInteger(leftExpr);
             auto right = evalInteger(rightExpr);
