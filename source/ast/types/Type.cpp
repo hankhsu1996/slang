@@ -318,7 +318,8 @@ bool Type::isSimpleType() const {
         case SymbolKind::StringType:
             return true;
         case SymbolKind::TypeReference:
-            // Delegate to the wrapped type - TypeReference is only simple if the wrapped type is simple
+            // Delegate to the wrapped type - TypeReference is only simple if the wrapped type is
+            // simple
             return as<TypeReferenceSymbol>().getResolvedType().isSimpleType();
         default:
             return false;
@@ -1242,7 +1243,30 @@ const Type& Type::lookupNamedType(Compilation& compilation, const NameSyntax& sy
     Lookup::name(syntax, context, flags, result);
     result.reportDiags(context);
 
-    return fromLookupResult(compilation, result, syntax.sourceRange(), context);
+    auto nameRange = syntax.sourceRange();
+
+    // Fix for TypeReferenceSymbol: ensure precise typedef name ranges
+    // Parser issue: IdentifierSelectName used for type array dimensions creates wide ranges
+    // Additionally: ScopedName (config_pkg::t_mode) needs to use just the right part's range
+    // Workaround: trim to exact typedef name length for precise LSP references
+    if (result.found && result.found->kind == SymbolKind::TypeAlias) {
+        auto typedefNameLen = result.found->name.length();
+
+        // Handle scoped names: use the right part's range instead of full range
+        if (syntax.kind == SyntaxKind::ScopedName) {
+            const auto& scopedName = syntax.as<ScopedNameSyntax>();
+            nameRange = scopedName.right->sourceRange();
+            // Apply trimming to the right part in case it also has IdentifierSelectName issues
+            nameRange = SourceRange(nameRange.start(),
+                                    nameRange.start() + static_cast<uint32_t>(typedefNameLen));
+        }
+        else {
+            nameRange = SourceRange(nameRange.start(),
+                                    nameRange.start() + static_cast<uint32_t>(typedefNameLen));
+        }
+    }
+
+    return fromLookupResult(compilation, result, nameRange, context);
 }
 
 const Type& Type::fromLookupResult(Compilation& compilation, const LookupResult& result,
