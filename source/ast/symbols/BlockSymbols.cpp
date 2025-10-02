@@ -604,7 +604,7 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
             found = true;
             matchRange = currentMatchRange;
             createCondGenBlock(compilation, *sci.clause, context, constructIndex, isUninstantiated,
-                               syntax.attributes, results);
+                               syntax.attributes, results, condExpr);
         }
         else {
             // If we previously found a block, this block also matched, which we should warn about.
@@ -617,14 +617,14 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
 
             // This block is not taken, so create it as uninstantiated.
             createCondGenBlock(compilation, *sci.clause, context, constructIndex, true,
-                               syntax.attributes, results);
+                               syntax.attributes, results, condExpr);
         }
     }
 
     if (defBlock) {
         // Only instantiated if no other blocks were instantiated.
         createCondGenBlock(compilation, *defBlock, context, constructIndex,
-                           isUninstantiated || found, syntax.attributes, results);
+                           isUninstantiated || found, syntax.attributes, results, condExpr);
     }
     else if (!found) {
         auto& diag = context.addDiag(diag::CaseGenerateNoBlock, condExpr->sourceRange);
