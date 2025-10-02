@@ -152,6 +152,11 @@ public:
     bool valid = false;
     bool isUnnamed = false;
 
+    /// Bound expressions for loop control (for LSP symbol tracking)
+    const Expression* initialExpression = nullptr;
+    const Expression* stopExpression = nullptr;
+    const Expression* iterExpression = nullptr;
+
     GenerateBlockArraySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                              uint32_t constructIndex) :
         Symbol(SymbolKind::GenerateBlockArray, name, loc), Scope(compilation, this),

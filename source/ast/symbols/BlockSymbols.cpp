@@ -786,6 +786,9 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
     if (!initialVal)
         return *result;
 
+    // Store bound expression for LSP symbol tracking
+    result->initialExpression = &initial;
+
     // Fabricate a local variable that will serve as the loop iteration variable.
     auto& iterScope = *comp.emplace<StatementBlockSymbol>(comp, "", loc,
                                                           StatementBlockKind::Sequential,
@@ -805,6 +808,10 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
                                       ASTFlags::AssignmentAllowed);
     if (stopExpr.bad() || iterExpr.bad())
         return *result;
+
+    // Store bound expressions for LSP symbol tracking
+    result->stopExpression = &stopExpr;
+    result->iterExpression = &iterExpr;
 
     if (!context.requireBooleanConvertible(stopExpr))
         return *result;
