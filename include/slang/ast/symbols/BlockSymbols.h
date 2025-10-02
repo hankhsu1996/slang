@@ -119,6 +119,9 @@ public:
     bool isUnnamed = false;
     const SVInt* arrayIndex = nullptr;
 
+    /// Bound condition expression for if/case generate (for LSP symbol tracking)
+    const Expression* conditionExpression = nullptr;
+
     GenerateBlockSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                         uint32_t constructIndex, bool isUninstantiated) :
         Symbol(SymbolKind::GenerateBlock, name, loc), Scope(compilation, this),

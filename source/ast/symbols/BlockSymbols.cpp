@@ -470,8 +470,8 @@ static void createCondGenBlock(Compilation& compilation, const SyntaxNode& synta
                                const ASTContext& context, uint32_t constructIndex,
                                bool isUninstantiated,
                                const SyntaxList<AttributeInstanceSyntax>& attributes,
-                               SmallVectorBase<GenerateBlockSymbol*>& results) {
-    // [27.5] If a generate block in a conditional generate construct consists of only one item
+                               SmallVectorBase<GenerateBlockSymbol*>& results,
+                               const Expression* condExpr = nullptr) {
     // that is itself a conditional generate construct and if that item is not surrounded by
     // begin-end keywords, then this generate block is not treated as a separate scope. The
     // generate construct within this block is said to be directly nested. The generate blocks
@@ -501,6 +501,7 @@ static void createCondGenBlock(Compilation& compilation, const SyntaxNode& synta
                                                           isUninstantiated);
     block->setSyntax(syntax);
     block->setAttributes(*context.scope, attributes);
+    block->conditionExpression = condExpr; // Store for LSP tracking
     results.push_back(block);
 
     addBlockMembers(*block, syntax);
@@ -517,10 +518,12 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const IfGenerateS
         selector = cv.isTrue();
 
     createCondGenBlock(compilation, *syntax.block, context, constructIndex,
-                       !selector.has_value() || !selector.value(), syntax.attributes, results);
+                       !selector.has_value() || !selector.value(), syntax.attributes, results,
+                       &cond);
     if (syntax.elseClause) {
         createCondGenBlock(compilation, *syntax.elseClause->clause, context, constructIndex,
-                           !selector.has_value() || selector.value(), syntax.attributes, results);
+                           !selector.has_value() || selector.value(), syntax.attributes, results,
+                           &cond);
     }
 }
 
