@@ -122,6 +122,10 @@ public:
     /// Bound condition expression for if/case generate (for LSP symbol tracking)
     const Expression* conditionExpression = nullptr;
 
+    /// Bound case item expressions for case generate (for LSP symbol tracking)
+    /// Multiple expressions for a single case item are stored as a span
+    std::span<const Expression* const> caseItemExpressions;
+
     GenerateBlockSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                         uint32_t constructIndex, bool isUninstantiated) :
         Symbol(SymbolKind::GenerateBlock, name, loc), Scope(compilation, this),

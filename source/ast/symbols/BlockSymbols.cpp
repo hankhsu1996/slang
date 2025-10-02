@@ -471,7 +471,8 @@ static void createCondGenBlock(Compilation& compilation, const SyntaxNode& synta
                                bool isUninstantiated,
                                const SyntaxList<AttributeInstanceSyntax>& attributes,
                                SmallVectorBase<GenerateBlockSymbol*>& results,
-                               const Expression* condExpr = nullptr) {
+                               const Expression* condExpr = nullptr,
+                               std::span<const Expression* const> caseItems = {}) {
     // that is itself a conditional generate construct and if that item is not surrounded by
     // begin-end keywords, then this generate block is not treated as a separate scope. The
     // generate construct within this block is said to be directly nested. The generate blocks
@@ -501,7 +502,8 @@ static void createCondGenBlock(Compilation& compilation, const SyntaxNode& synta
                                                           isUninstantiated);
     block->setSyntax(syntax);
     block->setAttributes(*context.scope, attributes);
-    block->conditionExpression = condExpr; // Store for LSP tracking
+    block->conditionExpression = condExpr;  // Store for LSP tracking
+    block->caseItemExpressions = caseItems; // Store case items for LSP tracking
     results.push_back(block);
 
     addBlockMembers(*block, syntax);
@@ -584,9 +586,14 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
         bool currentFound = false;
         SourceRange currentMatchRange;
         auto& sci = item->as<StandardCaseItemSyntax>();
+
+        // Collect bound expressions for this case item (for LSP tracking)
+        SmallVector<const Expression*> itemExprs;
         for (size_t i = 0; i < sci.expressions.size(); i++) {
             // Have to keep incrementing the iterator here so that we stay in sync.
             auto expr = *boundIt++;
+            itemExprs.push_back(expr);
+
             ConstantValue val = context.eval(*expr);
 
             bool match = val && val == condVal;
@@ -604,7 +611,7 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
             found = true;
             matchRange = currentMatchRange;
             createCondGenBlock(compilation, *sci.clause, context, constructIndex, isUninstantiated,
-                               syntax.attributes, results, condExpr);
+                               syntax.attributes, results, condExpr, itemExprs.copy(compilation));
         }
         else {
             // If we previously found a block, this block also matched, which we should warn about.
@@ -617,7 +624,7 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
 
             // This block is not taken, so create it as uninstantiated.
             createCondGenBlock(compilation, *sci.clause, context, constructIndex, true,
-                               syntax.attributes, results, condExpr);
+                               syntax.attributes, results, condExpr, itemExprs.copy(compilation));
         }
     }
 
