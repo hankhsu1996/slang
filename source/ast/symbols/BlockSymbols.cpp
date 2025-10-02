@@ -757,12 +757,14 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
         }
 
         comp.noteReference(*symbol);
+        result->genvar = symbol;  // Store for LSP go-to-definition
     }
     else {
         // Fabricate a genvar symbol to live in this array since it was declared inline.
         auto genvarSymbol = comp.emplace<GenvarSymbol>(genvar.valueText(), genvar.location());
         genvarSymbol->setSyntax(*genvarSyntax);
         result->addMember(*genvarSymbol);
+        result->genvar = genvarSymbol;  // Store for LSP go-to-definition
     }
 
     SmallVector<const GenerateBlockSymbol*> entries;
@@ -807,6 +809,11 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
                                                 VariableLifetime::Automatic);
     local.setType(comp.getIntegerType());
     local.flags |= VariableFlags::CompilerGenerated;
+
+    // Store genvar pointer for LSP go-to-definition (will be set after lookup)
+    if (result->genvar != nullptr) {
+        local.setDeclaredSymbol(result->genvar);
+    }
 
     iterScope.setTemporaryParent(*context.scope, scopeIndex);
     iterScope.addMember(local);

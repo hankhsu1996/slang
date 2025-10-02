@@ -52,6 +52,11 @@ public:
     VariableLifetime lifetime;
     bitmask<VariableFlags> flags;
 
+    /// For compiler-generated variables (e.g., genvar loop iteration variables),
+    /// points to the actual symbol this variable represents (for LSP go-to-definition)
+    const Symbol* getDeclaredSymbol() const { return declaredSymbol; }
+    void setDeclaredSymbol(const Symbol* symbol) { declaredSymbol = symbol; }
+
     VariableSymbol(std::string_view name, SourceLocation loc, VariableLifetime lifetime);
 
     void checkInitializer() const;
@@ -94,6 +99,9 @@ public:
 protected:
     VariableSymbol(SymbolKind childKind, std::string_view name, SourceLocation loc,
                    VariableLifetime lifetime);
+
+private:
+    const Symbol* declaredSymbol = nullptr;
 };
 
 /// Represents a formal argument in subroutine (task or function).

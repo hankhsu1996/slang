@@ -164,6 +164,9 @@ public:
     const Expression* stopExpression = nullptr;
     const Expression* iterExpression = nullptr;
 
+    /// The genvar symbol used by this loop (for LSP go-to-definition)
+    const Symbol* genvar = nullptr;
+
     GenerateBlockArraySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                              uint32_t constructIndex) :
         Symbol(SymbolKind::GenerateBlockArray, name, loc), Scope(compilation, this),
