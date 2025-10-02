@@ -628,10 +628,12 @@ public:
     /// The source range where this type reference appears in the code.
     SourceRange usageLocation;
 
-    TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation);
+    TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation,
+                       const syntax::SyntaxNode* syntax);
 
     /// Creates a TypeReferenceSymbol for typedef usages to preserve location information.
     static const TypeReferenceSymbol& create(const Type& resolvedType, SourceRange usageLocation,
+                                            const syntax::SyntaxNode* syntax,
                                             Compilation& compilation);
 
     /// Returns the usage location where this type reference appears.

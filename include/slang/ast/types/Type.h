@@ -350,7 +350,8 @@ public:
     /// not issue any diagnostics from the result object; the caller must do that
     /// themselves if they wish.
     static const Type& fromLookupResult(Compilation& compilation, const LookupResult& result,
-                                        SourceRange sourceRange, const ASTContext& context);
+                                        SourceRange sourceRange, const ASTContext& context,
+                                        const syntax::SyntaxNode* syntax = nullptr);
 
     static bool isKind(SymbolKind kind);
 

@@ -1266,11 +1266,12 @@ const Type& Type::lookupNamedType(Compilation& compilation, const NameSyntax& sy
         }
     }
 
-    return fromLookupResult(compilation, result, nameRange, context);
+    return fromLookupResult(compilation, result, nameRange, context, &syntax);
 }
 
 const Type& Type::fromLookupResult(Compilation& compilation, const LookupResult& result,
-                                   SourceRange sourceRange, const ASTContext& context) {
+                                   SourceRange sourceRange, const ASTContext& context,
+                                   const syntax::SyntaxNode* syntax) {
     const Symbol* symbol = result.found;
     if (!symbol)
         return compilation.getErrorType();
@@ -1290,7 +1291,7 @@ const Type& Type::fromLookupResult(Compilation& compilation, const LookupResult&
 
     // NEW: Handle typedef usage FIRST, wrapping just the base type
     if (isTypedefUsage) {
-        finalType = &TypeReferenceSymbol::create(*finalType, sourceRange, compilation);
+        finalType = &TypeReferenceSymbol::create(*finalType, sourceRange, syntax, compilation);
     }
 
     // THEN apply array dimensions on top of the (possibly wrapped) base type

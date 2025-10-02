@@ -974,7 +974,7 @@ Expression& Expression::bindName(Compilation& comp, const NameSyntax& syntax,
             if (Lookup::findTempVar(*context.scope, *context.firstTempVar, syntax, result)) {
                 result.reportDiags(context);
                 return bindLookupResult(comp, result, syntax.sourceRange(), invocation, withClause,
-                                        context);
+                                        context, &syntax);
             }
         }
 
@@ -985,7 +985,7 @@ Expression& Expression::bindName(Compilation& comp, const NameSyntax& syntax,
             if (Lookup::withinClassRandomize(context, syntax, flags, result)) {
                 result.reportDiags(context);
                 return bindLookupResult(comp, result, syntax.sourceRange(), invocation, withClause,
-                                        context);
+                                        context, &syntax);
             }
             else if (result.hasError()) {
                 result.reportDiags(context);
@@ -999,7 +999,7 @@ Expression& Expression::bindName(Compilation& comp, const NameSyntax& syntax,
             if (Lookup::findAssertionLocalVar(context, syntax, result)) {
                 result.reportDiags(context);
                 return bindLookupResult(comp, result, syntax.sourceRange(), invocation, withClause,
-                                        context);
+                                        context, &syntax);
             }
         }
     }
@@ -1019,14 +1019,16 @@ Expression& Expression::bindName(Compilation& comp, const NameSyntax& syntax,
                                           callRange, context);
     }
 
-    return bindLookupResult(comp, result, syntax.sourceRange(), invocation, withClause, context);
+    return bindLookupResult(comp, result, syntax.sourceRange(), invocation, withClause, context,
+                            &syntax);
 }
 
 Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result,
                                          SourceRange sourceRange,
                                          const InvocationExpressionSyntax* invocation,
                                          const ArrayOrRandomizeMethodExpressionSyntax* withClause,
-                                         const ASTContext& context) {
+                                         const ASTContext& context,
+                                         const syntax::SyntaxNode* syntax) {
     const Symbol* symbol = result.found;
     if (!symbol)
         return badExpr(comp, nullptr);
@@ -1050,7 +1052,7 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
 
     if (context.flags.has(ASTFlags::AllowDataType) && symbol->isType()) {
         // We looked up a named data type and we were allowed to do so, so return it.
-        const Type& resultType = Type::fromLookupResult(comp, result, sourceRange, context);
+        const Type& resultType = Type::fromLookupResult(comp, result, sourceRange, context, syntax);
         auto expr = comp.emplace<DataTypeExpression>(resultType, sourceRange);
         if (!expr->bad() && !errorIfInvoke())
             return badExpr(comp, expr);

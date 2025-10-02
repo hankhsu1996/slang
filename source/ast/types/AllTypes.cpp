@@ -1370,17 +1370,21 @@ void TypeAliasType::serializeTo(ASTSerializer& serializer) const {
         serializer.write("forward", *firstForward);
 }
 
-TypeReferenceSymbol::TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation) :
-    Type(SymbolKind::TypeReference, "", usageLocation.start()), 
+TypeReferenceSymbol::TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation,
+                                        const syntax::SyntaxNode* syntax) :
+    Type(SymbolKind::TypeReference, "", usageLocation.start()),
     resolvedType(&resolvedType), usageLocation(usageLocation) {
     // Set canonical type directly to delegate to the resolved type's canonical form
     canonical = &resolvedType.getCanonicalType();
+    // Store the syntax node for LSP deduplication
+    setSyntax(*syntax);
 }
 
-const TypeReferenceSymbol& TypeReferenceSymbol::create(const Type& resolvedType, 
+const TypeReferenceSymbol& TypeReferenceSymbol::create(const Type& resolvedType,
                                                       SourceRange usageLocation,
+                                                      const syntax::SyntaxNode* syntax,
                                                       Compilation& compilation) {
-    return *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation);
+    return *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation, syntax);
 }
 
 ConstantValue TypeReferenceSymbol::getDefaultValueImpl() const {
