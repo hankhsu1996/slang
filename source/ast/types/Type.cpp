@@ -1291,10 +1291,12 @@ const Type& Type::fromLookupResult(Compilation& compilation, const LookupResult&
     }
 
     const Type* finalType = &symbol->as<Type>();
-    bool isTypedefUsage = (symbol->kind == SymbolKind::TypeAlias);
+    bool shouldWrapType = (symbol->kind == SymbolKind::TypeAlias ||
+                           symbol->kind == SymbolKind::ClassType ||
+                           symbol->kind == SymbolKind::GenericClassDef);
 
-    // NEW: Handle typedef usage FIRST, wrapping just the base type
-    if (isTypedefUsage) {
+    // NEW: Handle typedef and class type usage FIRST, wrapping just the base type
+    if (shouldWrapType) {
         finalType = &TypeReferenceSymbol::create(*finalType, sourceRange, syntax, compilation);
     }
 
