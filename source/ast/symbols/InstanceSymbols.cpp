@@ -574,6 +574,19 @@ void InstanceSymbol::fromSyntax(Compilation& comp, const HierarchyInstantiationS
             return;
         }
 
+        // In LSP mode, use UninstantiatedDefSymbol for module/program instances
+        // to maintain consistent lightweight analysis without full elaboration.
+        // Exception: Interfaces need full elaboration for proper signal/modport access.
+        if (comp.hasFlag(CompilationFlags::LanguageServerMode)) {
+            auto& defSym = def->as<DefinitionSymbol>();
+            if (defSym.definitionKind != DefinitionKind::Interface) {
+                UninstantiatedDefSymbol::fromSyntax(comp, syntax, specificInstance, context,
+                                                    results, implicitNets, builder.implicitNetNames,
+                                                    builder.netType);
+                return;
+            }
+        }
+
         auto confRule = defResult.configRule;
         auto addDiag = [&](DiagCode code) -> Diagnostic& {
             if (confRule) {
