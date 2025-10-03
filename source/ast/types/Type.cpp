@@ -1230,6 +1230,10 @@ void Type::resolveCanonical() const {
     canonical = this;
     do {
         canonical = &canonical->as<TypeAliasType>().targetType.getType();
+        // Skip through TypeReference wrappers to get to the actual type
+        while (canonical->kind == SymbolKind::TypeReference) {
+            canonical = &canonical->as<TypeReferenceSymbol>().getResolvedType();
+        }
     } while (canonical->isAlias());
 }
 
