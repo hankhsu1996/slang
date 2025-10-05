@@ -328,6 +328,7 @@ void ClassType::handleExtends(const ExtendsClauseSyntax& extendsClause, const AS
     // Assign this member before resolving anything below, because they
     // may try to check the base class of this type.
     baseClass = baseType;
+    baseClassRefRange = extendsClause.baseName->getLastToken().range(); // LSP: store reference location
 
     // Inherit all base class members that don't conflict with our declared symbols.
     auto& scopeNameMap = getNameMap();

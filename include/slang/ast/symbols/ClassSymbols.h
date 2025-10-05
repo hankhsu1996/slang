@@ -78,6 +78,13 @@ public:
         return baseClass;
     }
 
+    /// Gets the source range of the base class name in the extends clause (for LSP navigation).
+    /// Returns an invalid range if this class doesn't have a base class.
+    SourceRange getBaseClassRefRange() const {
+        ensureElaborated();
+        return baseClassRefRange;
+    }
+
     /// Gets the list of interface classes that this class implements.
     /// If this class is itself an interface class, this is instead the list of
     /// interface classes that it extends from, if any.
@@ -154,6 +161,7 @@ private:
     void computeCycles() const;
 
     mutable const Type* baseClass = nullptr;
+    mutable SourceRange baseClassRefRange; // LSP: source range of base class name in extends clause
     mutable const Symbol* baseConstructor = nullptr;
     mutable const ForwardingTypedefSymbol* firstForward = nullptr;
     mutable std::span<const Type* const> implementsIfaces;
