@@ -1703,7 +1703,10 @@ const ModportSymbol* InterfacePortSymbol::getModport(const ASTContext& context,
         return nullptr;
     }
 
-    return &sym->as<ModportSymbol>();
+    auto* result = &sym->as<ModportSymbol>();
+    // Cache the result for LSP features (avoid re-lookup)
+    modportSymbol = result;
+    return result;
 }
 
 void InterfacePortSymbol::serializeTo(ASTSerializer& serializer) const {

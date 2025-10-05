@@ -137,6 +137,10 @@ public:
     /// If non-empty, the name of the modport that restricts which interface signals are accessible.
     std::string_view modport;
 
+    /// A pointer to the modport symbol (resolved from modport name in interfaceDef).
+    /// Cached during first lookup to avoid re-lookup for LSP features.
+    mutable const ModportSymbol* modportSymbol = nullptr;
+
     /// Set to true if this is a generic interface port, which allows connections
     /// to any interface type. If true, @a interfaceDef will be nullptr.
     bool isGeneric = false;
