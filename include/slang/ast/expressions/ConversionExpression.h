@@ -64,6 +64,13 @@ public:
 
     static bool isKind(ExpressionKind kind) { return kind == ExpressionKind::Conversion; }
 
+    /// @returns the width expression for size casts (e.g., NUM_ENTRIES in NUM_ENTRIES'(value))
+    /// Returns nullptr for type casts or implicit conversions
+    const Expression* getCastWidthExpr() const { return castWidthExpr_; }
+
+    /// Sets the width expression for LSP symbol tracking
+    void setCastWidthExpr(const Expression* expr) { castWidthExpr_ = expr; }
+
     template<typename TVisitor>
     decltype(auto) visitExprs(TVisitor&& visitor) const {
         return operand().visit(visitor);
@@ -72,6 +79,10 @@ public:
 private:
     Expression* operand_;
     SourceRange implicitOpRange;
+
+    /// Bound expression for size cast width (for LSP symbol tracking)
+    /// For casts like NUM_ENTRIES'(value), this stores the NUM_ENTRIES expression
+    const Expression* castWidthExpr_ = nullptr;
 };
 
 } // namespace slang::ast

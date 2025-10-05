@@ -315,6 +315,7 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
 
     auto type = &comp.getErrorType();
     Expression* operand;
+    const Expression* castWidthExpr = nullptr;
     if (targetExpr.kind == ExpressionKind::DataType) {
         type = targetExpr.type;
         if (!type->isSimpleType() && !type->isError() && !type->isString() &&
@@ -328,6 +329,9 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
             return badExpr(comp, nullptr);
     }
     else {
+        // Store the width expression for LSP symbol tracking
+        castWidthExpr = &targetExpr;
+
         auto val = context.evalInteger(targetExpr);
         if (!val || !context.requireGtZero(val, targetExpr.sourceRange))
             return badExpr(comp, nullptr);
@@ -351,7 +355,10 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
     }
 
     auto result = [&](ConversionKind cast = ConversionKind::Explicit) {
-        return comp.emplace<ConversionExpression>(*type, cast, *operand, syntax.sourceRange());
+        auto* expr = comp.emplace<ConversionExpression>(*type, cast, *operand, syntax.sourceRange());
+        if (castWidthExpr)
+            expr->setCastWidthExpr(castWidthExpr);
+        return expr;
     };
 
     if (!type->isCastCompatible(*operand->type)) {
