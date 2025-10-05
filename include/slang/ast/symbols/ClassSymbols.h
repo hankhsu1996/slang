@@ -50,6 +50,10 @@ public:
     /// The list of generic parameters for this class specialization, if any.
     std::span<const Symbol* const> genericParameters;
 
+    /// Bound parameter value assignment expressions (for LSP symbol tracking).
+    /// Corresponds to the expressions passed as parameter values in the specialization.
+    std::span<const Expression* const> parameterAssignmentExpressions;
+
     /// A variable that points to the instance of this class itself, which is
     /// used by non-static class property initializers that refers to the
     /// special "this" handle. Subroutines and constraint blocks have their

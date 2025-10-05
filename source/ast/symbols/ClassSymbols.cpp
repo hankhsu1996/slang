@@ -1014,8 +1014,27 @@ const Type* GenericClassDefSymbol::getSpecializationImpl(
         }
     }
 
+    // LSP: Collect parameter assignment expressions for symbol tracking
+    SmallVector<const Expression*> paramAssignmentExprs;
+    if (!forceInvalidParams && !isForDefault) {
+        for (auto* symbol : paramSymbols) {
+            if (symbol->kind == SymbolKind::Parameter) {
+                auto& ps = symbol->as<ParameterSymbol>();
+                if (auto* expr = ps.getInitializer()) {
+                    paramAssignmentExprs.push_back(expr);
+                }
+            }
+            else if (symbol->kind == SymbolKind::TypeParameter) {
+                // Type parameters don't have expression initializers in the same way
+                // They use DeclaredType which resolves to a type, not an expression
+                paramAssignmentExprs.push_back(nullptr);
+            }
+        }
+    }
+
     if (!forceInvalidParams) {
         classType->genericParameters = paramSymbols.copy(comp);
+        classType->parameterAssignmentExpressions = paramAssignmentExprs.copy(comp);
         detail::ClassSpecializationKey key(paramValues.copy(comp), typeParams.copy(comp));
         if (classType->isUninstantiated) {
             // If we're in an uninstantiated scope we save this specialization
