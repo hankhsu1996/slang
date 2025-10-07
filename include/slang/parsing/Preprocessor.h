@@ -60,6 +60,13 @@ struct SLANG_EXPORT PreprocessorOptions {
 
     /// A set of preprocessor directives to be ignored.
     flat_hash_set<std::string_view> ignoreDirectives;
+
+    /// Initial default net type. If set to TokenKind::Unknown, disables
+    /// implicit net declarations (equivalent to `default_nettype none).
+    /// If not set, defaults to TokenKind::WireKeyword per the SystemVerilog standard.
+    /// This is useful for tools like language servers that want to be stricter than
+    /// the standard to catch common bugs (e.g., typos that create unintended nets).
+    std::optional<TokenKind> initialDefaultNetType;
 };
 
 /// Metadata about an include directive that was invoked.

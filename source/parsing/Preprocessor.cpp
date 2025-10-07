@@ -34,6 +34,11 @@ Preprocessor::Preprocessor(SourceManager& sourceManager, BumpAllocator& alloc,
     resetAllDirectives();
     undefineAll();
 
+    // Override default net type if specified in options
+    if (options.initialDefaultNetType.has_value()) {
+        defaultNetType = *options.initialDefaultNetType;
+    }
+
     // Add in any inherited macros that aren't already set in our map.
     for (auto define : inheritedMacros) {
         auto name = define->name.valueText();
