@@ -1657,6 +1657,11 @@ const Diagnostics& Compilation::getAllDiagnostics() {
     return *cachedAllDiagnostics;
 }
 
+Diagnostics Compilation::getCollectedDiagnostics() {
+    // Return diagnostics from diagMap without triggering elaboration
+    return diagMap.coalesce(sourceManager);
+}
+
 void Compilation::addDiagnostics(const Diagnostics& diagnostics) {
     SLANG_ASSERT(!isFrozen());
     for (auto& diag : diagnostics)

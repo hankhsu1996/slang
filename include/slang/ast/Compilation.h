@@ -324,6 +324,12 @@ public:
     /// Gets all of the diagnostics produced during compilation.
     const Diagnostics& getAllDiagnostics();
 
+    /// Gets diagnostics that have been collected so far without triggering elaboration.
+    /// This returns diagnostics from diagMap as-is, which may include diagnostics
+    /// added during parsing or from limited AST traversal, but does NOT force
+    /// full design elaboration like getAllDiagnostics() does.
+    Diagnostics getCollectedDiagnostics();
+
     /// Queries if any errors have been issued on any scope within this compilation.
     bool hasIssuedErrors() const { return numErrors > 0; };
 
