@@ -8,6 +8,7 @@
 #include "slang/ast/HierarchicalReference.h"
 
 #include "slang/ast/Compilation.h"
+#include "slang/ast/Expression.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -28,6 +29,16 @@ HierarchicalReference::Element::Element(const Symbol& symbol, int32_t index) :
 
 HierarchicalReference::Element::Element(const Symbol& symbol, std::pair<int32_t, int32_t> range) :
     symbol(&symbol), selector(range) {
+}
+
+HierarchicalReference::Element::Element(const Symbol& symbol, int32_t index,
+                                        const Expression* expr) :
+    symbol(&symbol), selector(index), selectorExprs(expr) {
+}
+
+HierarchicalReference::Element::Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
+                                        std::pair<const Expression*, const Expression*> exprs) :
+    symbol(&symbol), selector(range), selectorExprs(exprs) {
 }
 
 HierarchicalReference HierarchicalReference::fromLookup(Compilation& compilation,

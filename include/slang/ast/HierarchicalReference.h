@@ -37,6 +37,12 @@ public:
         /// an index if the parent was an array, or a field name.
         std::variant<int32_t, std::pair<int32_t, int32_t>, std::string_view> selector;
 
+        /// Bound selector expressions (for LSP symbol tracking).
+        /// Matches selector variant: monostate (name), Expression* (index), or pair (range).
+        std::variant<std::monostate, const Expression*,
+                     std::pair<const Expression*, const Expression*>>
+            selectorExprs;
+
         /// Constructs an element with a name selector.
         Element(const Symbol& symbol);
 
@@ -45,6 +51,13 @@ public:
 
         /// Constructs an element with a range selector.
         Element(const Symbol& symbol, std::pair<int32_t, int32_t> range);
+
+        /// Constructs an element with an index selector and expression (for LSP).
+        Element(const Symbol& symbol, int32_t index, const Expression* expr);
+
+        /// Constructs an element with a range selector and expressions (for LSP).
+        Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
+                std::pair<const Expression*, const Expression*> exprs);
     };
 
     /// The target symbol of the hierarchical reference.

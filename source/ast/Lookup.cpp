@@ -1234,7 +1234,11 @@ const Symbol* Lookup::unqualifiedAt(const Scope& scope, std::string_view name,
 
 static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSyntax& syntax,
                                        const ASTContext& context, LookupResult& result) {
-    auto index = context.evalInteger(*syntax.expr);
+    // Bind the selector expression first for LSP symbol tracking
+    auto& boundExpr = Expression::bind(*syntax.expr, context);
+
+    // Evaluate the expression to get the index
+    auto index = context.evalInteger(boundExpr);
     if (!index)
         return nullptr;
 
@@ -1253,7 +1257,8 @@ static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSynt
 
         int32_t translated = *index - array.range.lower();
         auto child = array.elements[size_t(translated)];
-        result.path.emplace_back(*child, translated);
+        // Store the bound expression for LSP symbol tracking
+        result.path.emplace_back(*child, translated, &boundExpr);
         return child;
     }
     else {
@@ -1264,7 +1269,8 @@ static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSynt
         int32_t idx = 0;
         for (auto entry : array.entries) {
             if (entry->arrayIndex && *entry->arrayIndex == *index) {
-                result.path.emplace_back(*entry, idx);
+                // Store the bound expression for LSP symbol tracking
+                result.path.emplace_back(*entry, idx, &boundExpr);
                 return entry;
             }
             idx++;
@@ -1284,9 +1290,13 @@ static const Symbol* selectChildRange(const InstanceArraySymbol& array,
     if (array.elements.empty())
         return nullptr;
 
+    // Bind both expressions first for LSP symbol tracking
+    auto& leftExpr = Expression::bind(*syntax.left, context);
+    auto& rightExpr = Expression::bind(*syntax.right, context);
+
     // Evaluate both sides of the range.
-    auto left = context.evalInteger(*syntax.left);
-    auto right = context.evalInteger(*syntax.right);
+    auto left = context.evalInteger(leftExpr);
+    auto right = context.evalInteger(rightExpr);
     if (!left || !right)
         return nullptr;
 
@@ -1341,7 +1351,8 @@ static const Symbol* selectChildRange(const InstanceArraySymbol& array,
     auto& comp = context.getCompilation();
     auto children = comp.emplace<InstanceArraySymbol>(comp, ""sv, syntax.getFirstToken().location(),
                                                       elems, newRange);
-    result.path.emplace_back(*children, std::pair(begin, end));
+    // Store both range expressions for LSP (e.g., LOWER and UPPER in if_array[LOWER:UPPER])
+    result.path.emplace_back(*children, std::pair(begin, end), std::pair{&leftExpr, &rightExpr});
     return children;
 }
 
