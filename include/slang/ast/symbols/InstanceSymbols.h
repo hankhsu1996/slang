@@ -236,10 +236,16 @@ public:
     std::span<const Symbol* const> elements;
     ConstantRange range;
 
+    /// The evaluated dimension that produced this array (for LSP).
+    /// Contains both the computed range and source expressions.
+    /// The `kind` field may be Unknown if the dimension wasn't from explicit syntax.
+    std::optional<EvaluatedDimension> dimension;
+
     InstanceArraySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
-                        std::span<const Symbol* const> elements, ConstantRange range) :
+                        std::span<const Symbol* const> elements, ConstantRange range,
+                        std::optional<EvaluatedDimension> dim = std::nullopt) :
         Symbol(SymbolKind::InstanceArray, name, loc), Scope(compilation, this), elements(elements),
-        range(range) {}
+        range(range), dimension(dim) {}
 
     /// If this array is part of a multidimensional array, walk upward to find
     /// the root array's name. Otherwise returns the name of this symbol itself.

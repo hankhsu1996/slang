@@ -169,7 +169,7 @@ private:
 
         auto result = comp.emplace<InstanceArraySymbol>(comp, nameToken.valueText(),
                                                         nameToken.location(), elements.copy(comp),
-                                                        range);
+                                                        dim.range, dim);
         result->setSyntax(syntax);
 
         for (auto element : elements)
@@ -886,6 +886,7 @@ static Symbol* recurseDefaultIfaceInst(Compilation& comp, const InterfacePortSym
 
     auto result = comp.emplace<InstanceArraySymbol>(comp, port.name, port.location,
                                                     elements.copy(comp), range);
+    // No dimension for this synthetic array (created from default interface port)
     for (auto element : elements)
         result->addMember(*element);
 
@@ -1188,7 +1189,7 @@ InstanceArraySymbol& InstanceArraySymbol::createEmpty(Compilation& compilation,
                                                       std::string_view name, SourceLocation loc) {
     return *compilation.emplace<InstanceArraySymbol>(compilation, name, loc,
                                                      std::span<const Symbol* const>{},
-                                                     ConstantRange());
+                                                     ConstantRange{});
 }
 
 void InstanceArraySymbol::serializeTo(ASTSerializer& serializer) const {
@@ -1515,7 +1516,7 @@ Symbol* recursePrimArray(Compilation& comp, const PrimitiveSymbol& primitive,
 
     auto result = comp.emplace<InstanceArraySymbol>(comp, nameToken.valueText(),
                                                     nameToken.location(), elements.copy(comp),
-                                                    range);
+                                                    dim.range, dim);
     for (auto element : elements)
         result->addMember(*element);
 

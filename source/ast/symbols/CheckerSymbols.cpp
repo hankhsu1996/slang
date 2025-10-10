@@ -161,7 +161,7 @@ Symbol* recurseCheckerArray(Compilation& comp, const CheckerSymbol& checker,
 
     auto result = comp.emplace<InstanceArraySymbol>(comp, nameToken.valueText(),
                                                     nameToken.location(), elements.copy(comp),
-                                                    range);
+                                                    dim.range, dim);
     for (auto element : elements)
         result->addMember(*element);
 
