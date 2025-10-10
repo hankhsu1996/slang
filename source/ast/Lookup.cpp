@@ -2248,12 +2248,21 @@ void Lookup::reportUndeclared(const Scope& initialScope, std::string_view name, 
     if (result.flags.has(LookupResultFlags::SuppressUndeclared))
         return;
 
+    auto& comp = initialScope.getCompilation();
+
+    // In LSP mode, hierarchical references that couldn't be resolved upward
+    // should generate an informational note rather than an error, as the full
+    // design hierarchy is not available in single-file mode.
+    if (isHierarchical && comp.hasFlag(CompilationFlags::LanguageServerMode)) {
+        result.addDiag(initialScope, diag::UnresolvedHierarchicalPath, range) << name;
+        return;
+    }
+
     // The symbol wasn't found, so this is an error. The only question is how helpful we can
     // make that error. Let's try to find the closest named symbol in all reachable scopes,
     // including package imports, to provide a "did you mean" diagnostic. If along the way
     // we happen to actually find the symbol but it's declared later in the source text,
     // we will use that to issue a "used before declared" diagnostic.
-    auto& comp = initialScope.getCompilation();
     const Symbol* actualSym = nullptr;
     const Symbol* closestSym = nullptr;
     int bestDistance = INT_MAX;
