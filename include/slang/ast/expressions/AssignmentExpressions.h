@@ -264,6 +264,9 @@ public:
 
         /// An expression for the value to set.
         not_null<const Expression*> expr;
+
+        /// The source range of the key (member name) in the assignment pattern.
+        SourceRange keyRange;
     };
 
     /// A setter for a specific type.

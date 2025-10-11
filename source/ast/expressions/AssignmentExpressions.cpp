@@ -1263,7 +1263,7 @@ Expression& StructuredAssignmentPatternExpression::forStruct(
                     continue;
                 }
 
-                memberSetters.emplace_back(MemberSetter{member, &expr});
+                memberSetters.emplace_back(MemberSetter{member, &expr, item->key->sourceRange()});
             }
             else {
                 auto found = Lookup::unqualified(*context.scope, name, LookupFlags::Type);
