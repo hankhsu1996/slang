@@ -757,14 +757,16 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
         }
 
         comp.noteReference(*symbol);
-        result->genvar = symbol;  // Store for LSP go-to-definition
+        result->genvar = symbol;                         // Store for LSP go-to-definition
+        result->externalGenvarRefRange = genvar.range(); // Store reference location for LSP
     }
     else {
         // Fabricate a genvar symbol to live in this array since it was declared inline.
         auto genvarSymbol = comp.emplace<GenvarSymbol>(genvar.valueText(), genvar.location());
         genvarSymbol->setSyntax(*genvarSyntax);
         result->addMember(*genvarSymbol);
-        result->genvar = genvarSymbol;  // Store for LSP go-to-definition
+        result->genvar = genvarSymbol; // Store for LSP go-to-definition
+        // externalGenvarRefRange remains std::nullopt for inline genvars
     }
 
     SmallVector<const GenerateBlockSymbol*> entries;

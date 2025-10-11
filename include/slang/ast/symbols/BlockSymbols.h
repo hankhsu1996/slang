@@ -7,6 +7,8 @@
 //------------------------------------------------------------------------------
 #pragma once
 
+#include <optional>
+
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
@@ -166,6 +168,12 @@ public:
 
     /// The genvar symbol used by this loop (for LSP go-to-definition)
     const Symbol* genvar = nullptr;
+
+    /// Source range of the genvar reference in the initializer (for LSP go-to-definition)
+    /// For external genvars: "genvar idx; for (idx = 0; ...)" - stores range of "idx"
+    /// For inline genvars: "for (genvar i = 0; ...)" - std::nullopt (identifier is definition, not
+    /// reference)
+    std::optional<SourceRange> externalGenvarRefRange;
 
     GenerateBlockArraySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                              uint32_t constructIndex) :
