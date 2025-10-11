@@ -355,7 +355,8 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
     }
 
     auto result = [&](ConversionKind cast = ConversionKind::Explicit) {
-        auto* expr = comp.emplace<ConversionExpression>(*type, cast, *operand, syntax.sourceRange());
+        auto* expr = comp.emplace<ConversionExpression>(*type, cast, *operand,
+                                                        syntax.sourceRange());
         if (castWidthExpr)
             expr->setCastWidthExpr(castWidthExpr);
         return expr;
@@ -429,6 +430,8 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
             !operand->as<ConversionExpression>().isImplicit()) {
             operand->sourceRange = syntax.sourceRange();
             operand->type = type;
+            if (castWidthExpr)
+                operand->as<ConversionExpression>().setCastWidthExpr(castWidthExpr);
             return *operand;
         }
     }
