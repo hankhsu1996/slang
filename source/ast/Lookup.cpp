@@ -361,12 +361,12 @@ bool lookupDownward(std::span<const NamePlusLoc> nameParts, NameComponents name,
         if (it == nameParts.rbegin()) {
             if (symbol->kind == SymbolKind::InterfacePort) {
                 result.flags |= LookupResultFlags::IfacePort;
-                result.path.emplace_back(*symbol);
+                result.path.emplace_back(*symbol, name.range);
             }
             else if (symbol->kind != SymbolKind::Package &&
                      symbol->kind != SymbolKind::CompilationUnit && !isCBOrVirtualIface) {
                 result.flags |= LookupResultFlags::IsHierarchical;
-                result.path.emplace_back(*symbol);
+                result.path.emplace_back(*symbol, name.range);
             }
         }
         else if (flags.has(LookupFlags::IfacePortConn) &&
@@ -379,7 +379,7 @@ bool lookupDownward(std::span<const NamePlusLoc> nameParts, NameComponents name,
         }
         else if (!isCBOrVirtualIface) {
             result.flags |= LookupResultFlags::IsHierarchical;
-            result.path.emplace_back(*symbol);
+            result.path.emplace_back(*symbol, name.range);
         }
 
         const ModportSymbol* modport = nullptr;
@@ -562,7 +562,7 @@ bool lookupDownward(std::span<const NamePlusLoc> nameParts, NameComponents name,
                 return false;
             }
         }
-        result.path.emplace_back(*symbol);
+        result.path.emplace_back(*symbol, name.range);
     }
 
     result.found = symbol;
@@ -1258,7 +1258,8 @@ static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSynt
         int32_t translated = *index - array.range.lower();
         auto child = array.elements[size_t(translated)];
         // Store the bound expression for LSP symbol tracking
-        result.path.emplace_back(*child, translated, &boundExpr);
+        // Note: sourceRange is empty here as the element has no direct syntax representation
+        result.path.emplace_back(*child, translated, &boundExpr, SourceRange{});
         return child;
     }
     else {
@@ -1270,7 +1271,9 @@ static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSynt
         for (auto entry : array.entries) {
             if (entry->arrayIndex && *entry->arrayIndex == *index) {
                 // Store the bound expression for LSP symbol tracking
-                result.path.emplace_back(*entry, idx, &boundExpr);
+                // Note: sourceRange is empty here as the element has no direct syntax
+                // representation
+                result.path.emplace_back(*entry, idx, &boundExpr, SourceRange{});
                 return entry;
             }
             idx++;
@@ -1352,7 +1355,9 @@ static const Symbol* selectChildRange(const InstanceArraySymbol& array,
     auto children = comp.emplace<InstanceArraySymbol>(comp, ""sv, syntax.getFirstToken().location(),
                                                       elems, newRange);
     // Store both range expressions for LSP (e.g., LOWER and UPPER in if_array[LOWER:UPPER])
-    result.path.emplace_back(*children, std::pair(begin, end), std::pair{&leftExpr, &rightExpr});
+    // Note: sourceRange is empty here as this is a runtime-generated array slice
+    result.path.emplace_back(*children, std::pair(begin, end), std::pair{&leftExpr, &rightExpr},
+                             SourceRange{});
     return children;
 }
 

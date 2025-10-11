@@ -11,6 +11,7 @@
 #include <string_view>
 #include <variant>
 
+#include "slang/text/SourceLocation.h"
 #include "slang/util/Util.h"
 
 namespace slang {
@@ -43,21 +44,28 @@ public:
                      std::pair<const Expression*, const Expression*>>
             selectorExprs;
 
+        /// Source range for this element (for LSP precise navigation).
+        /// Captured during hierarchical lookup to preserve syntax-to-symbol mapping.
+        SourceRange sourceRange;
+
         /// Constructs an element with a name selector.
-        Element(const Symbol& symbol);
+        Element(const Symbol& symbol, SourceRange sourceRange = {});
 
         /// Constructs an element with an index selector.
-        Element(const Symbol& symbol, int32_t index);
+        Element(const Symbol& symbol, int32_t index, SourceRange sourceRange = {});
 
         /// Constructs an element with a range selector.
-        Element(const Symbol& symbol, std::pair<int32_t, int32_t> range);
+        Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
+                SourceRange sourceRange = {});
 
         /// Constructs an element with an index selector and expression (for LSP).
-        Element(const Symbol& symbol, int32_t index, const Expression* expr);
+        Element(const Symbol& symbol, int32_t index, const Expression* expr,
+                SourceRange sourceRange = {});
 
         /// Constructs an element with a range selector and expressions (for LSP).
         Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
-                std::pair<const Expression*, const Expression*> exprs);
+                std::pair<const Expression*, const Expression*> exprs,
+                SourceRange sourceRange = {});
     };
 
     /// The target symbol of the hierarchical reference.

@@ -19,26 +19,29 @@
 
 namespace slang::ast {
 
-HierarchicalReference::Element::Element(const Symbol& symbol) :
-    symbol(&symbol), selector(symbol.name) {
-}
-
-HierarchicalReference::Element::Element(const Symbol& symbol, int32_t index) :
-    symbol(&symbol), selector(index) {
-}
-
-HierarchicalReference::Element::Element(const Symbol& symbol, std::pair<int32_t, int32_t> range) :
-    symbol(&symbol), selector(range) {
+HierarchicalReference::Element::Element(const Symbol& symbol, SourceRange sourceRange) :
+    symbol(&symbol), selector(symbol.name), sourceRange(sourceRange) {
 }
 
 HierarchicalReference::Element::Element(const Symbol& symbol, int32_t index,
-                                        const Expression* expr) :
-    symbol(&symbol), selector(index), selectorExprs(expr) {
+                                        SourceRange sourceRange) :
+    symbol(&symbol), selector(index), sourceRange(sourceRange) {
 }
 
 HierarchicalReference::Element::Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
-                                        std::pair<const Expression*, const Expression*> exprs) :
-    symbol(&symbol), selector(range), selectorExprs(exprs) {
+                                        SourceRange sourceRange) :
+    symbol(&symbol), selector(range), sourceRange(sourceRange) {
+}
+
+HierarchicalReference::Element::Element(const Symbol& symbol, int32_t index, const Expression* expr,
+                                        SourceRange sourceRange) :
+    symbol(&symbol), selector(index), selectorExprs(expr), sourceRange(sourceRange) {
+}
+
+HierarchicalReference::Element::Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
+                                        std::pair<const Expression*, const Expression*> exprs,
+                                        SourceRange sourceRange) :
+    symbol(&symbol), selector(range), selectorExprs(exprs), sourceRange(sourceRange) {
 }
 
 HierarchicalReference HierarchicalReference::fromLookup(Compilation& compilation,
