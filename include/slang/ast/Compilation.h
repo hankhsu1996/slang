@@ -757,6 +757,11 @@ public:
 
     /// @}
 
+protected:
+    // The name map for packages. Note that packages have their own namespace,
+    // which is why they can't share the definitions name table.
+    flat_hash_map<std::string_view, const PackageSymbol*> packageMap;
+
 private:
     friend class Lookup;
     friend class Scope;
@@ -862,10 +867,6 @@ private:
 
     // Map from token kinds to the built-in net types.
     flat_hash_map<parsing::TokenKind, std::unique_ptr<NetType>> knownNetTypes;
-
-    // The name map for packages. Note that packages have their own namespace,
-    // which is why they can't share the definitions name table.
-    flat_hash_map<std::string_view, const PackageSymbol*> packageMap;
 
     // A list of known system subroutines, indexed via KnownSystemName values.
     std::vector<std::shared_ptr<SystemSubroutine>> systemSubroutines;
