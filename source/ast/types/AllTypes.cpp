@@ -1383,8 +1383,14 @@ TypeReferenceSymbol::TypeReferenceSymbol(const Type& resolvedType, SourceRange u
 const TypeReferenceSymbol& TypeReferenceSymbol::create(const Type& resolvedType,
                                                       SourceRange usageLocation,
                                                       const syntax::SyntaxNode* syntax,
-                                                      Compilation& compilation) {
-    return *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation, syntax);
+                                                      Compilation& compilation,
+                                                      const Scope* usageScope) {
+    auto& typeRef = *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation, syntax);
+    // Set parent scope to usage context for proper LSP navigation
+    if (usageScope) {
+        typeRef.setParent(*usageScope);
+    }
+    return typeRef;
 }
 
 ConstantValue TypeReferenceSymbol::getDefaultValueImpl() const {

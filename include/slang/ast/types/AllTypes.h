@@ -632,9 +632,10 @@ public:
                        const syntax::SyntaxNode* syntax);
 
     /// Creates a TypeReferenceSymbol for typedef usages to preserve location information.
+    /// @param usageScope The scope where this type reference appears (usage context)
     static const TypeReferenceSymbol& create(const Type& resolvedType, SourceRange usageLocation,
                                             const syntax::SyntaxNode* syntax,
-                                            Compilation& compilation);
+                                            Compilation& compilation, const Scope* usageScope);
 
     /// Returns the usage location where this type reference appears.
     SourceRange getUsageLocation() const { return usageLocation; }
