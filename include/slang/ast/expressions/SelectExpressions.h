@@ -16,8 +16,8 @@ namespace slang::ast {
 class SLANG_EXPORT ElementSelectExpression final : public Expression {
 public:
     ElementSelectExpression(const Type& type, Expression& value, const Expression& selector,
-                            SourceRange sourceRange) :
-        Expression(ExpressionKind::ElementSelect, type, sourceRange), value_(&value),
+                            SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::ElementSelect, type, sourceRange, compilation), value_(&value),
         selector_(&selector) {}
 
     /// @returns the value being selected from
@@ -68,8 +68,8 @@ class SLANG_EXPORT RangeSelectExpression final : public Expression {
 public:
     RangeSelectExpression(RangeSelectionKind selectionKind, const Type& type, Expression& value,
                           const Expression& left, const Expression& right,
-                          SourceRange sourceRange) :
-        Expression(ExpressionKind::RangeSelect, type, sourceRange), value_(&value), left_(&left),
+                          SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::RangeSelect, type, sourceRange, compilation), value_(&value), left_(&left),
         right_(&right), selectionKind(selectionKind) {}
 
     /// @returns the value being selected from
@@ -131,8 +131,9 @@ public:
     const Symbol& member;
 
     MemberAccessExpression(const Type& type, Expression& value, const Symbol& member,
-                           SourceRange sourceRange, SourceRange memberNameRange = {}) :
-        Expression(ExpressionKind::MemberAccess, type, sourceRange), member(member),
+                           SourceRange sourceRange, Compilation& compilation,
+                           SourceRange memberNameRange = {}) :
+        Expression(ExpressionKind::MemberAccess, type, sourceRange, compilation), member(member),
         value_(&value), memberNameRange_(memberNameRange.start().valid() ? memberNameRange : sourceRange) {}
 
     /// @returns the value being selected from

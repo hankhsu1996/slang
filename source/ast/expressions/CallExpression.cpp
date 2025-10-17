@@ -313,7 +313,7 @@ Expression& CallExpression::fromArgs(Compilation& compilation, const Subroutine&
 
     auto result = compilation.emplace<CallExpression>(&symbol, symbol.getReturnType(), thisClass,
                                                       boundArgs.copy(compilation),
-                                                      context.getLocation(), range);
+                                                      context.getLocation(), range, compilation);
     if (bad)
         return badExpr(compilation, result);
 
@@ -610,7 +610,7 @@ Expression& CallExpression::createSystemCall(
                     case SyntaxKind::EmptyArgument:
                         if (subroutine.allowEmptyArgument(index)) {
                             buffer.push_back(compilation.emplace<EmptyArgumentExpression>(
-                                compilation.getVoidType(), actualArgs[i]->sourceRange()));
+                                compilation.getVoidType(), actualArgs[i]->sourceRange(), compilation));
                         }
                         else {
                             argContext.addDiag(diag::EmptyArgNotAllowed,
@@ -647,7 +647,7 @@ Expression& CallExpression::createSystemCall(
     const Type& type = subroutine.checkArguments(context, buffer, range, iterOrThis);
     auto expr = compilation.emplace<CallExpression>(callInfo, type, nullptr,
                                                     buffer.copy(compilation), context.getLocation(),
-                                                    range);
+                                                    range, compilation);
 
     if (type.isError())
         return badExpr(compilation, expr);

@@ -15,6 +15,7 @@
 namespace slang::ast {
 
 class ASTSerializer;
+class Compilation;
 class EvalContext;
 class InstanceSymbolBase;
 class Type;
@@ -100,6 +101,9 @@ public:
 
     /// The source range of this expression, if it originated from source code.
     SourceRange sourceRange;
+
+    /// The compilation that created this expression.
+    Compilation* compilation = nullptr;
 
     Expression(const Expression&) = delete;
     Expression& operator=(const Expression&) = delete;
@@ -244,6 +248,9 @@ public:
     /// If the pointer is null, the expression hasn't been evaluated yet.
     const ConstantValue* getConstant() const { return constant; }
 
+    /// Gets the compilation that created this expression.
+    Compilation& getCompilation() const { return *compilation; }
+
     /// Evaluates the expression under the given evaluation context. Any errors that occur
     /// will be stored in the evaluation context instead of issued to the compilation.
     ConstantValue eval(EvalContext& context) const;
@@ -355,8 +362,14 @@ public:
     decltype(auto) visit(TVisitor&& visitor, Args&&... args) const;
 
 protected:
-    Expression(ExpressionKind kind, const Type& type, SourceRange sourceRange) :
-        kind(kind), type(&type), sourceRange(sourceRange) {}
+    Expression(ExpressionKind kind, const Type& type, SourceRange sourceRange,
+               Compilation& comp) :
+        kind(kind), type(&type), sourceRange(sourceRange), compilation(&comp) {}
+
+    // Special constructor for cases where Compilation is not available (e.g., static instances)
+    Expression(ExpressionKind kind, const Type& type, SourceRange sourceRange,
+               std::nullptr_t) :
+        kind(kind), type(&type), sourceRange(sourceRange), compilation(nullptr) {}
 
     static Expression& create(Compilation& compilation, const ExpressionSyntax& syntax,
                               const ASTContext& context,
@@ -435,8 +448,12 @@ public:
     /// A wrapped sub-expression that is considered invalid.
     const Expression* child;
 
+    InvalidExpression(const Expression* child, const Type& type, Compilation& compilation) :
+        Expression(ExpressionKind::Invalid, type, SourceRange(), compilation), child(child) {}
+
+    // Special constructor for static Instance (no compilation available)
     InvalidExpression(const Expression* child, const Type& type) :
-        Expression(ExpressionKind::Invalid, type, SourceRange()), child(child) {}
+        Expression(ExpressionKind::Invalid, type, SourceRange(), nullptr), child(child) {}
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
     void serializeTo(ASTSerializer& serializer) const;

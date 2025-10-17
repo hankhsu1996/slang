@@ -225,7 +225,7 @@ Expression& UnaryExpression::fromSyntax(Compilation& compilation,
     const Type* type = operand.type;
 
     auto result = compilation.emplace<UnaryExpression>(op, *type, operand, syntax.sourceRange(),
-                                                       syntax.operatorToken.range());
+                                                       syntax.operatorToken.range(), compilation);
     if (operand.bad())
         return badExpr(compilation, result);
 
@@ -306,7 +306,7 @@ Expression& UnaryExpression::fromSyntax(Compilation& compilation,
 
     Expression* result = compilation.emplace<UnaryExpression>(OpInfo::getUnary(syntax.kind), *type,
                                                               operand, syntax.sourceRange(),
-                                                              syntax.operatorToken.range());
+                                                              syntax.operatorToken.range(), compilation);
     if (operand.bad() || !operand.requireLValue(context, syntax.operatorToken.location()))
         return badExpr(compilation, result);
 
@@ -715,7 +715,7 @@ Expression& BinaryExpression::fromComponents(Expression& lhs, Expression& rhs, B
     const Type* lt = lhs.type;
     const Type* rt = rhs.type;
 
-    auto result = compilation.emplace<BinaryExpression>(op, *lt, lhs, rhs, sourceRange, opRange);
+    auto result = compilation.emplace<BinaryExpression>(op, *lt, lhs, rhs, sourceRange, opRange, compilation);
     if (lhs.bad() || rhs.bad())
         return badExpr(compilation, result);
 
@@ -1386,7 +1386,7 @@ Expression& ConditionalExpression::fromSyntax(Compilation& comp,
     const Type* resultType = OpInfo::binaryType(comp, lt, rt, isFourState);
     auto result = comp.emplace<ConditionalExpression>(*resultType, conditions.copy(comp),
                                                       syntax.question.location(), left, right,
-                                                      syntax.sourceRange(), isConst, isTrue);
+                                                      syntax.sourceRange(), isConst, isTrue, comp);
     if (bad)
         return badExpr(comp, result);
 
@@ -1620,7 +1620,7 @@ Expression& InsideExpression::fromSyntax(Compilation& compilation,
 
     auto boundSpan = bound.copy(compilation);
     auto result = compilation.emplace<InsideExpression>(compilation.getLogicType(), *boundSpan[0],
-                                                        boundSpan.subspan(1), syntax.sourceRange());
+                                                        boundSpan.subspan(1), syntax.sourceRange(), compilation);
     if (bad)
         return badExpr(compilation, result);
 
@@ -1784,7 +1784,7 @@ Expression& ConcatenationExpression::fromSyntax(Compilation& comp,
         }
 
         auto result = comp.emplace<ConcatenationExpression>(type, buffer.copy(comp),
-                                                            syntax.sourceRange());
+                                                            syntax.sourceRange(), comp);
         if (bad)
             return badExpr(comp, result);
 
@@ -1879,7 +1879,7 @@ Expression& ConcatenationExpression::fromSyntax(Compilation& comp,
     if (errored) {
         return badExpr(comp, comp.emplace<ConcatenationExpression>(comp.getErrorType(),
                                                                    std::span<Expression*>(),
-                                                                   syntax.sourceRange()));
+                                                                   syntax.sourceRange(), comp));
     }
 
     const Type* type;
@@ -1888,7 +1888,7 @@ Expression& ConcatenationExpression::fromSyntax(Compilation& comp,
     else
         type = &comp.getType(totalWidth, flags);
 
-    return *comp.emplace<ConcatenationExpression>(*type, buffer.copy(comp), syntax.sourceRange());
+    return *comp.emplace<ConcatenationExpression>(*type, buffer.copy(comp), syntax.sourceRange(), comp);
 }
 
 Expression& ConcatenationExpression::fromEmpty(Compilation& comp,
@@ -1914,7 +1914,7 @@ Expression& ConcatenationExpression::fromEmpty(Compilation& comp,
     }
 
     return *comp.emplace<ConcatenationExpression>(*assignmentTarget, std::span<Expression*>{},
-                                                  syntax.sourceRange());
+                                                  syntax.sourceRange(), comp);
 }
 
 ConstantValue ConcatenationExpression::evalImpl(EvalContext& context) const {
@@ -2031,7 +2031,7 @@ Expression& ReplicationExpression::fromSyntax(Compilation& compilation,
     Expression* right = &create(compilation, *syntax.concatenation, context);
 
     auto result = compilation.emplace<ReplicationExpression>(compilation.getErrorType(), left,
-                                                             *right, syntax.sourceRange());
+                                                             *right, syntax.sourceRange(), compilation);
     if (left.bad() || right->bad())
         return badExpr(compilation, result);
 
@@ -2144,7 +2144,7 @@ Expression& StreamingConcatenationExpression::fromSyntax(
     auto badResult = [&]() -> Expression& {
         return badExpr(comp, comp.emplace<StreamingConcatenationExpression>(
                                  comp.getErrorType(), sliceSize, 0u,
-                                 std::span<const StreamExpression>(), syntax.sourceRange()));
+                                 std::span<const StreamExpression>(), syntax.sourceRange(), comp));
     };
 
     if (!context.flags.has(ASTFlags::StreamingAllowed) &&
@@ -2278,7 +2278,7 @@ Expression& StreamingConcatenationExpression::fromSyntax(
     // context can be silenced, so we need to come up with a real result type here,
     // which we do by converting to a packed bit vector of bitstream width.
     auto& result = *comp.emplace<StreamingConcatenationExpression>(
-        comp.getVoidType(), sliceSize, bitstreamWidth, buffer.ccopy(comp), syntax.sourceRange());
+        comp.getVoidType(), sliceSize, bitstreamWidth, buffer.ccopy(comp), syntax.sourceRange(), comp);
 
     if (!context.flags.has(ASTFlags::StreamingAllowed)) {
         // Cap the width so we don't overflow. The conversion will error for us
@@ -2376,7 +2376,7 @@ Expression& ValueRangeExpression::fromSyntax(Compilation& comp,
     auto& left = create(comp, *syntax.left, context, flags);
     auto& right = create(comp, *syntax.right, context, flags);
     auto result = comp.emplace<ValueRangeExpression>(comp.getVoidType(), rangeKind, left, right,
-                                                     syntax.sourceRange());
+                                                     syntax.sourceRange(), comp);
     if (left.bad() || right.bad())
         return badExpr(comp, result);
 

@@ -20,8 +20,8 @@ namespace slang::ast {
 using namespace syntax;
 
 IntegerLiteral::IntegerLiteral(BumpAllocator& alloc, const Type& type, const SVInt& value,
-                               bool isDeclaredUnsized, SourceRange sourceRange) :
-    Expression(ExpressionKind::IntegerLiteral, type, sourceRange),
+                               bool isDeclaredUnsized, SourceRange sourceRange, Compilation& compilation) :
+    Expression(ExpressionKind::IntegerLiteral, type, sourceRange, compilation),
     isDeclaredUnsized(isDeclaredUnsized),
     valueStorage(value.getBitWidth(), value.isSigned(), value.hasUnknown()) {
 
@@ -55,7 +55,7 @@ Expression& IntegerLiteral::fromSyntax(Compilation& comp, const LiteralExpressio
         type = &comp.getType(val.getBitWidth(), IntegralFlags::Signed);
     }
 
-    return *comp.emplace<IntegerLiteral>(comp, *type, std::move(val), true, syntax.sourceRange());
+    return *comp.emplace<IntegerLiteral>(comp, *type, std::move(val), true, syntax.sourceRange(), comp);
 }
 
 Expression& IntegerLiteral::fromSyntax(Compilation& compilation,
@@ -70,7 +70,7 @@ Expression& IntegerLiteral::fromSyntax(Compilation& compilation,
 
     const Type& type = compilation.getType(value.getBitWidth(), flags);
     return *compilation.emplace<IntegerLiteral>(compilation, type, value, !syntax.size.valid(),
-                                                syntax.sourceRange());
+                                                syntax.sourceRange(), compilation);
 }
 
 Expression& IntegerLiteral::fromConstant(Compilation& compilation, const SVInt& value) {
@@ -78,7 +78,7 @@ Expression& IntegerLiteral::fromConstant(Compilation& compilation, const SVInt& 
     val.setSigned(true);
 
     return *compilation.emplace<IntegerLiteral>(compilation, compilation.getIntType(),
-                                                std::move(val), true, SourceRange::NoLocation);
+                                                std::move(val), true, SourceRange::NoLocation, compilation);
 }
 
 ConstantValue IntegerLiteral::evalImpl(EvalContext&) const {
@@ -117,7 +117,7 @@ Expression& RealLiteral::fromSyntax(Compilation& compilation,
     SLANG_ASSERT(syntax.kind == SyntaxKind::RealLiteralExpression);
 
     return *compilation.emplace<RealLiteral>(compilation.getRealType(), syntax.literal.realValue(),
-                                             syntax.sourceRange());
+                                             syntax.sourceRange(), compilation);
 }
 
 ConstantValue RealLiteral::evalImpl(EvalContext&) const {
@@ -141,7 +141,7 @@ Expression& TimeLiteral::fromSyntax(const ASTContext& context,
 
     auto& comp = context.getCompilation();
     return *comp.emplace<TimeLiteral>(comp.getType(SyntaxKind::RealTimeType), value, scale,
-                                      syntax.sourceRange());
+                                      syntax.sourceRange(), comp);
 }
 
 ConstantValue TimeLiteral::evalImpl(EvalContext&) const {
@@ -162,7 +162,7 @@ Expression& UnbasedUnsizedIntegerLiteral::fromSyntax(Compilation& compilation,
     return *compilation.emplace<UnbasedUnsizedIntegerLiteral>(
         compilation.getType(1,
                             val.isUnknown() ? IntegralFlags::FourState : IntegralFlags::TwoState),
-        val, syntax.sourceRange());
+        val, syntax.sourceRange(), compilation);
 }
 
 bool UnbasedUnsizedIntegerLiteral::propagateType(const ASTContext&, const Type& newType,
@@ -217,7 +217,7 @@ void UnbasedUnsizedIntegerLiteral::serializeTo(ASTSerializer& serializer) const 
 Expression& NullLiteral::fromSyntax(Compilation& compilation,
                                     const LiteralExpressionSyntax& syntax) {
     SLANG_ASSERT(syntax.kind == SyntaxKind::NullLiteralExpression);
-    return *compilation.emplace<NullLiteral>(compilation.getNullType(), syntax.sourceRange());
+    return *compilation.emplace<NullLiteral>(compilation.getNullType(), syntax.sourceRange(), compilation);
 }
 
 ConstantValue NullLiteral::evalImpl(EvalContext&) const {
@@ -234,7 +234,7 @@ Expression& UnboundedLiteral::fromSyntax(const ASTContext& context,
         return badExpr(comp, nullptr);
     }
 
-    return *comp.emplace<UnboundedLiteral>(comp.getUnboundedType(), syntax.sourceRange());
+    return *comp.emplace<UnboundedLiteral>(comp.getUnboundedType(), syntax.sourceRange(), comp);
 }
 
 ConstantValue UnboundedLiteral::evalImpl(EvalContext& context) const {
@@ -253,8 +253,8 @@ ConstantValue UnboundedLiteral::evalImpl(EvalContext& context) const {
 }
 
 StringLiteral::StringLiteral(const Type& type, std::string_view value, std::string_view rawValue,
-                             ConstantValue& intVal, SourceRange sourceRange) :
-    Expression(ExpressionKind::StringLiteral, type, sourceRange), value(value), rawValue(rawValue),
+                             ConstantValue& intVal, SourceRange sourceRange, Compilation& compilation) :
+    Expression(ExpressionKind::StringLiteral, type, sourceRange, compilation), value(value), rawValue(rawValue),
     intStorage(&intVal) {
 }
 
@@ -291,7 +291,7 @@ Expression& StringLiteral::fromSyntax(const ASTContext& context,
 
     auto& type = comp.getType(width, IntegralFlags::Unsigned);
     return *comp.emplace<StringLiteral>(type, value, syntax.literal.rawText(), *intVal,
-                                        syntax.sourceRange());
+                                        syntax.sourceRange(), comp);
 }
 
 const ConstantValue& StringLiteral::getIntValue() const {

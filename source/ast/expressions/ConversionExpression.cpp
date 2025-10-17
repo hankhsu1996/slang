@@ -211,7 +211,7 @@ Expression& Expression::convertAssignment(const ASTContext& context, const Type&
                 // The size rule is not identical to explicit bit-stream casting so a different
                 // ConversionKind is used.
                 result = comp.emplace<ConversionExpression>(type, ConversionKind::StreamingConcat,
-                                                            *result, result->sourceRange);
+                                                            *result, result->sourceRange, comp);
                 selfDetermined(context, result);
                 return *result;
             }
@@ -229,7 +229,7 @@ Expression& Expression::convertAssignment(const ASTContext& context, const Type&
             auto& vre = expr.as<ValueRangeExpression>();
             result = comp.emplace<ValueRangeExpression>(*expr.type, vre.rangeKind,
                                                         convert(vre.left()), convert(vre.right()),
-                                                        expr.sourceRange);
+                                                        expr.sourceRange, comp);
             result->syntax = expr.syntax;
             return *result;
         }
@@ -356,7 +356,7 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
 
     auto result = [&](ConversionKind cast = ConversionKind::Explicit) {
         auto* expr = comp.emplace<ConversionExpression>(*type, cast, *operand,
-                                                        syntax.sourceRange());
+                                                        syntax.sourceRange(), comp);
         if (castWidthExpr)
             expr->setCastWidthExpr(castWidthExpr);
         return expr;
@@ -448,7 +448,7 @@ Expression& ConversionExpression::fromSyntax(Compilation& compilation,
     auto& operand = selfDetermined(compilation, *syntax.inner, context);
     auto result = compilation.emplace<ConversionExpression>(compilation.getErrorType(),
                                                             ConversionKind::Explicit, operand,
-                                                            syntax.sourceRange());
+                                                            syntax.sourceRange(), compilation);
     if (operand.bad())
         return badExpr(compilation, result);
 
@@ -486,7 +486,7 @@ Expression& ConversionExpression::makeImplicit(const ASTContext& context, const 
     selfDetermined(context, op);
 
     auto result = comp.emplace<ConversionExpression>(targetType, conversionKind, *op,
-                                                     op->sourceRange);
+                                                     op->sourceRange, comp);
     result->implicitOpRange = operatorRange;
 
     if ((conversionKind == ConversionKind::Implicit ||

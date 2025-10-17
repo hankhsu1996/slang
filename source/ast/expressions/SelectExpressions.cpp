@@ -159,7 +159,7 @@ Expression& ElementSelectExpression::fromSyntax(Compilation& compilation, Expres
     }
 
     auto result = compilation.emplace<ElementSelectExpression>(resultType, value, *selector,
-                                                               fullRange);
+                                                               fullRange, compilation);
     if (value.bad() || selector->bad() || result->bad())
         return badExpr(compilation, result);
 
@@ -198,7 +198,7 @@ Expression& ElementSelectExpression::fromConstant(Compilation& compilation, Expr
                                             indexExpr->sourceRange, value.sourceRange, false);
 
     auto result = compilation.emplace<ElementSelectExpression>(resultType, value, *indexExpr,
-                                                               value.sourceRange);
+                                                               value.sourceRange, compilation);
     if (value.bad() || indexExpr->bad() || result->bad())
         return badExpr(compilation, result);
 
@@ -441,7 +441,7 @@ Expression& RangeSelectExpression::fromSyntax(Compilation& compilation, Expressi
 
     auto result = compilation.emplace<RangeSelectExpression>(selectionKind,
                                                              compilation.getErrorType(), value,
-                                                             left, right, fullRange);
+                                                             left, right, fullRange, compilation);
 
     if (value.bad() || left.bad() || right.bad())
         return badExpr(compilation, result);
@@ -625,7 +625,7 @@ Expression& RangeSelectExpression::fromConstant(Compilation& compilation, Expres
 
     auto result = compilation.emplace<RangeSelectExpression>(RangeSelectionKind::Simple,
                                                              compilation.getErrorType(), value,
-                                                             *left, *right, value.sourceRange);
+                                                             *left, *right, value.sourceRange, compilation);
     if (value.bad() || left->bad() || right->bad())
         return badExpr(compilation, result);
 
@@ -976,7 +976,7 @@ Expression& MemberAccessExpression::fromSelector(
         case SymbolKind::Field: {
             auto& field = member->as<FieldSymbol>();
             return *compilation.emplace<MemberAccessExpression>(field.getType(), expr, field,
-                                                                range, selector.nameRange);
+                                                                range, compilation, selector.nameRange);
         }
         case SymbolKind::ClassProperty: {
             Lookup::ensureVisible(*member, context, selector.nameRange);
@@ -986,7 +986,7 @@ Expression& MemberAccessExpression::fromSelector(
                 return badExpr(compilation, &expr);
             }
 
-            return *compilation.emplace<MemberAccessExpression>(prop.getType(), expr, prop, range, selector.nameRange);
+            return *compilation.emplace<MemberAccessExpression>(prop.getType(), expr, prop, range, compilation, selector.nameRange);
         }
         case SymbolKind::Subroutine: {
             Lookup::ensureVisible(*member, context, selector.nameRange);
@@ -1006,7 +1006,7 @@ Expression& MemberAccessExpression::fromSelector(
             if (errorIfNotProcedural())
                 return badExpr(compilation, &expr);
             return *compilation.emplace<MemberAccessExpression>(compilation.getVoidType(), expr,
-                                                                *member, range, selector.nameRange);
+                                                                *member, range, compilation, selector.nameRange);
         }
         case SymbolKind::EnumValue:
             // The thing being selected from doesn't actually matter, since the
@@ -1016,7 +1016,7 @@ Expression& MemberAccessExpression::fromSelector(
             if (member->isValue()) {
                 auto& value = member->as<ValueSymbol>();
                 return *compilation.emplace<MemberAccessExpression>(value.getType(), expr, value,
-                                                                    range, selector.nameRange);
+                                                                    range, compilation, selector.nameRange);
             }
 
             auto& diag = context.addDiag(diag::InvalidClassAccess, selector.dotLocation);

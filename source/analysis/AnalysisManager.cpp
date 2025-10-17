@@ -67,6 +67,11 @@ AnalyzedDesign AnalysisManager::analyze(const Compilation& compilation) {
     if (compilation.hasFatalErrors())
         return {};
 
+    // Set the compilation for all worker state contexts.
+    // Note: const_cast is needed because expression creation during analysis requires mutable access.
+    for (auto& state : workerStates)
+        state.context.setCompilation(const_cast<Compilation&>(compilation));
+
     // Analyze all compilation units first.
     auto& root = compilation.getRootNoFinalize();
     for (auto unit : root.compilationUnits)

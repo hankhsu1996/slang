@@ -85,7 +85,8 @@ void DriverTracker::add(AnalysisContext& context, DriverAlloc& driverAlloc,
     }
     else if (auto is = symbol.internalSymbol) {
         auto nve = context.alloc.emplace<NamedValueExpression>(
-            is->as<ValueSymbol>(), SourceRange{is->location, is->location + is->name.length()});
+            is->as<ValueSymbol>(), SourceRange{is->location, is->location + is->name.length()},
+            *context.compilation);
         addDrivers(context, driverAlloc, *nve, DriverKind::Continuous, flags, scope->asSymbol());
     }
 }
@@ -174,20 +175,22 @@ void DriverTracker::propagateModportDriver(AnalysisContext& context, DriverAlloc
         case ExpressionKind::ElementSelect: {
             auto& es = originalDriver.prefixExpression->as<ElementSelectExpression>();
             initialLSP = context.alloc.emplace<ElementSelectExpression>(
-                *es.type, const_cast<Expression&>(connectionExpr), es.selector(), es.sourceRange);
+                *es.type, const_cast<Expression&>(connectionExpr), es.selector(), es.sourceRange,
+                *context.compilation);
             break;
         }
         case ExpressionKind::RangeSelect: {
             auto& rs = originalDriver.prefixExpression->as<RangeSelectExpression>();
             initialLSP = context.alloc.emplace<RangeSelectExpression>(
                 rs.getSelectionKind(), *rs.type, const_cast<Expression&>(connectionExpr), rs.left(),
-                rs.right(), rs.sourceRange);
+                rs.right(), rs.sourceRange, *context.compilation);
             break;
         }
         case ExpressionKind::MemberAccess: {
             auto& ma = originalDriver.prefixExpression->as<MemberAccessExpression>();
             initialLSP = context.alloc.emplace<MemberAccessExpression>(
-                *ma.type, const_cast<Expression&>(connectionExpr), ma.member, ma.sourceRange);
+                *ma.type, const_cast<Expression&>(connectionExpr), ma.member, ma.sourceRange,
+                *context.compilation);
             break;
         }
         default:
@@ -408,7 +411,8 @@ const HierarchicalReference* DriverTracker::addDriver(
         // initializer expression that should count as a driver as well.
         auto addInitializer = [&](DriverKind driverKind) {
             auto& valExpr = *context.alloc.emplace<NamedValueExpression>(
-                symbol, SourceRange{symbol.location, symbol.location + symbol.name.length()});
+                symbol, SourceRange{symbol.location, symbol.location + symbol.name.length()},
+                *context.compilation);
 
             DriverBitRange initBounds{0, symbol.getType().getSelectableWidth() - 1};
             auto initDriver = context.alloc.emplace<ValueDriver>(driverKind, valExpr,

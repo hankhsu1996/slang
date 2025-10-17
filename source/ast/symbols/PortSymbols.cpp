@@ -1806,7 +1806,7 @@ const Expression* PortConnection::getExpression() const {
                     e = &Expression::convertAssignment(context, *type, *e, implicitNameRange);
                 }
                 else if (direction != ArgumentDirection::Ref) {
-                    auto rhs = comp.emplace<EmptyArgumentExpression>(*type, implicitNameRange);
+                    auto rhs = comp.emplace<EmptyArgumentExpression>(*type, implicitNameRange, comp);
                     Expression::convertAssignment(context, *e->type, *rhs, implicitNameRange, &e);
                 }
 

@@ -20,7 +20,7 @@ public:
     bool isDeclaredUnsized;
 
     IntegerLiteral(BumpAllocator& alloc, const Type& type, const SVInt& value,
-                   bool isDeclaredUnsized, SourceRange sourceRange);
+                   bool isDeclaredUnsized, SourceRange sourceRange, Compilation& compilation);
 
     /// Gets the value of the literal.
     SVInt getValue() const { return valueStorage; }
@@ -46,8 +46,9 @@ private:
 /// Represents a real number literal.
 class SLANG_EXPORT RealLiteral final : public Expression {
 public:
-    RealLiteral(const Type& type, double value, SourceRange sourceRange) :
-        Expression(ExpressionKind::RealLiteral, type, sourceRange), value(value) {}
+    RealLiteral(const Type& type, double value, SourceRange sourceRange,
+                Compilation& compilation) :
+        Expression(ExpressionKind::RealLiteral, type, sourceRange, compilation), value(value) {}
 
     /// Gets the value of the literal.
     double getValue() const { return value; }
@@ -68,8 +69,10 @@ private:
 /// Represents a time literal.
 class SLANG_EXPORT TimeLiteral final : public Expression {
 public:
-    TimeLiteral(const Type& type, double value, TimeScale scale, SourceRange sourceRange) :
-        Expression(ExpressionKind::TimeLiteral, type, sourceRange), value(value), scale(scale) {}
+    TimeLiteral(const Type& type, double value, TimeScale scale, SourceRange sourceRange,
+                Compilation& compilation) :
+        Expression(ExpressionKind::TimeLiteral, type, sourceRange, compilation), value(value),
+        scale(scale) {}
 
     /// Gets the value of the literal.
     double getValue() const { return value; }
@@ -94,8 +97,10 @@ private:
 /// Represents an unbased unsized integer literal, which fills all bits in an expression.
 class SLANG_EXPORT UnbasedUnsizedIntegerLiteral final : public Expression {
 public:
-    UnbasedUnsizedIntegerLiteral(const Type& type, logic_t value, SourceRange sourceRange) :
-        Expression(ExpressionKind::UnbasedUnsizedIntegerLiteral, type, sourceRange), value(value) {}
+    UnbasedUnsizedIntegerLiteral(const Type& type, logic_t value, SourceRange sourceRange,
+                                  Compilation& compilation) :
+        Expression(ExpressionKind::UnbasedUnsizedIntegerLiteral, type, sourceRange, compilation),
+        value(value) {}
 
     /// Gets the value of the literal as a single bit.
     logic_t getLiteralValue() const { return value; }
@@ -125,8 +130,8 @@ private:
 /// Represents a null literal.
 class SLANG_EXPORT NullLiteral final : public Expression {
 public:
-    NullLiteral(const Type& type, SourceRange sourceRange) :
-        Expression(ExpressionKind::NullLiteral, type, sourceRange) {}
+    NullLiteral(const Type& type, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::NullLiteral, type, sourceRange, compilation) {}
 
     ConstantValue evalImpl(EvalContext& context) const;
 
@@ -141,8 +146,8 @@ public:
 /// Represents the unbounded queue or range literal.
 class SLANG_EXPORT UnboundedLiteral final : public Expression {
 public:
-    UnboundedLiteral(const Type& type, SourceRange sourceRange) :
-        Expression(ExpressionKind::UnboundedLiteral, type, sourceRange) {}
+    UnboundedLiteral(const Type& type, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::UnboundedLiteral, type, sourceRange, compilation) {}
 
     ConstantValue evalImpl(EvalContext& context) const;
 
@@ -158,7 +163,7 @@ public:
 class SLANG_EXPORT StringLiteral final : public Expression {
 public:
     StringLiteral(const Type& type, std::string_view value, std::string_view rawValue,
-                  ConstantValue& intVal, SourceRange sourceRange);
+                  ConstantValue& intVal, SourceRange sourceRange, Compilation& compilation);
 
     /// Gets the value of the literal.
     std::string_view getValue() const { return value; }

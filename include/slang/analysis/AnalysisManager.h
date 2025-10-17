@@ -99,6 +99,13 @@ public:
     /// The analysis manager that owns this context.
     not_null<AnalysisManager*> manager;
 
+    /// The compilation being analyzed. This is set at the start of each analyze() call
+    /// and persists for the duration of that analysis. Unlike manager and alloc, which
+    /// are per-context, compilation is per-analysis-run since AnalysisManager can be
+    /// reused to analyze multiple compilations.
+    /// Note: Mutable to allow expression creation during analysis.
+    ast::Compilation* compilation = nullptr;
+
     /// An allocator used for analysis-specific data structures.
     BumpAllocator alloc;
 
@@ -107,6 +114,9 @@ public:
 
     /// Constructs a new AnalysisContext object.
     explicit AnalysisContext(AnalysisManager& manager) : manager(&manager) {}
+
+    /// Sets the compilation being analyzed (called at the start of analyze()).
+    void setCompilation(ast::Compilation& comp) { compilation = &comp; }
 
     /// Issues a new diagnostic.
     Diagnostic& addDiag(const ast::Symbol& symbol, DiagCode code, SourceLocation location);

@@ -597,7 +597,7 @@ std::optional<std::string_view> ElabSystemTaskSymbol::getMessage() const {
                 return {};
             case SyntaxKind::EmptyArgument:
                 args.push_back(
-                    comp.emplace<EmptyArgumentExpression>(comp.getVoidType(), arg->sourceRange()));
+                    comp.emplace<EmptyArgumentExpression>(comp.getVoidType(), arg->sourceRange(), comp));
                 break;
             default:
                 SLANG_UNREACHABLE;

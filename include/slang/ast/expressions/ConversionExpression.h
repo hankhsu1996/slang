@@ -20,8 +20,8 @@ public:
     bool isConstCast = false;
 
     ConversionExpression(const Type& type, ConversionKind conversionKind, Expression& operand,
-                         SourceRange sourceRange) :
-        Expression(ExpressionKind::Conversion, type, sourceRange), conversionKind(conversionKind),
+                         SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::Conversion, type, sourceRange, compilation), conversionKind(conversionKind),
         operand_(&operand) {}
 
     /// @returns true if this is an implicit conversion

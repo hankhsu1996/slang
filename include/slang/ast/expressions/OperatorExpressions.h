@@ -26,9 +26,9 @@ public:
     SourceRange opRange;
 
     UnaryExpression(UnaryOperator op, const Type& type, Expression& operand,
-                    SourceRange sourceRange, SourceRange opRange) :
-        Expression(ExpressionKind::UnaryOp, type, sourceRange), op(op), opRange(opRange),
-        operand_(&operand) {}
+                    SourceRange sourceRange, SourceRange opRange, Compilation& compilation) :
+        Expression(ExpressionKind::UnaryOp, type, sourceRange, compilation), op(op),
+        opRange(opRange), operand_(&operand) {}
 
     /// @returns the operand
     const Expression& operand() const { return *operand_; }
@@ -77,9 +77,9 @@ public:
     SourceRange opRange;
 
     BinaryExpression(BinaryOperator op, const Type& type, Expression& left, Expression& right,
-                     SourceRange sourceRange, SourceRange opRange) :
-        Expression(ExpressionKind::BinaryOp, type, sourceRange), left_(&left), right_(&right),
-        op(op), opRange(opRange) {}
+                     SourceRange sourceRange, SourceRange opRange, Compilation& compilation) :
+        Expression(ExpressionKind::BinaryOp, type, sourceRange, compilation), left_(&left),
+        right_(&right), op(op), opRange(opRange) {}
 
     /// @returns the left-hand side of the expression
     const Expression& left() const { return *left_; }
@@ -143,9 +143,11 @@ public:
 
     ConditionalExpression(const Type& type, std::span<const Condition> conditions,
                           SourceLocation opLoc, Expression& left, Expression& right,
-                          SourceRange sourceRange, bool isConst, bool isTrue) :
-        Expression(ExpressionKind::ConditionalOp, type, sourceRange), conditions(conditions),
-        opLoc(opLoc), left_(&left), right_(&right), isConst(isConst), isTrue(isTrue) {}
+                          SourceRange sourceRange, bool isConst, bool isTrue,
+                          Compilation& compilation) :
+        Expression(ExpressionKind::ConditionalOp, type, sourceRange, compilation),
+        conditions(conditions), opLoc(opLoc), left_(&left), right_(&right), isConst(isConst),
+        isTrue(isTrue) {}
 
     /// @returns the left-hand side operand
     const Expression& left() const { return *left_; } // NOLINT
@@ -201,9 +203,10 @@ private:
 class SLANG_EXPORT InsideExpression final : public Expression {
 public:
     InsideExpression(const Type& type, const Expression& left,
-                     std::span<const Expression* const> rangeList, SourceRange sourceRange) :
-        Expression(ExpressionKind::Inside, type, sourceRange), left_(&left), rangeList_(rangeList) {
-    }
+                     std::span<const Expression* const> rangeList, SourceRange sourceRange,
+                     Compilation& compilation) :
+        Expression(ExpressionKind::Inside, type, sourceRange, compilation), left_(&left),
+        rangeList_(rangeList) {}
 
     /// @returns the left-hand side operand
     const Expression& left() const { return *left_; }
@@ -237,8 +240,9 @@ private:
 class SLANG_EXPORT ConcatenationExpression final : public Expression {
 public:
     ConcatenationExpression(const Type& type, std::span<Expression*> operands,
-                            SourceRange sourceRange) :
-        Expression(ExpressionKind::Concatenation, type, sourceRange), operands_(operands) {}
+                            SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::Concatenation, type, sourceRange, compilation),
+        operands_(operands) {}
 
     /// @returns the list of operands in the concatenation
     std::span<const Expression* const> operands() const { return operands_; }
@@ -275,8 +279,8 @@ private:
 class SLANG_EXPORT ReplicationExpression final : public Expression {
 public:
     ReplicationExpression(const Type& type, const Expression& count, Expression& concat,
-                          SourceRange sourceRange) :
-        Expression(ExpressionKind::Replication, type, sourceRange), count_(&count),
+                          SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::Replication, type, sourceRange, compilation), count_(&count),
         concat_(&concat) {}
 
     /// @returns the expression denoting the number of times to replicate
@@ -327,8 +331,8 @@ public:
 
     StreamingConcatenationExpression(const Type& type, uint64_t sliceSize, uint64_t bitstreamWidth,
                                      std::span<const StreamExpression> streams,
-                                     SourceRange sourceRange) :
-        Expression(ExpressionKind::Streaming, type, sourceRange), streams_(streams),
+                                     SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::Streaming, type, sourceRange, compilation), streams_(streams),
         sliceSize(sliceSize), bitstreamWidth(bitstreamWidth) {}
 
     /// @returns true if the expression has a fixed size, and false if it
@@ -389,9 +393,9 @@ public:
     ValueRangeKind rangeKind;
 
     ValueRangeExpression(const Type& type, ValueRangeKind rangeKind, Expression& left,
-                         Expression& right, SourceRange sourceRange) :
-        Expression(ExpressionKind::ValueRange, type, sourceRange), rangeKind(rangeKind),
-        left_(&left), right_(&right) {}
+                         Expression& right, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::ValueRange, type, sourceRange, compilation),
+        rangeKind(rangeKind), left_(&left), right_(&right) {}
 
     const Expression& left() const { return *left_; }
     Expression& left() { return *left_; }

@@ -152,7 +152,7 @@ Expression& ValueExpressionBase::fromSymbol(const ASTContext& context, const Sym
             // Special case for event expressions and constraint block built-in methods.
             return *comp.emplace<ArbitrarySymbolExpression>(*context.scope, symbol,
                                                             comp.getVoidType(), hierRef,
-                                                            sourceRange);
+                                                            sourceRange, comp);
         }
 
         // It's possible for the name to be empty here in cases
@@ -191,10 +191,10 @@ Expression& ValueExpressionBase::fromSymbol(const ASTContext& context, const Sym
     Expression* result;
     if (hierRef && hierRef->target) {
         result = comp.emplace<HierarchicalValueExpression>(*context.scope, value, *hierRef,
-                                                           sourceRange);
+                                                           sourceRange, comp);
     }
     else {
-        result = comp.emplace<NamedValueExpression>(value, sourceRange);
+        result = comp.emplace<NamedValueExpression>(value, sourceRange, comp);
     }
 
     if (isUnbounded)
@@ -486,8 +486,9 @@ bool NamedValueExpression::checkConstant(EvalContext& context) const {
 HierarchicalValueExpression::HierarchicalValueExpression(const Scope& scope,
                                                          const ValueSymbol& symbol,
                                                          const HierarchicalReference& ref,
-                                                         SourceRange sourceRange) :
-    ValueExpressionBase(ExpressionKind::HierarchicalValue, symbol, sourceRange), ref(ref) {
+                                                         SourceRange sourceRange,
+                                                         Compilation& compilation) :
+    ValueExpressionBase(ExpressionKind::HierarchicalValue, symbol, sourceRange, compilation), ref(ref) {
     SLANG_ASSERT(ref.target == &symbol);
     this->ref.expr = this;
 
@@ -533,7 +534,7 @@ Expression& DataTypeExpression::fromSyntax(Compilation& compilation, const DataT
     if (syntax.kind == SyntaxKind::TypeReference &&
         context.flags.has(ASTFlags::AllowTypeReferences)) {
         return *compilation.emplace<TypeReferenceExpression>(compilation.getTypeRefType(), type,
-                                                             syntax.sourceRange());
+                                                             syntax.sourceRange(), compilation);
     }
 
     if (!context.flags.has(ASTFlags::AllowDataType)) {
@@ -541,7 +542,7 @@ Expression& DataTypeExpression::fromSyntax(Compilation& compilation, const DataT
         return badExpr(compilation, nullptr);
     }
 
-    return *compilation.emplace<DataTypeExpression>(type, syntax.sourceRange());
+    return *compilation.emplace<DataTypeExpression>(type, syntax.sourceRange(), compilation);
 }
 
 void TypeReferenceExpression::serializeTo(ASTSerializer& serializer) const {
@@ -551,8 +552,9 @@ void TypeReferenceExpression::serializeTo(ASTSerializer& serializer) const {
 ArbitrarySymbolExpression::ArbitrarySymbolExpression(const Scope& scope, const Symbol& symbol,
                                                      const Type& type,
                                                      const HierarchicalReference* hierRef,
-                                                     SourceRange sourceRange) :
-    Expression(ExpressionKind::ArbitrarySymbol, type, sourceRange), symbol(&symbol) {
+                                                     SourceRange sourceRange,
+                                                     Compilation& compilation) :
+    Expression(ExpressionKind::ArbitrarySymbol, type, sourceRange, compilation), symbol(&symbol) {
 
     if (hierRef && hierRef->target) {
         this->hierRef = *hierRef;
@@ -580,7 +582,7 @@ Expression& ArbitrarySymbolExpression::fromSyntax(Compilation& comp, const NameS
 
     auto hierRef = HierarchicalReference::fromLookup(comp, result);
     return *comp.emplace<ArbitrarySymbolExpression>(*context.scope, *symbol, comp.getVoidType(),
-                                                    &hierRef, syntax.sourceRange());
+                                                    &hierRef, syntax.sourceRange(), comp);
 }
 
 void ArbitrarySymbolExpression::serializeTo(ASTSerializer& serializer) const {
@@ -612,7 +614,7 @@ Expression& ClockingEventExpression::fromSyntax(const ClockingPropertyExprSyntax
     if (syntax.expr)
         context.addDiag(diag::UnexpectedClockingExpr, syntax.expr->sourceRange());
 
-    return *comp.emplace<ClockingEventExpression>(comp.getVoidType(), timing, syntax.sourceRange());
+    return *comp.emplace<ClockingEventExpression>(comp.getVoidType(), timing, syntax.sourceRange(), comp);
 }
 
 void ClockingEventExpression::serializeTo(ASTSerializer& serializer) const {
@@ -883,7 +885,7 @@ Expression& AssertionInstanceExpression::fromLookup(const Symbol& symbol,
                 auto& body = *comp.emplace<InvalidAssertionExpr>(nullptr);
                 return *comp.emplace<AssertionInstanceExpression>(*type, symbol, body,
                                                                   /* isRecursiveProperty */ true,
-                                                                  range);
+                                                                  range, comp);
             }
             instance.isRecursive = true;
         }
@@ -1036,7 +1038,7 @@ Expression& AssertionInstanceExpression::fromLookup(const Symbol& symbol,
                                    localVars);
 
     auto result = comp.emplace<AssertionInstanceExpression>(*type, symbol, body,
-                                                            /* isRecursiveProperty */ false, range);
+                                                            /* isRecursiveProperty */ false, range, comp);
     result->arguments = actualArgs.copy(comp);
     result->localVars = localVars.copy(comp);
 
@@ -1135,7 +1137,7 @@ Expression& AssertionInstanceExpression::makeDefault(const Symbol& symbol) {
 
     SourceRange range{symbol.location, symbol.location + 1};
     auto result = comp.emplace<AssertionInstanceExpression>(*type, symbol, body,
-                                                            /* isRecursiveProperty */ false, range);
+                                                            /* isRecursiveProperty */ false, range, comp);
     result->localVars = localVars.copy(comp);
     return *result;
 }
@@ -1288,7 +1290,7 @@ Expression& AssertionInstanceExpression::bindPort(const Symbol& symbol, SourceRa
                 // In an event expression, a referenced argument gets interpreted
                 // as an event expression itself and not as an assertion expression.
                 auto& timing = TimingControl::bind(*propExpr, argCtx);
-                return *comp.emplace<ClockingEventExpression>(comp.getVoidType(), timing, range);
+                return *comp.emplace<ClockingEventExpression>(comp.getVoidType(), timing, range, comp);
             }
             else {
                 auto& result = AssertionExpr::bind(*propExpr, argCtx);
@@ -1296,7 +1298,7 @@ Expression& AssertionInstanceExpression::bindPort(const Symbol& symbol, SourceRa
                                            : comp.getType(SyntaxKind::PropertyType);
                 return *comp.emplace<AssertionInstanceExpression>(resultType, formal, result,
                                                                   /* isRecursiveProperty */ false,
-                                                                  range);
+                                                                  range, comp);
             }
         case SymbolKind::SequenceType:
         case SymbolKind::PropertyType: {
@@ -1307,7 +1309,7 @@ Expression& AssertionInstanceExpression::bindPort(const Symbol& symbol, SourceRa
 
             return *comp.emplace<AssertionInstanceExpression>(resultType, formal, result,
                                                               /* isRecursiveProperty */ false,
-                                                              range);
+                                                              range, comp);
         }
         case SymbolKind::EventType:
             // If an event expression is allowed here, bind and return. Otherwise issue
@@ -1316,7 +1318,7 @@ Expression& AssertionInstanceExpression::bindPort(const Symbol& symbol, SourceRa
             if (instanceCtx.flags.has(ASTFlags::EventExpression) &&
                 instanceCtx.flags.has(ASTFlags::AllowClockingBlock)) {
                 auto& timing = TimingControl::bind(*propExpr, argCtx);
-                return *comp.emplace<ClockingEventExpression>(comp.getVoidType(), timing, range);
+                return *comp.emplace<ClockingEventExpression>(comp.getVoidType(), timing, range, comp);
             }
 
             instanceCtx.addDiag(diag::EventExprAssertionArg, range);
@@ -1332,7 +1334,7 @@ Expression& AssertionInstanceExpression::bindPort(const Symbol& symbol, SourceRa
 
             if (!instanceCtx.flags.has(ASTFlags::LValue) && !expr.type->isMatching(type)) {
                 return *comp.emplace<ConversionExpression>(type, ConversionKind::Explicit, expr,
-                                                           range);
+                                                           range, comp);
             }
 
             return expr;
@@ -1389,7 +1391,7 @@ Expression& MinTypMaxExpression::fromSyntax(Compilation& compilation,
     }
 
     auto result = compilation.emplace<MinTypMaxExpression>(*selected->type, min, typ, max, selected,
-                                                           syntax.sourceRange());
+                                                           syntax.sourceRange(), compilation);
     if (min.bad() || typ.bad() || max.bad())
         return badExpr(compilation, result);
 
@@ -1425,7 +1427,7 @@ Expression& CopyClassExpression::fromSyntax(Compilation& compilation,
                                             const ASTContext& context) {
     auto& source = selfDetermined(compilation, *syntax.expr, context);
     auto result = compilation.emplace<CopyClassExpression>(*source.type, source,
-                                                           syntax.sourceRange());
+                                                           syntax.sourceRange(), compilation);
     if (source.bad())
         return badExpr(compilation, result);
 
@@ -1518,7 +1520,7 @@ Expression& DistExpression::fromSyntax(Compilation& comp, const ExpressionOrDist
     }
 
     auto result = comp.emplace<DistExpression>(comp.getVoidType(), pred, items.copy(comp),
-                                               defaultWeight, syntax.sourceRange());
+                                               defaultWeight, syntax.sourceRange(), comp);
     if (bad)
         return badExpr(comp, result);
 
@@ -1582,7 +1584,7 @@ Expression& TaggedUnionExpression::fromSyntax(Compilation& compilation,
     }
 
     auto result = compilation.emplace<TaggedUnionExpression>(*assignmentTarget, *member, valueExpr,
-                                                             syntax.sourceRange());
+                                                             syntax.sourceRange(), compilation);
     if (valueExpr && valueExpr->bad())
         return badExpr(compilation, result);
 

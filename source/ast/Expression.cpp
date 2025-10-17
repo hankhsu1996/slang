@@ -218,7 +218,7 @@ const Expression& Expression::bindLValue(const ExpressionSyntax& lhs, const Type
     // Create a placeholder expression that will carry the type of the rhs.
     // Nothing will ever actually look at this expression, it's there only
     // to fill the space in the created AssignmentExpression.
-    auto rhsExpr = comp.emplace<EmptyArgumentExpression>(rhs, SourceRange{location, location});
+    auto rhsExpr = comp.emplace<EmptyArgumentExpression>(rhs, SourceRange{location, location}, comp);
 
     auto instance = context.getInstance();
     Expression* lhsExpr;
@@ -252,7 +252,7 @@ const Expression& Expression::bindLValue(const ExpressionSyntax& syntax, const A
     auto lhs = &create(comp, syntax, context, ASTFlags::LValue);
     selfDetermined(context, lhs);
 
-    auto rhs = comp.emplace<EmptyArgumentExpression>(*lhs->type, lhs->sourceRange);
+    auto rhs = comp.emplace<EmptyArgumentExpression>(*lhs->type, lhs->sourceRange, comp);
 
     return AssignmentExpression::fromComponents(comp, std::nullopt, assignFlags, *lhs, *rhs,
                                                 lhs->sourceRange, /* timingControl */ nullptr,
@@ -1053,7 +1053,7 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
     if (context.flags.has(ASTFlags::AllowDataType) && symbol->isType()) {
         // We looked up a named data type and we were allowed to do so, so return it.
         const Type& resultType = Type::fromLookupResult(comp, result, sourceRange, context, syntax);
-        auto expr = comp.emplace<DataTypeExpression>(resultType, sourceRange);
+        auto expr = comp.emplace<DataTypeExpression>(resultType, sourceRange, comp);
         if (!expr->bad() && !errorIfInvoke())
             return badExpr(comp, expr);
 
@@ -1350,7 +1350,7 @@ Expression* Expression::tryBindInterfaceRef(const ASTContext& context,
              symbol->as<VariableSymbol>().getType().isError())) {
             return comp.emplace<ArbitrarySymbolExpression>(*context.scope, *origSymbol,
                                                            comp.getErrorType(), nullptr,
-                                                           syntax.sourceRange());
+                                                           syntax.sourceRange(), comp);
         }
 
         if (isInterfacePort && !origSymbol->name.empty()) {
@@ -1437,7 +1437,7 @@ Expression* Expression::tryBindInterfaceRef(const ASTContext& context,
 
     auto hierRef = HierarchicalReference::fromLookup(comp, result);
     return comp.emplace<ArbitrarySymbolExpression>(*context.scope, *origSymbol, *type, &hierRef,
-                                                   sourceRange);
+                                                   sourceRange, comp);
 }
 
 void Expression::findPotentiallyImplicitNets(

@@ -54,7 +54,7 @@ static Expression* buildPackedSelectTree(Compilation& comp, Expression* expr,
 
         auto& resultType = comp.getType(flatRange.width(), type.getIntegralFlags());
         return comp.emplace<ConcatenationExpression>(resultType, parts.copy(comp),
-                                                     expr->sourceRange);
+                                                     expr->sourceRange, comp);
     };
 
     if (expr->kind == ExpressionKind::Concatenation) {
@@ -394,7 +394,7 @@ Expression& AssignmentExpression::fromComponents(
 
     auto result = compilation.emplace<AssignmentExpression>(op, flags.has(AssignFlags::NonBlocking),
                                                             *lhs.type, lhs, rhs, timingControl,
-                                                            sourceRange);
+                                                            sourceRange, compilation);
 
     if (lhs.bad() || rhs.bad())
         return badExpr(compilation, result);
@@ -414,7 +414,7 @@ Expression& AssignmentExpression::fromComponents(
     // If this is a compound assignment operator create a binary expression that will
     // apply the operator for us on the right hand side.
     if (op) {
-        auto lvalRef = compilation.emplace<LValueReferenceExpression>(*lhs.type, lhs.sourceRange);
+        auto lvalRef = compilation.emplace<LValueReferenceExpression>(*lhs.type, lhs.sourceRange, compilation);
         result->right_ = &BinaryExpression::fromComponents(*lvalRef, *result->right_, *op, opRange,
                                                            sourceRange, context);
     }
@@ -516,7 +516,7 @@ Expression& NewArrayExpression::fromSyntax(Compilation& compilation,
         initExpr = &bindRValue(*assignmentTarget, *syntax.initializer->expression, {}, context);
 
     auto result = compilation.emplace<NewArrayExpression>(*assignmentTarget, sizeExpr, initExpr,
-                                                          syntax.sourceRange());
+                                                          syntax.sourceRange(), compilation);
     if (sizeExpr.bad() || (initExpr && initExpr->bad()))
         return badExpr(compilation, result);
 
@@ -662,7 +662,7 @@ Expression& NewClassExpression::fromSyntax(Compilation& comp,
     }
 
     return *comp.emplace<NewClassExpression>(*assignmentTarget, constructorCall, isSuperClass,
-                                             range);
+                                             range, comp);
 }
 
 Expression& NewClassExpression::fromSyntax(Compilation& comp,
@@ -685,7 +685,7 @@ Expression& NewClassExpression::fromSyntax(Compilation& comp,
             context.addDiag(diag::InvalidSuperNewDefault, range);
     }
 
-    return *comp.emplace<NewClassExpression>(*assignmentTarget, nullptr, isSuperClass, range);
+    return *comp.emplace<NewClassExpression>(*assignmentTarget, nullptr, isSuperClass, range, comp);
 }
 
 ConstantValue NewClassExpression::evalImpl(EvalContext& context) const {
@@ -713,7 +713,7 @@ Expression& NewCovergroupExpression::fromSyntax(Compilation& compilation,
     }
 
     return *compilation.emplace<NewCovergroupExpression>(assignmentTarget, args.copy(compilation),
-                                                         range);
+                                                         range, compilation);
 }
 
 ConstantValue NewCovergroupExpression::evalImpl(EvalContext& context) const {
@@ -974,7 +974,7 @@ Expression& SimpleAssignmentPatternExpression::forStruct(
     }
 
     auto result = comp.emplace<SimpleAssignmentPatternExpression>(type, isLValue, elems.copy(comp),
-                                                                  sourceRange);
+                                                                  sourceRange, comp);
     if (bad)
         return badExpr(comp, result);
 
@@ -1015,7 +1015,7 @@ Expression& SimpleAssignmentPatternExpression::forFixedArray(
 
     const bool isLValue = context.flags.has(ASTFlags::LValue);
     auto result = comp.emplace<SimpleAssignmentPatternExpression>(type, isLValue, elems,
-                                                                  sourceRange);
+                                                                  sourceRange, comp);
     if (bad)
         return badExpr(comp, result);
 
@@ -1037,7 +1037,7 @@ Expression& SimpleAssignmentPatternExpression::forDynamicArray(
                                     bad);
 
     auto result = comp.emplace<SimpleAssignmentPatternExpression>(type, isLValue, elems,
-                                                                  sourceRange);
+                                                                  sourceRange, comp);
     if (bad)
         return badExpr(comp, result);
 
@@ -1181,7 +1181,7 @@ static const Expression* matchElementValue(
 
         auto& comp = context.getCompilation();
         return comp.emplace<SimpleAssignmentPatternExpression>(elementType, /* isLValue */ false,
-                                                               elements.copy(comp), sourceRange);
+                                                               elements.copy(comp), sourceRange, comp);
     }
 
     if (elementType.isArray() && elementType.hasFixedRange()) {
@@ -1200,7 +1200,7 @@ static const Expression* matchElementValue(
 
         auto& comp = context.getCompilation();
         return comp.emplace<SimpleAssignmentPatternExpression>(elementType, /* isLValue */ false,
-                                                               elements.copy(comp), sourceRange);
+                                                               elements.copy(comp), sourceRange, comp);
     }
 
     // Finally, if we have a default then it must now be assignment compatible.
@@ -1326,7 +1326,7 @@ Expression& StructuredAssignmentPatternExpression::forStruct(
 
     auto result = comp.emplace<StructuredAssignmentPatternExpression>(
         type, memberSetters.copy(comp), typeSetters.copy(comp), std::span<const IndexSetter>{},
-        defaultSetter, elements.copy(comp), sourceRange);
+        defaultSetter, elements.copy(comp), sourceRange, comp);
 
     if (bad)
         return badExpr(comp, result);
@@ -1441,7 +1441,7 @@ Expression& StructuredAssignmentPatternExpression::forFixedArray(
 
     auto result = comp.emplace<StructuredAssignmentPatternExpression>(
         type, std::span<const MemberSetter>{}, typeSetters.copy(comp), indexSetters.copy(comp),
-        defaultSetter, elements.copy(comp), sourceRange);
+        defaultSetter, elements.copy(comp), sourceRange, comp);
 
     if (bad)
         return badExpr(comp, result);
@@ -1506,7 +1506,7 @@ Expression& StructuredAssignmentPatternExpression::forDynamicArray(
 
     auto result = comp.emplace<StructuredAssignmentPatternExpression>(
         type, std::span<const MemberSetter>{}, std::span<const TypeSetter>{},
-        indexSetters.copy(comp), nullptr, elements.copy(comp), sourceRange);
+        indexSetters.copy(comp), nullptr, elements.copy(comp), sourceRange, comp);
 
     if (bad)
         return badExpr(comp, result);
@@ -1570,7 +1570,7 @@ Expression& StructuredAssignmentPatternExpression::forAssociativeArray(
 
     auto result = comp.emplace<StructuredAssignmentPatternExpression>(
         type, std::span<const MemberSetter>{}, std::span<const TypeSetter>{},
-        indexSetters.copy(comp), defaultSetter, std::span<const Expression*>{}, sourceRange);
+        indexSetters.copy(comp), defaultSetter, std::span<const Expression*>{}, sourceRange, comp);
 
     if (bad)
         return badExpr(comp, result);
@@ -1658,7 +1658,7 @@ Expression& ReplicatedAssignmentPatternExpression::forStruct(
 
     auto result = comp.emplace<ReplicatedAssignmentPatternExpression>(type, countExpr,
                                                                       elems.copy(comp),
-                                                                      sourceRange);
+                                                                      sourceRange, comp);
     if (bad)
         return badExpr(comp, result);
 
@@ -1679,7 +1679,7 @@ Expression& ReplicatedAssignmentPatternExpression::forFixedArray(
                                     sourceRange, bad);
 
     auto result = comp.emplace<ReplicatedAssignmentPatternExpression>(type, countExpr, elems,
-                                                                      sourceRange);
+                                                                      sourceRange, comp);
     if (bad)
         return badExpr(comp, result);
 
@@ -1700,7 +1700,7 @@ Expression& ReplicatedAssignmentPatternExpression::forDynamicArray(
                                     bad);
 
     auto result = comp.emplace<ReplicatedAssignmentPatternExpression>(type, countExpr, elems,
-                                                                      sourceRange);
+                                                                      sourceRange, comp);
     if (bad)
         return badExpr(comp, result);
 

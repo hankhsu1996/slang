@@ -44,8 +44,9 @@ public:
     }
 
 protected:
-    ValueExpressionBase(ExpressionKind kind, const ValueSymbol& symbol, SourceRange sourceRange) :
-        Expression(kind, symbol.getType(), sourceRange), symbol(symbol) {}
+    ValueExpressionBase(ExpressionKind kind, const ValueSymbol& symbol, SourceRange sourceRange,
+                         Compilation& compilation) :
+        Expression(kind, symbol.getType(), sourceRange, compilation), symbol(symbol) {}
 
     bool checkConstantBase(EvalContext& context) const;
 };
@@ -53,8 +54,9 @@ protected:
 /// Represents an expression that references a named value.
 class SLANG_EXPORT NamedValueExpression final : public ValueExpressionBase {
 public:
-    NamedValueExpression(const ValueSymbol& symbol, SourceRange sourceRange) :
-        ValueExpressionBase(ExpressionKind::NamedValue, symbol, sourceRange) {}
+    NamedValueExpression(const ValueSymbol& symbol, SourceRange sourceRange,
+                         Compilation& compilation) :
+        ValueExpressionBase(ExpressionKind::NamedValue, symbol, sourceRange, compilation) {}
 
     ConstantValue evalImpl(EvalContext& context) const;
     LValue evalLValueImpl(EvalContext& context) const;
@@ -72,7 +74,8 @@ public:
     HierarchicalReference ref;
 
     HierarchicalValueExpression(const Scope& scope, const ValueSymbol& symbol,
-                                const HierarchicalReference& ref, SourceRange sourceRange);
+                                const HierarchicalReference& ref, SourceRange sourceRange,
+                                Compilation& compilation);
 
     ConstantValue evalImpl(EvalContext& context) const;
 
@@ -86,8 +89,8 @@ public:
 /// parameter assignment (because of type parameters).
 class SLANG_EXPORT DataTypeExpression final : public Expression {
 public:
-    DataTypeExpression(const Type& type, SourceRange sourceRange) :
-        Expression(ExpressionKind::DataType, type, sourceRange) {}
+    DataTypeExpression(const Type& type, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::DataType, type, sourceRange, compilation) {}
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
 
@@ -109,8 +112,8 @@ public:
     const Type& targetType;
 
     TypeReferenceExpression(const Type& typeRefType, const Type& targetType,
-                            SourceRange sourceRange) :
-        Expression(ExpressionKind::TypeReference, typeRefType, sourceRange),
+                            SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::TypeReference, typeRefType, sourceRange, compilation),
         targetType(targetType) {}
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
@@ -135,7 +138,8 @@ public:
     HierarchicalReference hierRef;
 
     ArbitrarySymbolExpression(const Scope& scope, const Symbol& symbol, const Type& type,
-                              const HierarchicalReference* hierRef, SourceRange sourceRange);
+                              const HierarchicalReference* hierRef, SourceRange sourceRange,
+                              Compilation& compilation);
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
 
@@ -156,8 +160,8 @@ public:
 /// the lvalue stack for the value to use.
 class SLANG_EXPORT LValueReferenceExpression final : public Expression {
 public:
-    LValueReferenceExpression(const Type& type, SourceRange sourceRange) :
-        Expression(ExpressionKind::LValueReference, type, sourceRange) {}
+    LValueReferenceExpression(const Type& type, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::LValueReference, type, sourceRange, compilation) {}
 
     ConstantValue evalImpl(EvalContext& context) const;
 
@@ -172,8 +176,8 @@ public:
 /// as a placeholder to hold the fact that the argument is empty.
 class SLANG_EXPORT EmptyArgumentExpression final : public Expression {
 public:
-    EmptyArgumentExpression(const Type& type, SourceRange sourceRange) :
-        Expression(ExpressionKind::EmptyArgument, type, sourceRange) {}
+    EmptyArgumentExpression(const Type& type, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::EmptyArgument, type, sourceRange, compilation) {}
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
 
@@ -192,8 +196,8 @@ public:
     const TimingControl& timingControl;
 
     ClockingEventExpression(const Type& type, const TimingControl& timingControl,
-                            SourceRange sourceRange) :
-        Expression(ExpressionKind::ClockingEvent, type, sourceRange), timingControl(timingControl) {
+                            SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::ClockingEvent, type, sourceRange, compilation), timingControl(timingControl) {
     }
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
@@ -233,8 +237,9 @@ public:
     bool isRecursiveProperty;
 
     AssertionInstanceExpression(const Type& type, const Symbol& symbol, const AssertionExpr& body,
-                                bool isRecursiveProperty, SourceRange sourceRange) :
-        Expression(ExpressionKind::AssertionInstance, type, sourceRange), symbol(symbol),
+                                bool isRecursiveProperty, SourceRange sourceRange,
+                                Compilation& compilation) :
+        Expression(ExpressionKind::AssertionInstance, type, sourceRange, compilation), symbol(symbol),
         body(body), isRecursiveProperty(isRecursiveProperty) {}
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
@@ -271,8 +276,8 @@ public:
 class SLANG_EXPORT MinTypMaxExpression final : public Expression {
 public:
     MinTypMaxExpression(const Type& type, Expression& min, Expression& typ, Expression& max,
-                        Expression* selected, SourceRange sourceRange) :
-        Expression(ExpressionKind::MinTypMax, type, sourceRange), selected_(selected), min_(&min),
+                        Expression* selected, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::MinTypMax, type, sourceRange, compilation), selected_(selected), min_(&min),
         typ_(&typ), max_(&max) {}
 
     /// The `min` value of the expression.
@@ -332,8 +337,9 @@ private:
 /// Represents a `new` expression that copies a class instance.
 class SLANG_EXPORT CopyClassExpression final : public Expression {
 public:
-    CopyClassExpression(const Type& type, const Expression& sourceExpr, SourceRange sourceRange) :
-        Expression(ExpressionKind::CopyClass, type, sourceRange), sourceExpr_(sourceExpr) {}
+    CopyClassExpression(const Type& type, const Expression& sourceExpr, SourceRange sourceRange,
+                        Compilation& compilation) :
+        Expression(ExpressionKind::CopyClass, type, sourceRange, compilation), sourceExpr_(sourceExpr) {}
 
     /// @returns the expression representing the source of the copy.
     const Expression& sourceExpr() const { return sourceExpr_; }
@@ -383,8 +389,9 @@ public:
     };
 
     DistExpression(const Type& type, const Expression& left, std::span<DistItem> items,
-                   std::optional<DistWeight> defaultWeight, SourceRange sourceRange) :
-        Expression(ExpressionKind::Dist, type, sourceRange), left_(&left), items_(items),
+                   std::optional<DistWeight> defaultWeight, SourceRange sourceRange,
+                   Compilation& compilation) :
+        Expression(ExpressionKind::Dist, type, sourceRange, compilation), left_(&left), items_(items),
         defaultWeight_(defaultWeight) {}
 
     /// @returns the left-hand side of the distribution operator.
@@ -437,8 +444,8 @@ public:
     const Expression* valueExpr;
 
     TaggedUnionExpression(const Type& type, const Symbol& member, const Expression* valueExpr,
-                          SourceRange sourceRange) :
-        Expression(ExpressionKind::TaggedUnion, type, sourceRange), member(member),
+                          SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::TaggedUnion, type, sourceRange, compilation), member(member),
         valueExpr(valueExpr) {}
 
     ConstantValue evalImpl(EvalContext& context) const;

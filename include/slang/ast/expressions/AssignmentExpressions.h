@@ -28,8 +28,8 @@ public:
 
     AssignmentExpression(std::optional<BinaryOperator> op, bool nonBlocking, const Type& type,
                          Expression& left, Expression& right, const TimingControl* timingControl,
-                         SourceRange sourceRange) :
-        Expression(ExpressionKind::Assignment, type, sourceRange), op(op),
+                         SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::Assignment, type, sourceRange, compilation), op(op),
         timingControl(timingControl), left_(&left), right_(&right), nonBlocking(nonBlocking) {}
 
     /// @returns true if this is a compound assignment
@@ -91,8 +91,8 @@ private:
 class SLANG_EXPORT NewArrayExpression final : public Expression {
 public:
     NewArrayExpression(const Type& type, const Expression& sizeExpr, const Expression* initializer,
-                       SourceRange sourceRange) :
-        Expression(ExpressionKind::NewArray, type, sourceRange), sizeExpr_(&sizeExpr),
+                       SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::NewArray, type, sourceRange, compilation), sizeExpr_(&sizeExpr),
         initializer_(initializer) {}
 
     /// @returns the expression indicating the size of the array to create
@@ -130,8 +130,8 @@ public:
     bool isSuperClass = false;
 
     NewClassExpression(const Type& type, const Expression* constructorCall, bool isSuperClass,
-                       SourceRange sourceRange) :
-        Expression(ExpressionKind::NewClass, type, sourceRange), isSuperClass(isSuperClass),
+                       SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::NewClass, type, sourceRange, compilation), isSuperClass(isSuperClass),
         constructorCall_(constructorCall) {}
 
     /// @returns an optional expression that calls the class's constructor
@@ -168,8 +168,8 @@ public:
     std::span<const Expression* const> arguments;
 
     NewCovergroupExpression(const Type& type, std::span<const Expression* const> arguments,
-                            SourceRange sourceRange) :
-        Expression(ExpressionKind::NewCovergroup, type, sourceRange), arguments(arguments) {}
+                            SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::NewCovergroup, type, sourceRange, compilation), arguments(arguments) {}
 
     ConstantValue evalImpl(EvalContext& context) const;
 
@@ -207,8 +207,8 @@ public:
 protected:
     AssignmentPatternExpressionBase(ExpressionKind kind, const Type& type,
                                     std::span<const Expression* const> elements,
-                                    SourceRange sourceRange) :
-        Expression(kind, type, sourceRange), elements_(elements) {}
+                                    SourceRange sourceRange, Compilation& compilation) :
+        Expression(kind, type, sourceRange, compilation), elements_(elements) {}
 
 private:
     std::span<const Expression* const> elements_;
@@ -223,9 +223,9 @@ public:
 
     SimpleAssignmentPatternExpression(const Type& type, bool isLValue,
                                       std::span<const Expression* const> elements,
-                                      SourceRange sourceRange) :
+                                      SourceRange sourceRange, Compilation& compilation) :
         AssignmentPatternExpressionBase(ExpressionKind::SimpleAssignmentPattern, type, elements,
-                                        sourceRange),
+                                        sourceRange, compilation),
         isLValue(isLValue) {}
 
     LValue evalLValueImpl(EvalContext& context) const;
@@ -306,9 +306,9 @@ public:
                                           std::span<const IndexSetter> indexSetters,
                                           const Expression* defaultSetter,
                                           std::span<const Expression* const> elements,
-                                          SourceRange sourceRange) :
+                                          SourceRange sourceRange, Compilation& compilation) :
         AssignmentPatternExpressionBase(ExpressionKind::StructuredAssignmentPattern, type, elements,
-                                        sourceRange),
+                                        sourceRange, compilation),
         memberSetters(memberSetters), typeSetters(typeSetters), indexSetters(indexSetters),
         defaultSetter(defaultSetter) {}
 
@@ -359,9 +359,9 @@ class SLANG_EXPORT ReplicatedAssignmentPatternExpression final
 public:
     ReplicatedAssignmentPatternExpression(const Type& type, const Expression& count,
                                           std::span<const Expression* const> elements,
-                                          SourceRange sourceRange) :
+                                          SourceRange sourceRange, Compilation& compilation) :
         AssignmentPatternExpressionBase(ExpressionKind::ReplicatedAssignmentPattern, type, elements,
-                                        sourceRange),
+                                        sourceRange, compilation),
         count_(&count) {}
 
     /// @returns an expression indicating the number of times to replicate the pattern.

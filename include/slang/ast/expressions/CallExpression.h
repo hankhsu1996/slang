@@ -59,8 +59,8 @@ public:
 
     CallExpression(const Subroutine& subroutine, const Type& returnType,
                    const Expression* thisClass, std::span<const Expression*> arguments,
-                   LookupLocation lookupLocation, SourceRange sourceRange) :
-        Expression(ExpressionKind::Call, returnType, sourceRange), subroutine(subroutine),
+                   LookupLocation lookupLocation, SourceRange sourceRange, Compilation& compilation) :
+        Expression(ExpressionKind::Call, returnType, sourceRange, compilation), subroutine(subroutine),
         thisClass_(thisClass), arguments_(arguments), lookupLocation(lookupLocation) {}
 
     /// If this call is for a class method, returns the expression representing the
