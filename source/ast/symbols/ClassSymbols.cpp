@@ -1035,7 +1035,7 @@ const Type* GenericClassDefSymbol::getSpecializationImpl(
     if (!forceInvalidParams) {
         classType->genericParameters = paramSymbols.copy(comp);
         classType->parameterAssignmentExpressions = paramAssignmentExprs.copy(comp);
-        detail::ClassSpecializationKey key(paramValues.copy(comp), typeParams.copy(comp));
+        detail::ClassSpecializationKey key(paramValues.copy(comp), typeParams.copy(comp), &comp);
         if (classType->isUninstantiated) {
             // If we're in an uninstantiated scope we save this specialization
             // in a separate map so that we don't try to elaborate it further
@@ -1094,8 +1094,9 @@ void GenericClassDefSymbol::serializeTo(ASTSerializer& serializer) const {
 namespace detail {
 
 ClassSpecializationKey::ClassSpecializationKey(std::span<const ConstantValue* const> paramValues,
-                                               std::span<const Type* const> typeParams) :
-    paramValues(paramValues), typeParams(typeParams) {
+                                               std::span<const Type* const> typeParams,
+                                               const Compilation* compilation) :
+    paramValues(paramValues), typeParams(typeParams), compilation(compilation) {
 
     // Precompute the hash.
     size_t h = 0;
@@ -1103,12 +1104,13 @@ ClassSpecializationKey::ClassSpecializationKey(std::span<const ConstantValue* co
         hash_combine(h, val ? val->hash() : 0);
     for (auto type : typeParams)
         hash_combine(h, type ? type->hash() : 0);
+    hash_combine(h, reinterpret_cast<uintptr_t>(compilation));
     savedHash = h;
 }
 
 bool ClassSpecializationKey::operator==(const ClassSpecializationKey& other) const {
     if (savedHash != other.savedHash || paramValues.size() != other.paramValues.size() ||
-        typeParams.size() != other.typeParams.size()) {
+        typeParams.size() != other.typeParams.size() || compilation != other.compilation) {
         return false;
     }
 
