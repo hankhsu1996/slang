@@ -762,6 +762,15 @@ protected:
     // which is why they can't share the definitions name table.
     flat_hash_map<std::string_view, const PackageSymbol*> packageMap;
 
+    // The name map for all module, interface, program, and primitive definitions.
+    // The key is a combination of definition name + the scope in which it was declared.
+    // The value is a pair -- the first element is a list of definitions that share
+    // the given name / scope (which can happen for multiple libraries at the root scope),
+    // and the second element is a boolean that indicates whether there exists at least
+    // one nested module with the given name (requiring a more involved lookup).
+    flat_hash_map<std::tuple<std::string_view, const Scope*>, std::pair<std::vector<Symbol*>, bool>>
+        definitionMap;
+
 private:
     friend class Lookup;
     friend class Scope;
@@ -849,15 +858,6 @@ private:
     // The value indicates whether the node has been used as an lvalue vs non-lvalue,
     // for things like variables and nets.
     flat_hash_map<const syntax::SyntaxNode*, std::pair<bool, bool>> referenceStatusMap;
-
-    // The name map for all module, interface, program, and primitive definitions.
-    // The key is a combination of definition name + the scope in which it was declared.
-    // The value is a pair -- the first element is a list of definitions that share
-    // the given name / scope (which can happen for multiple libraries at the root scope),
-    // and the second element is a boolean that indicates whether there exists at least
-    // one nested module with the given name (requiring a more involved lookup).
-    flat_hash_map<std::tuple<std::string_view, const Scope*>, std::pair<std::vector<Symbol*>, bool>>
-        definitionMap;
 
     // A cache of vector types, keyed on various properties such as bit width.
     flat_hash_map<uint32_t, const Type*> vectorTypeCache;
