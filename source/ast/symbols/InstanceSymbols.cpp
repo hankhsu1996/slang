@@ -987,7 +987,13 @@ InstanceBodySymbol& InstanceBodySymbol::fromDefinition(Compilation& comp,
                                                        ParameterBuilder& paramBuilder,
                                                        bitmask<InstanceFlags> flags) {
     auto overrideNode = paramBuilder.getOverrides();
-    auto result = comp.emplace<InstanceBodySymbol>(comp, definition, overrideNode, flags);
+
+    // Use definition's compilation for creating instance body to ensure members
+    // get the correct compilation pointer for location resolution. This is critical
+    // for cross-compilation in LSP mode (preamble vs overlay), and is a no-op in
+    // normal mode where there's only one compilation.
+    auto result = comp.emplace<InstanceBodySymbol>(definition.getCompilation(), definition,
+                                                   overrideNode, flags);
 
     auto& declSyntax = definition.getSyntax()->as<ModuleDeclarationSyntax>();
     result->setSyntax(declSyntax);
