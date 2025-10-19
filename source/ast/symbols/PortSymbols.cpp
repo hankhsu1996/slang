@@ -144,8 +144,15 @@ public:
                                 }
                             }
 
+                            // Extract interface name range for LSP precision
+                            SourceRange interfaceNameRange;
+                            if (header.dataType->kind == SyntaxKind::NamedType) {
+                                auto& namedType = header.dataType->as<NamedTypeSyntax>();
+                                interfaceNameRange = namedType.name->getLastToken().range();
+                            }
+
                             return add(decl, defSym, ""sv, /* isGeneric */ false,
-                                       syntax.attributes);
+                                       syntax.attributes, interfaceNameRange, {});
                         }
                     }
                 }
