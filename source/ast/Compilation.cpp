@@ -907,7 +907,7 @@ void Compilation::insertDefinition(Symbol& symbol, const Scope& scope) {
         defList.insert(vecIt, &symbol);
     }
     else {
-        definitionMap.emplace(key, std::pair{std::vector{&symbol}, !isRoot});
+        definitionMap.emplace(key, std::pair{std::vector<const Symbol*>{&symbol}, !isRoot});
     }
 
     if (isRoot) {
@@ -2640,7 +2640,7 @@ std::pair<Compilation::DefinitionLookupResult, bool> Compilation::resolveConfigR
 
 std::pair<Compilation::DefinitionLookupResult, bool> Compilation::resolveConfigRules(
     std::string_view lookupName, const Scope& scope, const ResolvedConfig* parentConfig,
-    const ConfigRule* rule, const std::vector<Symbol*>& defList) const {
+    const ConfigRule* rule, const std::vector<const Symbol*>& defList) const {
 
     const ConfigBlockSymbol::CellOverride* cellOverride = nullptr;
     std::span<const SourceLibrary* const> liblist;

@@ -768,7 +768,7 @@ protected:
     // the given name / scope (which can happen for multiple libraries at the root scope),
     // and the second element is a boolean that indicates whether there exists at least
     // one nested module with the given name (requiring a more involved lookup).
-    flat_hash_map<std::tuple<std::string_view, const Scope*>, std::pair<std::vector<Symbol*>, bool>>
+    flat_hash_map<std::tuple<std::string_view, const Scope*>, std::pair<std::vector<const Symbol*>, bool>>
         definitionMap;
 
 private:
@@ -825,7 +825,7 @@ private:
                                                               const ConfigRule& rule) const;
     std::pair<DefinitionLookupResult, bool> resolveConfigRules(
         std::string_view name, const Scope& scope, const ResolvedConfig* parentConfig,
-        const ConfigRule* configRule, const std::vector<Symbol*>& defList) const;
+        const ConfigRule* configRule, const std::vector<const Symbol*>& defList) const;
     Diagnostic* errorMissingDef(std::string_view name, const Scope& scope, SourceRange sourceRange,
                                 DiagCode code) const;
 
