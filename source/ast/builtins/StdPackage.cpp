@@ -32,16 +32,16 @@ static const Symbol& createProcessClass(Compilation& c) {
 
     uint64_t index = 0;
     for (auto name : {"FINISHED", "RUNNING", "WAITING", "SUSPENDED", "KILLED"}) {
-        auto ev = c.emplace<EnumValueSymbol>(name, NL);
+        auto ev = c.emplace<EnumValueSymbol>(c, name, NL);
         ev->setType(*stateEnum);
         stateEnum->addMember(*ev);
         ev->setValue(SVInt(32, index++, true));
 
         // Manually add these to the containing scope as well.
-        builder.type.addMember(*c.emplace<TransparentMemberSymbol>(*ev));
+        builder.type.addMember(*c.emplace<TransparentMemberSymbol>(c, *ev));
     }
 
-    auto stateTypedef = c.emplace<TypeAliasType>("state", NL);
+    auto stateTypedef = c.emplace<TypeAliasType>(c, "state", NL);
     stateTypedef->targetType.setType(*stateEnum);
     builder.type.addMember(*stateTypedef);
 
@@ -128,7 +128,7 @@ static const Symbol& createMailboxClass(Compilation& c) {
         try_peek.addArg("message", t, ArgumentDirection::Ref);
     };
 
-    auto& mailbox = *c.allocGenericClass("mailbox", NL, specialize);
+    auto& mailbox = *c.allocGenericClass(c, "mailbox", NL, specialize);
     mailbox.addParameterDecl(
         DefinitionSymbol::ParameterDecl("T", NL, false, true, &c.getType(SyntaxKind::Untyped)));
 
@@ -170,7 +170,7 @@ static const Symbol& createWeakReference(Compilation& c) {
         get_id.addFlags(MethodFlags::Static);
     };
 
-    auto& weakRef = *c.allocGenericClass("weak_reference", NL, specialize);
+    auto& weakRef = *c.allocGenericClass(c, "weak_reference", NL, specialize);
     weakRef.addParameterDecl(DefinitionSymbol::ParameterDecl("T", NL, false, true, nullptr));
 
     return weakRef;

@@ -26,7 +26,7 @@ static void createImplicitNets(const SystemTimingCheckSymbol& timingCheck,
                                SmallSet<std::string_view, 8>& implicitNetNames);
 
 SpecifyBlockSymbol::SpecifyBlockSymbol(Compilation& compilation, SourceLocation loc) :
-    Symbol(SymbolKind::SpecifyBlock, "", loc), Scope(compilation, this) {
+    Symbol(SymbolKind::SpecifyBlock, "", loc, compilation), Scope(compilation, this) {
 }
 
 SpecifyBlockSymbol& SpecifyBlockSymbol::fromSyntax(const Scope& scope,
@@ -44,7 +44,7 @@ SpecifyBlockSymbol& SpecifyBlockSymbol::fromSyntax(const Scope& scope,
     for (auto member = result->getFirstMember(); member; member = member->getNextSibling()) {
         if (member->kind == SymbolKind::Specparam) {
             // specparams inside specify blocks get visibility in the parent scope as well.
-            implicitSymbols.push_back(comp.emplace<TransparentMemberSymbol>(*member));
+            implicitSymbols.push_back(comp.emplace<TransparentMemberSymbol>(comp, *member));
         }
         else if (member->kind == SymbolKind::SystemTimingCheck) {
             // some system timing checks can create implicit nets
@@ -133,11 +133,11 @@ bool SpecifyBlockSymbol::checkPathTerminal(const ValueSymbol& terminal, const Ty
     return false;
 }
 
-TimingPathSymbol::TimingPathSymbol(SourceLocation loc, ConnectionKind connectionKind,
-                                   Polarity polarity, Polarity edgePolarity,
-                                   EdgeKind edgeIdentifier) :
-    Symbol(SymbolKind::TimingPath, ""sv, loc), connectionKind(connectionKind), polarity(polarity),
-    edgePolarity(edgePolarity), edgeIdentifier(edgeIdentifier) {
+TimingPathSymbol::TimingPathSymbol(Compilation& compilation, SourceLocation loc,
+                                   ConnectionKind connectionKind, Polarity polarity,
+                                   Polarity edgePolarity, EdgeKind edgeIdentifier) :
+    Symbol(SymbolKind::TimingPath, ""sv, loc, compilation), connectionKind(connectionKind),
+    polarity(polarity), edgePolarity(edgePolarity), edgeIdentifier(edgeIdentifier) {
 }
 
 TimingPathSymbol& TimingPathSymbol::fromSyntax(const Scope& parent,
@@ -181,8 +181,9 @@ TimingPathSymbol& TimingPathSymbol::fromSyntax(const Scope& parent,
     }
 
     auto& comp = parent.getCompilation();
-    auto result = comp.emplace<TimingPathSymbol>(syntax.getFirstToken().location(), connectionKind,
-                                                 polarity, edgePolarity, edgeIdentifier);
+    auto result = comp.emplace<TimingPathSymbol>(comp, syntax.getFirstToken().location(),
+                                                 connectionKind, polarity, edgePolarity,
+                                                 edgeIdentifier);
     result->setSyntax(syntax);
     return *result;
 }
@@ -583,8 +584,9 @@ void TimingPathSymbol::serializeTo(ASTSerializer& serializer) const {
     serializer.endArray();
 }
 
-PulseStyleSymbol::PulseStyleSymbol(SourceLocation loc, PulseStyleKind pulseStyleKind) :
-    Symbol(SymbolKind::PulseStyle, ""sv, loc), pulseStyleKind(pulseStyleKind) {
+PulseStyleSymbol::PulseStyleSymbol(Compilation& compilation, SourceLocation loc,
+                                   PulseStyleKind pulseStyleKind) :
+    Symbol(SymbolKind::PulseStyle, ""sv, loc, compilation), pulseStyleKind(pulseStyleKind) {
 }
 
 PulseStyleSymbol& PulseStyleSymbol::fromSyntax(const Scope& parent,
@@ -592,7 +594,8 @@ PulseStyleSymbol& PulseStyleSymbol::fromSyntax(const Scope& parent,
     auto pulseStyleKind = SemanticFacts::getPulseStyleKind(syntax.keyword.kind);
 
     auto& comp = parent.getCompilation();
-    auto result = comp.emplace<PulseStyleSymbol>(syntax.getFirstToken().location(), pulseStyleKind);
+    auto result = comp.emplace<PulseStyleSymbol>(comp, syntax.getFirstToken().location(),
+                                                 pulseStyleKind);
     result->setSyntax(syntax);
     return *result;
 }
@@ -810,9 +813,9 @@ static void createImplicitNets(const SystemTimingCheckSymbol& timingCheck,
     }
 }
 
-SystemTimingCheckSymbol::SystemTimingCheckSymbol(SourceLocation loc,
+SystemTimingCheckSymbol::SystemTimingCheckSymbol(Compilation& compilation, SourceLocation loc,
                                                  const SystemTimingCheckDef* def) :
-    Symbol(SymbolKind::SystemTimingCheck, ""sv, loc), def(def) {
+    Symbol(SymbolKind::SystemTimingCheck, ""sv, loc, compilation), def(def) {
     timingCheckKind = def ? def->kind : SystemTimingCheckKind::Unknown;
 }
 
@@ -831,7 +834,8 @@ SystemTimingCheckSymbol& SystemTimingCheckSymbol::fromSyntax(
     }
 
     auto& comp = parent.getCompilation();
-    auto result = comp.emplace<SystemTimingCheckSymbol>(syntax.getFirstToken().location(), def);
+    auto result = comp.emplace<SystemTimingCheckSymbol>(comp, syntax.getFirstToken().location(),
+                                                        def);
     result->setSyntax(syntax);
     return *result;
 }

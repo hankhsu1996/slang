@@ -34,7 +34,7 @@ class SLANG_EXPORT CheckerInstanceSymbol final : public InstanceSymbolBase {
 public:
     const CheckerInstanceBodySymbol& body;
 
-    CheckerInstanceSymbol(std::string_view name, SourceLocation loc,
+    CheckerInstanceSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                           CheckerInstanceBodySymbol& body);
 
     class SLANG_EXPORT Connection {

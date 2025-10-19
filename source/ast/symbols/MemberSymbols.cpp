@@ -39,7 +39,7 @@ using namespace syntax;
 
 EmptyMemberSymbol& EmptyMemberSymbol::fromSyntax(Compilation& compilation, const Scope& scope,
                                                  const EmptyMemberSyntax& syntax) {
-    auto result = compilation.emplace<EmptyMemberSymbol>(syntax.semi.location());
+    auto result = compilation.emplace<EmptyMemberSymbol>(compilation, syntax.semi.location());
     result->setAttributes(scope, syntax.attributes);
 
     // Report a warning if this is just an empty semicolon hanging out for no reason,
@@ -158,9 +158,9 @@ void WildcardImportSymbol::serializeTo(ASTSerializer& serializer) const {
         serializer.writeLink("package", *pkg);
 }
 
-ModportPortSymbol::ModportPortSymbol(std::string_view name, SourceLocation loc,
-                                     ArgumentDirection direction) :
-    ValueSymbol(SymbolKind::ModportPort, name, loc), direction(direction) {
+ModportPortSymbol::ModportPortSymbol(Compilation& compilation, std::string_view name,
+                                     SourceLocation loc, ArgumentDirection direction) :
+    ValueSymbol(SymbolKind::ModportPort, name, loc, compilation), direction(direction) {
 }
 
 ModportPortSymbol& ModportPortSymbol::fromSyntax(const ASTContext& context,
@@ -168,7 +168,8 @@ ModportPortSymbol& ModportPortSymbol::fromSyntax(const ASTContext& context,
                                                  const ModportNamedPortSyntax& syntax) {
     auto& comp = context.getCompilation();
     auto name = syntax.name;
-    auto result = comp.emplace<ModportPortSymbol>(name.valueText(), name.location(), direction);
+    auto result = comp.emplace<ModportPortSymbol>(comp, name.valueText(), name.location(),
+                                                  direction);
     result->setSyntax(syntax);
     result->internalSymbol = Lookup::unqualifiedAt(*context.scope, name.valueText(),
                                                    context.getLocation(), name.range(),
@@ -223,7 +224,8 @@ ModportPortSymbol& ModportPortSymbol::fromSyntax(const ASTContext& parentContext
     ASTContext context = parentContext.resetFlags(ASTFlags::NonProcedural);
     auto& comp = context.getCompilation();
     auto name = syntax.name;
-    auto result = comp.emplace<ModportPortSymbol>(name.valueText(), name.location(), direction);
+    auto result = comp.emplace<ModportPortSymbol>(comp, name.valueText(), name.location(),
+                                                  direction);
     result->setSyntax(syntax);
 
     if (!syntax.expr) {
@@ -261,15 +263,16 @@ void ModportPortSymbol::serializeTo(ASTSerializer& serializer) const {
         serializer.write("explicitConnection", *explicitConnection);
 }
 
-ModportClockingSymbol::ModportClockingSymbol(std::string_view name, SourceLocation loc) :
-    Symbol(SymbolKind::ModportClocking, name, loc) {
+ModportClockingSymbol::ModportClockingSymbol(Compilation& compilation, std::string_view name,
+                                             SourceLocation loc) :
+    Symbol(SymbolKind::ModportClocking, name, loc, compilation) {
 }
 
 ModportClockingSymbol& ModportClockingSymbol::fromSyntax(const ASTContext& context,
                                                          const ModportClockingPortSyntax& syntax) {
     auto& comp = context.getCompilation();
     auto name = syntax.name;
-    auto result = comp.emplace<ModportClockingSymbol>(name.valueText(), name.location());
+    auto result = comp.emplace<ModportClockingSymbol>(comp, name.valueText(), name.location());
     result->setSyntax(syntax);
 
     result->target = Lookup::unqualifiedAt(*context.scope, name.valueText(), context.getLocation(),
@@ -291,7 +294,7 @@ void ModportClockingSymbol::serializeTo(ASTSerializer& serializer) const {
 }
 
 ModportSymbol::ModportSymbol(Compilation& compilation, std::string_view name, SourceLocation loc) :
-    Symbol(SymbolKind::Modport, name, loc), Scope(compilation, this) {
+    Symbol(SymbolKind::Modport, name, loc, compilation), Scope(compilation, this) {
 }
 
 void ModportSymbol::fromSyntax(const ASTContext& context, const ModportDeclarationSyntax& syntax,
@@ -379,14 +382,16 @@ void ModportSymbol::fromSyntax(const ASTContext& context, const ModportDeclarati
     }
 }
 
-ContinuousAssignSymbol::ContinuousAssignSymbol(const ExpressionSyntax& syntax) :
-    Symbol(SymbolKind::ContinuousAssign, "", syntax.getFirstToken().location()) {
+ContinuousAssignSymbol::ContinuousAssignSymbol(Compilation& compilation,
+                                               const ExpressionSyntax& syntax) :
+    Symbol(SymbolKind::ContinuousAssign, "", syntax.getFirstToken().location(), compilation) {
 
     setSyntax(syntax);
 }
 
-ContinuousAssignSymbol::ContinuousAssignSymbol(SourceLocation loc, const Expression& assignment) :
-    Symbol(SymbolKind::ContinuousAssign, "", loc), assign(&assignment) {
+ContinuousAssignSymbol::ContinuousAssignSymbol(Compilation& compilation, SourceLocation loc,
+                                               const Expression& assignment) :
+    Symbol(SymbolKind::ContinuousAssign, "", loc, compilation), assign(&assignment) {
 }
 
 void ContinuousAssignSymbol::fromSyntax(Compilation& compilation,
@@ -418,7 +423,7 @@ void ContinuousAssignSymbol::fromSyntax(Compilation& compilation,
             }
         }
 
-        auto symbol = compilation.emplace<ContinuousAssignSymbol>(*expr);
+        auto symbol = compilation.emplace<ContinuousAssignSymbol>(compilation, *expr);
         symbol->setAttributes(*context.scope, syntax.attributes);
         results.push_back(symbol);
     }
@@ -527,8 +532,8 @@ void ContinuousAssignSymbol::serializeTo(ASTSerializer& serializer) const {
         serializer.write("driveStrength1", toString(*ds1));
 }
 
-GenvarSymbol::GenvarSymbol(std::string_view name, SourceLocation loc) :
-    Symbol(SymbolKind::Genvar, name, loc) {
+GenvarSymbol::GenvarSymbol(Compilation& compilation, std::string_view name, SourceLocation loc) :
+    Symbol(SymbolKind::Genvar, name, loc, compilation) {
 }
 
 void GenvarSymbol::fromSyntax(const Scope& parent, const GenvarDeclarationSyntax& syntax,
@@ -539,15 +544,16 @@ void GenvarSymbol::fromSyntax(const Scope& parent, const GenvarDeclarationSyntax
         if (name.valueText().empty())
             continue;
 
-        auto genvar = comp.emplace<GenvarSymbol>(name.valueText(), name.location());
+        auto genvar = comp.emplace<GenvarSymbol>(comp, name.valueText(), name.location());
         genvar->setSyntax(*id);
         genvar->setAttributes(parent, syntax.attributes);
         results.push_back(genvar);
     }
 }
 
-ElabSystemTaskSymbol::ElabSystemTaskSymbol(ElabSystemTaskKind taskKind, SourceLocation loc) :
-    Symbol(SymbolKind::ElabSystemTask, "", loc), taskKind(taskKind) {
+ElabSystemTaskSymbol::ElabSystemTaskSymbol(Compilation& compilation, ElabSystemTaskKind taskKind,
+                                           SourceLocation loc) :
+    Symbol(SymbolKind::ElabSystemTask, "", loc, compilation), taskKind(taskKind) {
 }
 
 ElabSystemTaskSymbol& ElabSystemTaskSymbol::fromSyntax(Compilation& compilation,
@@ -555,7 +561,8 @@ ElabSystemTaskSymbol& ElabSystemTaskSymbol::fromSyntax(Compilation& compilation,
     // Just create the symbol now. The diagnostic will be issued later
     // when someone visits the symbol and asks for it.
     auto taskKind = SemanticFacts::getElabSystemTaskKind(syntax.name);
-    auto result = compilation.emplace<ElabSystemTaskSymbol>(taskKind, syntax.name.location());
+    auto result = compilation.emplace<ElabSystemTaskSymbol>(compilation, taskKind,
+                                                            syntax.name.location());
     result->setSyntax(syntax);
     return *result;
 }
@@ -596,8 +603,8 @@ std::optional<std::string_view> ElabSystemTaskSymbol::getMessage() const {
                 astCtx.addDiag(diag::NamedArgNotAllowed, arg->sourceRange());
                 return {};
             case SyntaxKind::EmptyArgument:
-                args.push_back(
-                    comp.emplace<EmptyArgumentExpression>(comp.getVoidType(), arg->sourceRange(), comp));
+                args.push_back(comp.emplace<EmptyArgumentExpression>(comp.getVoidType(),
+                                                                     arg->sourceRange(), comp));
                 break;
             default:
                 SLANG_UNREACHABLE;
@@ -757,7 +764,7 @@ void ElabSystemTaskSymbol::serializeTo(ASTSerializer& serializer) const {
 
 PrimitivePortSymbol::PrimitivePortSymbol(Compilation& compilation, std::string_view name,
                                          SourceLocation loc, PrimitivePortDirection direction) :
-    ValueSymbol(SymbolKind::PrimitivePort, name, loc), direction(direction) {
+    ValueSymbol(SymbolKind::PrimitivePort, name, loc, compilation), direction(direction) {
     // All primitive ports are single bit logic types.
     setType(compilation.getLogicType());
 }
@@ -1508,8 +1515,9 @@ void PrimitiveSymbol::serializeTo(ASTSerializer& serializer) const {
     }
 }
 
-AssertionPortSymbol::AssertionPortSymbol(std::string_view name, SourceLocation loc) :
-    Symbol(SymbolKind::AssertionPort, name, loc), declaredType(*this) {
+AssertionPortSymbol::AssertionPortSymbol(Compilation& compilation, std::string_view name,
+                                         SourceLocation loc) :
+    Symbol(SymbolKind::AssertionPort, name, loc, compilation), declaredType(*this) {
 }
 
 static bool isEmptyType(const DataTypeSyntax& syntax) {
@@ -1532,7 +1540,7 @@ void AssertionPortSymbol::buildPorts(Scope& scope, const AssertionItemPortListSy
         if (item->previewNode)
             scope.addMembers(*item->previewNode);
 
-        auto port = comp.emplace<AssertionPortSymbol>(item->name.valueText(),
+        auto port = comp.emplace<AssertionPortSymbol>(comp, item->name.valueText(),
                                                       item->name.location());
         port->setSyntax(*item);
         port->setAttributes(scope, item->attributes);
@@ -1607,7 +1615,7 @@ void AssertionPortSymbol::buildPorts(Scope& scope, const AssertionItemPortListSy
 
 AssertionPortSymbol& AssertionPortSymbol::clone(Scope& newScope) const {
     auto& comp = newScope.getCompilation();
-    auto result = comp.emplace<AssertionPortSymbol>(name, location);
+    auto result = comp.emplace<AssertionPortSymbol>(comp, name, location);
     result->declaredType.setLink(declaredType);
     result->defaultValueSyntax = defaultValueSyntax;
     result->direction = direction;
@@ -1627,7 +1635,7 @@ void AssertionPortSymbol::serializeTo(ASTSerializer& serializer) const {
 
 SequenceSymbol::SequenceSymbol(Compilation& compilation, std::string_view name,
                                SourceLocation loc) :
-    Symbol(SymbolKind::Sequence, name, loc), Scope(compilation, this) {
+    Symbol(SymbolKind::Sequence, name, loc, compilation), Scope(compilation, this) {
 }
 
 SequenceSymbol& SequenceSymbol::fromSyntax(const Scope& scope,
@@ -1652,7 +1660,7 @@ void SequenceSymbol::makeDefaultInstance() const {
 
 PropertySymbol::PropertySymbol(Compilation& compilation, std::string_view name,
                                SourceLocation loc) :
-    Symbol(SymbolKind::Property, name, loc), Scope(compilation, this) {
+    Symbol(SymbolKind::Property, name, loc, compilation), Scope(compilation, this) {
 }
 
 PropertySymbol& PropertySymbol::fromSyntax(const Scope& scope,
@@ -1677,7 +1685,8 @@ void PropertySymbol::makeDefaultInstance() const {
 
 LetDeclSymbol::LetDeclSymbol(Compilation& compilation, const ExpressionSyntax& exprSyntax,
                              std::string_view name, SourceLocation loc) :
-    Symbol(SymbolKind::LetDecl, name, loc), Scope(compilation, this), exprSyntax(&exprSyntax) {
+    Symbol(SymbolKind::LetDecl, name, loc, compilation), Scope(compilation, this),
+    exprSyntax(&exprSyntax) {
 }
 
 LetDeclSymbol& LetDeclSymbol::fromSyntax(const Scope& scope, const LetDeclarationSyntax& syntax) {
@@ -1701,7 +1710,7 @@ void LetDeclSymbol::makeDefaultInstance() const {
 
 ClockingBlockSymbol::ClockingBlockSymbol(Compilation& compilation, std::string_view name,
                                          SourceLocation loc) :
-    Symbol(SymbolKind::ClockingBlock, name, loc), Scope(compilation, this) {
+    Symbol(SymbolKind::ClockingBlock, name, loc, compilation), Scope(compilation, this) {
 }
 
 ClockingBlockSymbol& ClockingBlockSymbol::fromSyntax(const Scope& scope,
@@ -1767,7 +1776,7 @@ const TimingControl& ClockingBlockSymbol::getEvent() const {
         SLANG_ASSERT(scope && syntax);
 
         ASTContext context(*scope, LookupLocation::before(*this));
-        event = &EventListControl::fromSyntax(getCompilation(),
+        event = &EventListControl::fromSyntax(Scope::getCompilation(),
                                               *syntax->as<ClockingDeclarationSyntax>().event,
                                               context);
     }
@@ -1826,7 +1835,7 @@ void ClockingBlockSymbol::serializeTo(ASTSerializer& serializer) const {
 
 RandSeqProductionSymbol::RandSeqProductionSymbol(Compilation& compilation, std::string_view name,
                                                  SourceLocation loc) :
-    Symbol(SymbolKind::RandSeqProduction, name, loc), Scope(compilation, this),
+    Symbol(SymbolKind::RandSeqProduction, name, loc, compilation), Scope(compilation, this),
     declaredReturnType(*this) {
 }
 
@@ -2116,7 +2125,8 @@ void RandSeqProductionSymbol::createRuleVariables(const RsRuleSyntax& syntax, co
 
     auto& comp = scope.getCompilation();
     for (auto [symbol, count] : prodMap) {
-        auto var = comp.emplace<VariableSymbol>(symbol->name, syntax.getFirstToken().location(),
+        auto var = comp.emplace<VariableSymbol>(comp, symbol->name,
+                                                syntax.getFirstToken().location(),
                                                 VariableLifetime::Automatic);
         var->flags |= VariableFlags::Const | VariableFlags::CompilerGenerated;
 
@@ -2226,7 +2236,7 @@ void RandSeqProductionSymbol::serializeTo(ASTSerializer& serializer) const {
 }
 
 AnonymousProgramSymbol::AnonymousProgramSymbol(Compilation& compilation, SourceLocation loc) :
-    Symbol(SymbolKind::AnonymousProgram, "", loc), Scope(compilation, this) {
+    Symbol(SymbolKind::AnonymousProgram, "", loc, compilation), Scope(compilation, this) {
 }
 
 AnonymousProgramSymbol& AnonymousProgramSymbol::fromSyntax(Scope& scope,
@@ -2240,7 +2250,7 @@ AnonymousProgramSymbol& AnonymousProgramSymbol::fromSyntax(Scope& scope,
 
     // All members also get hoisted into the parent scope.
     for (auto member = result->getFirstMember(); member; member = member->getNextSibling())
-        scope.addMember(*comp.emplace<TransparentMemberSymbol>(*member));
+        scope.addMember(*comp.emplace<TransparentMemberSymbol>(comp, *member));
 
     return *result;
 }
@@ -2266,7 +2276,7 @@ NetAliasSymbol& NetAliasSymbol::fromSyntax(const ASTContext& parentContext,
         }
     }
 
-    auto result = comp.emplace<NetAliasSymbol>(syntax.keyword.location());
+    auto result = comp.emplace<NetAliasSymbol>(comp, syntax.keyword.location());
     result->setSyntax(syntax);
     result->setAttributes(*context.scope, syntax.attributes);
     return *result;

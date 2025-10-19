@@ -17,8 +17,8 @@ namespace slang::ast {
 using namespace syntax;
 
 ValueSymbol::ValueSymbol(SymbolKind kind, std::string_view name, SourceLocation location,
-                         bitmask<DeclaredTypeFlags> flags) :
-    Symbol(kind, name, location), declaredType(*this, flags) {
+                         Compilation& compilation, bitmask<DeclaredTypeFlags> flags) :
+    Symbol(kind, name, location, compilation), declaredType(*this, flags) {
 }
 
 void ValueSymbol::setFromDeclarator(const DeclaratorSyntax& decl) {

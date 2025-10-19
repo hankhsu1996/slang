@@ -182,27 +182,27 @@ public:
             }
             case SyntaxKind::InterfacePortHeader: {
                 auto& header = syntax.header->as<InterfacePortHeaderSyntax>();
-                
+
                 // Extract interface name range
                 SourceRange interfaceNameRange = header.nameOrKeyword.range();
-                
+
                 // Extract modport name range (if present)
                 SourceRange modportNameRange;
                 if (header.modport) {
                     modportNameRange = header.modport->member.range();
                 }
-                
+
                 if (header.nameOrKeyword.kind == TokenKind::InterfaceKeyword) {
                     std::string_view modport;
                     if (header.modport)
                         modport = header.modport->member.valueText();
                     return add(decl, nullptr, modport, /* isGeneric */ true, syntax.attributes,
-                              interfaceNameRange, modportNameRange);
+                               interfaceNameRange, modportNameRange);
                 }
 
                 auto [definition, modport] = getInterfacePortInfo(scope, header);
                 return add(decl, definition, modport, /* isGeneric */ false, syntax.attributes,
-                          interfaceNameRange, modportNameRange);
+                           interfaceNameRange, modportNameRange);
             }
             default:
                 SLANG_UNREACHABLE;
@@ -210,7 +210,7 @@ public:
     }
 
     Symbol* createPort(const ExplicitAnsiPortSyntax& syntax) {
-        auto port = comp.emplace<PortSymbol>(syntax.name.valueText(), syntax.name.location(),
+        auto port = comp.emplace<PortSymbol>(comp, syntax.name.valueText(), syntax.name.location(),
                                              /* isAnsiPort */ true);
         port->direction = getDirection(syntax.direction);
         port->setSyntax(syntax);
@@ -248,7 +248,7 @@ private:
     Symbol* add(const DeclaratorSyntax& decl, ArgumentDirection direction,
                 const DataTypeSyntax* type, const NetType* netType,
                 std::span<const AttributeInstanceSyntax* const> attrs) {
-        auto port = comp.emplace<PortSymbol>(decl.name.valueText(), decl.name.location(),
+        auto port = comp.emplace<PortSymbol>(comp, decl.name.valueText(), decl.name.location(),
                                              /* isAnsiPort */ true);
         port->direction = direction;
         port->setSyntax(decl);
@@ -282,10 +282,10 @@ private:
         if (!port->internalSymbol) {
             ValueSymbol* symbol;
             if (netType) {
-                symbol = comp.emplace<NetSymbol>(port->name, port->location, *netType);
+                symbol = comp.emplace<NetSymbol>(comp, port->name, port->location, *netType);
             }
             else {
-                symbol = comp.emplace<VariableSymbol>(port->name, port->location,
+                symbol = comp.emplace<VariableSymbol>(comp, port->name, port->location,
                                                       VariableLifetime::Static);
             }
 
@@ -333,7 +333,8 @@ private:
     Symbol* add(const DeclaratorSyntax& decl, const DefinitionSymbol* iface,
                 std::string_view modport, bool isGeneric,
                 std::span<const AttributeInstanceSyntax* const> attrs) {
-        auto port = comp.emplace<InterfacePortSymbol>(decl.name.valueText(), decl.name.location());
+        auto port = comp.emplace<InterfacePortSymbol>(comp, decl.name.valueText(),
+                                                      decl.name.location());
         port->interfaceDef = iface;
         port->modport = modport;
         port->isGeneric = isGeneric;
@@ -357,8 +358,9 @@ private:
                 std::string_view modport, bool isGeneric,
                 std::span<const AttributeInstanceSyntax* const> attrs,
                 SourceRange interfaceNameRange, SourceRange modportNameRange) {
-        auto port = comp.emplace<InterfacePortSymbol>(decl.name.valueText(), decl.name.location(),
-                                                      interfaceNameRange, modportNameRange);
+        auto port = comp.emplace<InterfacePortSymbol>(comp, decl.name.valueText(),
+                                                      decl.name.location(), interfaceNameRange,
+                                                      modportNameRange);
         port->interfaceDef = iface;
         port->modport = modport;
         port->isGeneric = isGeneric;
@@ -476,7 +478,7 @@ public:
         auto loc = syntax.name.location();
 
         if (!syntax.expr) {
-            auto port = comp.emplace<PortSymbol>(name, loc, /* isAnsiPort */ false);
+            auto port = comp.emplace<PortSymbol>(comp, name, loc, /* isAnsiPort */ false);
             port->direction = ArgumentDirection::In;
             port->setSyntax(syntax);
             port->isNullPort = true;
@@ -494,7 +496,7 @@ public:
     }
 
     Symbol* createPort(const EmptyNonAnsiPortSyntax& syntax) {
-        auto port = comp.emplace<PortSymbol>("", syntax.placeholder.location(),
+        auto port = comp.emplace<PortSymbol>(comp, "", syntax.placeholder.location(),
                                              /* isAnsiPort */ false);
         port->direction = ArgumentDirection::In;
         port->setSyntax(syntax);
@@ -554,14 +556,14 @@ private:
                         auto typeName = SyntaxFacts::getSimpleTypeName(*varHeader.dataType);
                         auto result = Lookup::unqualified(scope, typeName, LookupFlags::Type);
                         if (result && result->kind == SymbolKind::NetType) {
-                            auto net = comp.emplace<NetSymbol>(name, declLoc,
+                            auto net = comp.emplace<NetSymbol>(comp, name, declLoc,
                                                                result->as<NetType>());
                             setInternalSymbol(*net, decl, nullptr, info);
                             break;
                         }
                     }
 
-                    auto variable = comp.emplace<VariableSymbol>(name, declLoc,
+                    auto variable = comp.emplace<VariableSymbol>(comp, name, declLoc,
                                                                  VariableLifetime::Static);
                     setInternalSymbol(*variable, decl, varHeader.dataType, info);
                 }
@@ -589,7 +591,7 @@ private:
                 }
                 else {
                     // No symbol and no data type defaults to a basic net.
-                    auto net = comp.emplace<NetSymbol>(name, declLoc,
+                    auto net = comp.emplace<NetSymbol>(comp, name, declLoc,
                                                        getDefaultNetType(scope, declLoc));
                     setInternalSymbol(*net, decl, varHeader.dataType, info);
                 }
@@ -605,7 +607,7 @@ private:
                 info.direction = SemanticFacts::getDirection(netHeader.direction.kind);
 
                 // Create a new symbol to represent this port internally to the instance.
-                auto net = comp.emplace<NetSymbol>(name, declLoc,
+                auto net = comp.emplace<NetSymbol>(comp, name, declLoc,
                                                    comp.getNetType(netHeader.netType.kind));
                 setInternalSymbol(*net, decl, netHeader.dataType, info);
                 break;
@@ -669,7 +671,8 @@ private:
             if (!name.empty())
                 scope.addDiag(diag::MissingPortIODeclaration, externalLoc) << name;
 
-            auto port = comp.emplace<PortSymbol>(externalName, externalLoc, /* isAnsiPort */ false);
+            auto port = comp.emplace<PortSymbol>(comp, externalName, externalLoc,
+                                                 /* isAnsiPort */ false);
             port->setType(comp.getErrorType());
             return *port;
         }
@@ -689,7 +692,7 @@ private:
                 diag << externalName;
             }
 
-            auto port = comp.emplace<InterfacePortSymbol>(externalName, loc);
+            auto port = comp.emplace<InterfacePortSymbol>(comp, externalName, loc);
             port->setSyntax(*info.syntax);
             port->interfaceDef = info.ifaceDef;
             port->modport = info.modport;
@@ -704,7 +707,7 @@ private:
             return *port;
         }
 
-        auto port = comp.emplace<PortSymbol>(externalName, loc, /* isAnsiPort */ false);
+        auto port = comp.emplace<PortSymbol>(comp, externalName, loc, /* isAnsiPort */ false);
         port->setSyntax(syntax);
         port->externalLoc = externalLoc;
 
@@ -797,7 +800,8 @@ private:
             }
         }
 
-        auto result = comp.emplace<MultiPortSymbol>(name, externalLoc, buffer.copy(comp), dir);
+        auto result = comp.emplace<MultiPortSymbol>(comp, name, externalLoc, buffer.copy(comp),
+                                                    dir);
         result->setSyntax(syntax);
         return *result;
     }
@@ -1314,8 +1318,9 @@ struct PortBackrefVisitor {
 
 } // end anonymous namespace
 
-PortSymbol::PortSymbol(std::string_view name, SourceLocation loc, bool isAnsiPort) :
-    Symbol(SymbolKind::Port, name, loc), isAnsiPort(isAnsiPort) {
+PortSymbol::PortSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                       bool isAnsiPort) :
+    Symbol(SymbolKind::Port, name, loc, compilation), isAnsiPort(isAnsiPort) {
     externalLoc = loc;
 }
 
@@ -1572,10 +1577,10 @@ void PortSymbol::serializeTo(ASTSerializer& serializer) const {
         serializer.writeLink("internalSymbol", *internalSymbol);
 }
 
-MultiPortSymbol::MultiPortSymbol(std::string_view name, SourceLocation loc,
-                                 std::span<const PortSymbol* const> ports,
+MultiPortSymbol::MultiPortSymbol(Compilation& compilation, std::string_view name,
+                                 SourceLocation loc, std::span<const PortSymbol* const> ports,
                                  ArgumentDirection direction) :
-    Symbol(SymbolKind::MultiPort, name, loc), ports(ports), direction(direction) {
+    Symbol(SymbolKind::MultiPort, name, loc, compilation), ports(ports), direction(direction) {
 }
 
 const Type& MultiPortSymbol::getType() const {
@@ -1806,7 +1811,8 @@ const Expression* PortConnection::getExpression() const {
                     e = &Expression::convertAssignment(context, *type, *e, implicitNameRange);
                 }
                 else if (direction != ArgumentDirection::Ref) {
-                    auto rhs = comp.emplace<EmptyArgumentExpression>(*type, implicitNameRange, comp);
+                    auto rhs = comp.emplace<EmptyArgumentExpression>(*type, implicitNameRange,
+                                                                     comp);
                     Expression::convertAssignment(context, *e->type, *rhs, implicitNameRange, &e);
                 }
 

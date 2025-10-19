@@ -80,7 +80,8 @@ public:
     std::span<const CompilationUnitSymbol* const> compilationUnits;
 
     explicit RootSymbol(Compilation& compilation) :
-        Symbol(SymbolKind::Root, "$root", SourceLocation()), Scope(compilation, this) {}
+        Symbol(SymbolKind::Root, "$root", SourceLocation(), compilation), Scope(compilation, this) {
+    }
 
     void serializeTo(ASTSerializer&) const {}
 
@@ -299,7 +300,7 @@ public:
     mutable bool isUsed = false;
 
     ConfigBlockSymbol(Compilation& compilation, std::string_view name, SourceLocation loc) :
-        Symbol(SymbolKind::ConfigBlock, name, loc), Scope(compilation, this) {}
+        Symbol(SymbolKind::ConfigBlock, name, loc, compilation), Scope(compilation, this) {}
 
     std::span<const TopCell> getTopCells() const {
         if (!resolved)

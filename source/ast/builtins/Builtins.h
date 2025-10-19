@@ -18,23 +18,23 @@ namespace slang::ast::builtins {
 
 class Builtins {
 public:
-    ScalarType bitType{ScalarType::Bit};
-    ScalarType logicType{ScalarType::Logic};
-    ScalarType regType{ScalarType::Reg};
-    ScalarType signedBitType{ScalarType::Bit, true};
-    ScalarType signedLogicType{ScalarType::Logic, true};
-    ScalarType signedRegType{ScalarType::Reg, true};
-    PredefinedIntegerType intType{PredefinedIntegerType::Int};
-    PredefinedIntegerType uintType{PredefinedIntegerType::Int, false};
-    PredefinedIntegerType byteType{PredefinedIntegerType::Byte};
-    PredefinedIntegerType integerType{PredefinedIntegerType::Integer};
-    PredefinedIntegerType shortIntType{PredefinedIntegerType::ShortInt};
-    PredefinedIntegerType longIntType{PredefinedIntegerType::LongInt};
-    PredefinedIntegerType ulongIntType{PredefinedIntegerType::LongInt, false};
-    PredefinedIntegerType timeType{PredefinedIntegerType::Time};
-    FloatingType realType{FloatingType::Real};
-    FloatingType shortRealType{FloatingType::ShortReal};
-    FloatingType realTimeType{FloatingType::RealTime};
+    ScalarType bitType;
+    ScalarType logicType;
+    ScalarType regType;
+    ScalarType signedBitType;
+    ScalarType signedLogicType;
+    ScalarType signedRegType;
+    PredefinedIntegerType intType;
+    PredefinedIntegerType uintType;
+    PredefinedIntegerType byteType;
+    PredefinedIntegerType integerType;
+    PredefinedIntegerType shortIntType;
+    PredefinedIntegerType longIntType;
+    PredefinedIntegerType ulongIntType;
+    PredefinedIntegerType timeType;
+    FloatingType realType;
+    FloatingType shortRealType;
+    FloatingType realTimeType;
     StringType stringType;
     VoidType voidType;
     CHandleType chandleType;
@@ -52,9 +52,26 @@ public:
     flat_hash_map<std::tuple<std::string_view, SymbolKind>, std::shared_ptr<SystemSubroutine>>
         methodMap;
 
-    static Builtins Instance;
-
-    Builtins() {
+    explicit Builtins(Compilation& compilation) :
+        bitType(ScalarType::Bit, compilation), logicType(ScalarType::Logic, compilation),
+        regType(ScalarType::Reg, compilation), signedBitType(ScalarType::Bit, true, compilation),
+        signedLogicType(ScalarType::Logic, true, compilation),
+        signedRegType(ScalarType::Reg, true, compilation),
+        intType(PredefinedIntegerType::Int, compilation),
+        uintType(PredefinedIntegerType::Int, false, compilation),
+        byteType(PredefinedIntegerType::Byte, compilation),
+        integerType(PredefinedIntegerType::Integer, compilation),
+        shortIntType(PredefinedIntegerType::ShortInt, compilation),
+        longIntType(PredefinedIntegerType::LongInt, compilation),
+        ulongIntType(PredefinedIntegerType::LongInt, false, compilation),
+        timeType(PredefinedIntegerType::Time, compilation),
+        realType(FloatingType::Real, compilation),
+        shortRealType(FloatingType::ShortReal, compilation),
+        realTimeType(FloatingType::RealTime, compilation), stringType(compilation),
+        voidType(compilation), chandleType(compilation), nullType(compilation),
+        eventType(compilation), unboundedType(compilation), typeRefType(compilation),
+        untypedType(compilation), sequenceType(compilation), propertyType(compilation),
+        errorType(compilation) {
         systemSubroutines.resize(parsing::KnownSystemName_traits::values.size());
 
         registerArrayMethods();

@@ -146,8 +146,8 @@ public:
     bool isDefault = false;
     bool isDefaultSequence = false;
 
-    CoverageBinSymbol(std::string_view name, SourceLocation loc) :
-        Symbol(SymbolKind::CoverageBin, name, loc) {}
+    CoverageBinSymbol(Compilation& compilation, std::string_view name, SourceLocation loc) :
+        Symbol(SymbolKind::CoverageBin, name, loc, compilation) {}
 
     const Expression* getIffExpr() const;
     const Expression* getNumberOfBinsExpr() const;
@@ -233,7 +233,7 @@ public:
     const Type* crossQueueType = nullptr;
 
     CoverCrossBodySymbol(Compilation& compilation, SourceLocation loc) :
-        Symbol(SymbolKind::CoverCrossBody, ""sv, loc), Scope(compilation, this) {}
+        Symbol(SymbolKind::CoverCrossBody, ""sv, loc, compilation), Scope(compilation, this) {}
 
     void serializeTo(ASTSerializer&) const {}
 

@@ -1322,10 +1322,11 @@ const Type& Type::getPredefinedType(Compilation& compilation, SyntaxKind kind, b
         return predef;
 
     if (predef.kind == SymbolKind::ScalarType)
-        return *compilation.emplace<ScalarType>(predef.as<ScalarType>().scalarKind, isSigned);
+        return *compilation.emplace<ScalarType>(predef.as<ScalarType>().scalarKind, isSigned,
+                                                compilation);
 
     return *compilation.emplace<PredefinedIntegerType>(
-        predef.as<PredefinedIntegerType>().integerKind, isSigned);
+        predef.as<PredefinedIntegerType>().integerKind, isSigned, compilation);
 }
 
 Diagnostic& operator<<(Diagnostic& diag, const Type& arg) {

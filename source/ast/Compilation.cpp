@@ -28,8 +28,6 @@ using namespace slang::parsing;
 
 namespace slang::ast::builtins {
 
-Builtins Builtins::Instance;
-
 void registerGateTypes(Compilation&);
 const PackageSymbol& createStdPackage(Compilation&);
 
@@ -42,7 +40,9 @@ Compilation::Compilation(const Bag& options, const SourceLibrary* defaultLib) :
     defaultLibPtr(defaultLib) {
 
     // Construct all built-in types.
-    auto& bi = slang::ast::builtins::Builtins::Instance;
+    // Create a Builtins instance on the heap (can't use stack because we need to pass *this)
+    builtins = std::make_unique<slang::ast::builtins::Builtins>(*this);
+    auto& bi = *builtins;
     bitType = &bi.bitType;
     logicType = &bi.logicType;
     intType = &bi.intType;
@@ -99,7 +99,7 @@ Compilation::Compilation(const Bag& options, const SourceLibrary* defaultLib) :
 
 #define MAKE_NETTYPE(type)                                               \
     knownNetTypes[TokenKind::type##Keyword] = std::make_unique<NetType>( \
-        NetType::type, LexerFacts::getTokenKindText(TokenKind::type##Keyword), *logicType)
+        *this, NetType::type, LexerFacts::getTokenKindText(TokenKind::type##Keyword), *logicType)
 
     knownNetTypes.reserve(16);
     MAKE_NETTYPE(Wire);
@@ -116,8 +116,8 @@ Compilation::Compilation(const Bag& options, const SourceLibrary* defaultLib) :
     MAKE_NETTYPE(UWire);
     MAKE_NETTYPE(Interconnect);
 
-    knownNetTypes[TokenKind::Unknown] = std::make_unique<NetType>(NetType::Unknown, "<error>",
-                                                                  *logicType);
+    knownNetTypes[TokenKind::Unknown] = std::make_unique<NetType>(*this, NetType::Unknown,
+                                                                  "<error>", *logicType);
     wireNetType = knownNetTypes[TokenKind::WireKeyword].get();
 
 #undef MAKE_NETTYPE
@@ -174,6 +174,19 @@ Compilation::Compilation(const Bag& options, const SourceLibrary* defaultLib) :
 }
 
 Compilation::~Compilation() = default;
+
+Compilation& Compilation::getInvalid() {
+    // Function-local static with lazy initialization (C++11 magic statics).
+    // This avoids static initialization order fiasco - the Compilation is only
+    // constructed on first access, not during static initialization phase.
+    // Thread-safe by C++11 standard.
+    static Compilation invalid;
+    return invalid;
+}
+
+bool Compilation::isInvalid() const {
+    return this == &getInvalid();
+}
 
 void Compilation::addSyntaxTree(std::shared_ptr<SyntaxTree> tree) {
     SLANG_ASSERT(!isFrozen());
@@ -1431,7 +1444,7 @@ void Compilation::noteReference(const SyntaxNode& node, bool isLValue) {
 void Compilation::noteReference(const Symbol& symbol, bool isLValue) {
     SLANG_ASSERT(!isFrozen());
     if (auto syntax = symbol.getSyntax())
-        noteReference(*syntax, isLValue);
+        symbol.getCompilation().noteReference(*syntax, isLValue);
 }
 
 std::pair<bool, bool> Compilation::isReferenced(const SyntaxNode& node) const {

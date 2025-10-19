@@ -31,9 +31,11 @@ namespace slang::ast {
 using namespace parsing;
 using namespace syntax;
 
-ClassPropertySymbol::ClassPropertySymbol(std::string_view name, SourceLocation loc,
-                                         VariableLifetime lifetime, Visibility visibility) :
-    VariableSymbol(SymbolKind::ClassProperty, name, loc, lifetime), visibility(visibility) {
+ClassPropertySymbol::ClassPropertySymbol(Compilation& compilation, std::string_view name,
+                                         SourceLocation loc, VariableLifetime lifetime,
+                                         Visibility visibility) :
+    VariableSymbol(compilation, SymbolKind::ClassProperty, name, loc, lifetime),
+    visibility(visibility) {
 }
 
 void ClassPropertySymbol::fromSyntax(const Scope& scope,
@@ -95,7 +97,7 @@ void ClassPropertySymbol::fromSyntax(const Scope& scope,
     }
 
     for (auto declarator : dataSyntax.declarators) {
-        auto var = comp.emplace<ClassPropertySymbol>(declarator->name.valueText(),
+        auto var = comp.emplace<ClassPropertySymbol>(comp, declarator->name.valueText(),
                                                      declarator->name.location(), lifetime,
                                                      visibility);
         var->randMode = randMode;
@@ -139,7 +141,7 @@ void ClassType::checkForwardDecls() const {
 }
 
 ClassType::ClassType(Compilation& compilation, std::string_view name, SourceLocation loc) :
-    Type(SymbolKind::ClassType, name, loc), Scope(compilation, this) {
+    Type(SymbolKind::ClassType, name, loc, compilation), Scope(compilation, this) {
 }
 
 ConstantValue ClassType::getDefaultValueImpl() const {
@@ -180,7 +182,7 @@ void ClassType::populate(const Scope& scope, const ClassDeclarationSyntax& synta
         addMembers(*member);
 
     // All class types get some built-in methods.
-    auto& comp = getCompilation();
+    auto& comp = Scope::getCompilation();
     auto& void_t = comp.getVoidType();
     auto& int_t = comp.getIntType();
     auto& string_t = comp.getStringType();
@@ -232,7 +234,7 @@ void ClassType::populate(const Scope& scope, const ClassDeclarationSyntax& synta
 
     // Give this class a "thisVar" that can be used by non-static class
     // property initializers to refer to their own instance.
-    auto tv = comp.emplace<VariableSymbol>("this", location, VariableLifetime::Automatic);
+    auto tv = comp.emplace<VariableSymbol>(comp, "this", location, VariableLifetime::Automatic);
     tv->setType(*this);
     tv->flags |= VariableFlags::Const | VariableFlags::CompilerGenerated;
     tv->setParent(*this);
@@ -328,7 +330,8 @@ void ClassType::handleExtends(const ExtendsClauseSyntax& extendsClause, const AS
     // Assign this member before resolving anything below, because they
     // may try to check the base class of this type.
     baseClass = baseType;
-    baseClassRefRange = extendsClause.baseName->getLastToken().range(); // LSP: store reference location
+    baseClassRefRange =
+        extendsClause.baseName->getLastToken().range(); // LSP: store reference location
 
     // Inherit all base class members that don't conflict with our declared symbols.
     auto& scopeNameMap = getNameMap();
@@ -397,7 +400,7 @@ void ClassType::handleExtends(const ExtendsClauseSyntax& extendsClause, const AS
         // All symbols get inserted into the beginning of the scope using the
         // provided insertion callback. We insert them as TransparentMemberSymbols
         // so that we can trace a path back to the actual location they are declared.
-        auto wrapper = comp.emplace<TransparentMemberSymbol>(*toWrap);
+        auto wrapper = comp.emplace<TransparentMemberSymbol>(comp, *toWrap);
         insertCB(*wrapper);
     }
 
@@ -772,7 +775,7 @@ void ClassType::handleImplements(const ImplementsClauseSyntax& implementsClause,
                     continue;
                 }
 
-                auto wrapper = comp.emplace<TransparentMemberSymbol>(*toWrap);
+                auto wrapper = comp.emplace<TransparentMemberSymbol>(comp, *toWrap);
                 insertCB(*wrapper);
             }
 
@@ -903,7 +906,7 @@ void ClassType::serializeTo(ASTSerializer& serializer) const {
 const Symbol& GenericClassDefSymbol::fromSyntax(const Scope& scope,
                                                 const ClassDeclarationSyntax& syntax) {
     auto& comp = scope.getCompilation();
-    auto result = comp.allocGenericClass(syntax.name.valueText(), syntax.name.location());
+    auto result = comp.allocGenericClass(comp, syntax.name.valueText(), syntax.name.location());
     result->setSyntax(syntax);
 
     if (syntax.virtualOrInterface.kind == TokenKind::InterfaceKeyword)
@@ -1149,7 +1152,7 @@ bool ClassSpecializationKey::operator==(const ClassSpecializationKey& other) con
 
 ConstraintBlockSymbol::ConstraintBlockSymbol(Compilation& c, std::string_view name,
                                              SourceLocation loc) :
-    Symbol(SymbolKind::ConstraintBlock, name, loc), Scope(c, this) {
+    Symbol(SymbolKind::ConstraintBlock, name, loc, c), Scope(c, this) {
 }
 
 static void addSpecifierFlags(const SyntaxList<ClassSpecifierSyntax>& specifiers,
@@ -1366,8 +1369,9 @@ void ConstraintBlockSymbol::serializeTo(ASTSerializer& serializer) const {
 }
 
 void ConstraintBlockSymbol::addThisVar(const Type& type) {
-    auto tv = getCompilation().emplace<VariableSymbol>("this", type.location,
-                                                       VariableLifetime::Automatic);
+    auto& comp = Scope::getCompilation();
+    auto tv = comp.emplace<VariableSymbol>(comp, "this", type.location,
+                                           VariableLifetime::Automatic);
     tv->setType(type);
     tv->flags |= VariableFlags::Const | VariableFlags::CompilerGenerated;
     thisVar = tv;

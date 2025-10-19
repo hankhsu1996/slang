@@ -25,8 +25,8 @@ using namespace syntax;
 
 CompilationUnitSymbol::CompilationUnitSymbol(Compilation& compilation,
                                              const SourceLibrary& sourceLibrary) :
-    Symbol(SymbolKind::CompilationUnit, "", SourceLocation()), Scope(compilation, this),
-    sourceLibrary(sourceLibrary) {
+    Symbol(SymbolKind::CompilationUnit, "", SourceLocation(), compilation),
+    Scope(compilation, this), sourceLibrary(sourceLibrary) {
 
     // Default the time scale to the compilation default. If it turns out
     // this scope has a time unit declaration it will overwrite the member.
@@ -34,7 +34,7 @@ CompilationUnitSymbol::CompilationUnitSymbol(Compilation& compilation,
 
     // All compilation units import the std package automatically.
     auto& stdPkg = compilation.getStdPackage();
-    auto import = compilation.emplace<WildcardImportSymbol>(stdPkg.name,
+    auto import = compilation.emplace<WildcardImportSymbol>(compilation, stdPkg.name,
                                                             SourceLocation::NoLocation);
     import->setPackage(stdPkg);
     addWildcardImport(*import);
@@ -64,7 +64,7 @@ void CompilationUnitSymbol::addMembers(const SyntaxNode& syntax) {
 
 PackageSymbol::PackageSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                              const NetType& defaultNetType, VariableLifetime defaultLifetime) :
-    Symbol(SymbolKind::Package, name, loc), Scope(compilation, this),
+    Symbol(SymbolKind::Package, name, loc, compilation), Scope(compilation, this),
     defaultNetType(defaultNetType), defaultLifetime(defaultLifetime) {
 }
 
@@ -140,7 +140,7 @@ const Symbol* PackageSymbol::findForImport(std::string_view lookupName) const {
     // lookups that result in a wildcard import could add to our export list.
     if (!wildcardData->hasForceElaborated) {
         wildcardData->hasForceElaborated = true;
-        getCompilation().forceElaborate(*this);
+        Scope::getCompilation().forceElaborate(*this);
     }
 
     // Look through symbols that have been wildcard imported with this name.
@@ -297,7 +297,8 @@ DefinitionSymbol::DefinitionSymbol(const Scope& scope, LookupLocation lookupLoca
                                    const NetType& defaultNetType, UnconnectedDrive unconnectedDrive,
                                    bool cellDefine, std::optional<TimeScale> directiveTimeScale,
                                    const SyntaxTree* syntaxTree) :
-    Symbol(SymbolKind::Definition, syntax.header->name.valueText(), syntax.header->name.location()),
+    Symbol(SymbolKind::Definition, syntax.header->name.valueText(), syntax.header->name.location(),
+           scope.getCompilation()),
     defaultNetType(defaultNetType), unconnectedDrive(unconnectedDrive), cellDefine(cellDefine),
     syntaxTree(syntaxTree), sourceLibrary(getLibForDef(scope, syntaxTree)) {
 

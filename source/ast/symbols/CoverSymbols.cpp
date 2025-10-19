@@ -118,8 +118,8 @@ void CoverageOptionSetter::serializeTo(ASTSerializer& serializer) const {
 static void addProperty(Scope& scope, std::string_view name, VariableLifetime lifetime,
                         const StructBuilder& structBuilder) {
     auto& comp = scope.getCompilation();
-    auto& prop = *comp.emplace<ClassPropertySymbol>(name, SourceLocation::NoLocation, lifetime,
-                                                    Visibility::Public);
+    auto& prop = *comp.emplace<ClassPropertySymbol>(comp, name, SourceLocation::NoLocation,
+                                                    lifetime, Visibility::Public);
     prop.setType(structBuilder.type);
     scope.addMember(prop);
 }
@@ -154,7 +154,7 @@ static void addBuiltInMethods(Scope& scope, bool isCovergroup) {
 }
 
 CovergroupBodySymbol::CovergroupBodySymbol(Compilation& comp, SourceLocation loc) :
-    Symbol(SymbolKind::CovergroupBody, ""sv, loc), Scope(comp, this) {
+    Symbol(SymbolKind::CovergroupBody, ""sv, loc, comp), Scope(comp, this) {
 
     auto& int_t = comp.getIntType();
     auto& bit_t = comp.getBitType();
@@ -207,7 +207,7 @@ void CovergroupBodySymbol::serializeTo(ASTSerializer& serializer) const {
 
 CovergroupType::CovergroupType(Compilation& compilation, std::string_view name, SourceLocation loc,
                                const CovergroupBodySymbol& body) :
-    Type(SymbolKind::CovergroupType, name, loc), Scope(compilation, this), body(body) {
+    Type(SymbolKind::CovergroupType, name, loc, compilation), Scope(compilation, this), body(body) {
 }
 
 const CovergroupType& CovergroupType::fromSyntax(const Scope& scope,
@@ -276,7 +276,7 @@ const CovergroupType& CovergroupType::fromSyntax(const Scope& scope,
     body->options = options.get();
 
     if (inClass) {
-        auto var = comp.emplace<ClassPropertySymbol>(syntax.name.valueText(),
+        auto var = comp.emplace<ClassPropertySymbol>(comp, syntax.name.valueText(),
                                                      syntax.name.location(),
                                                      VariableLifetime::Automatic,
                                                      Visibility::Public);
@@ -348,7 +348,7 @@ void CovergroupType::inheritMembers(function_ref<void(const Symbol&)> insertCB) 
         // All symbols get inserted into the beginning of the scope using the
         // provided insertion callback. We insert them as TransparentMemberSymbols
         // so that we can trace a path back to the actual location they are declared.
-        auto wrapper = comp.emplace<TransparentMemberSymbol>(*toWrap);
+        auto wrapper = comp.emplace<TransparentMemberSymbol>(comp, *toWrap);
         body.insertMember(wrapper, body.lastBuiltinMember, true, false);
     }
 
@@ -360,7 +360,7 @@ void CovergroupType::inheritMembers(function_ref<void(const Symbol&)> insertCB) 
             toWrap = &member.as<TransparentMemberSymbol>().wrapped;
 
         if (toWrap->kind == SymbolKind::FormalArgument) {
-            auto wrapper = comp.emplace<TransparentMemberSymbol>(*toWrap);
+            auto wrapper = comp.emplace<TransparentMemberSymbol>(comp, *toWrap);
             insertCB(*wrapper);
         }
     }
@@ -510,7 +510,8 @@ void CoverageBinSymbol::serializeTo(ASTSerializer& serializer) const {
 CoverageBinSymbol& CoverageBinSymbol::fromSyntax(const Scope& scope,
                                                  const CoverageBinsSyntax& syntax) {
     auto& comp = scope.getCompilation();
-    auto result = comp.emplace<CoverageBinSymbol>(syntax.name.valueText(), syntax.name.location());
+    auto result = comp.emplace<CoverageBinSymbol>(comp, syntax.name.valueText(),
+                                                  syntax.name.location());
     result->setSyntax(syntax);
     result->setAttributes(scope, syntax.attributes);
 
@@ -536,7 +537,8 @@ CoverageBinSymbol& CoverageBinSymbol::fromSyntax(const Scope& scope,
 CoverageBinSymbol& CoverageBinSymbol::fromSyntax(const Scope& scope,
                                                  const BinsSelectionSyntax& syntax) {
     auto& comp = scope.getCompilation();
-    auto result = comp.emplace<CoverageBinSymbol>(syntax.name.valueText(), syntax.name.location());
+    auto result = comp.emplace<CoverageBinSymbol>(comp, syntax.name.valueText(),
+                                                  syntax.name.location());
     result->setSyntax(syntax);
     result->setAttributes(scope, syntax.attributes);
 
@@ -754,7 +756,7 @@ void CoverageBinSymbol::TransRangeList::serializeTo(ASTSerializer& serializer) c
 }
 
 CoverpointSymbol::CoverpointSymbol(Compilation& comp, std::string_view name, SourceLocation loc) :
-    Symbol(SymbolKind::Coverpoint, name, loc), Scope(comp, this),
+    Symbol(SymbolKind::Coverpoint, name, loc, comp), Scope(comp, this),
     declaredType(*this, DeclaredTypeFlags::InferImplicit | DeclaredTypeFlags::AutomaticInitializer |
                             DeclaredTypeFlags::CoverageType) {
 
@@ -898,7 +900,7 @@ void CoverpointSymbol::serializeTo(ASTSerializer& serializer) const {
 
 CoverCrossSymbol::CoverCrossSymbol(Compilation& comp, std::string_view name, SourceLocation loc,
                                    std::span<const CoverpointSymbol* const> targets) :
-    Symbol(SymbolKind::CoverCross, name, loc), Scope(comp, this), targets(targets) {
+    Symbol(SymbolKind::CoverCross, name, loc, comp), Scope(comp, this), targets(targets) {
 
     auto& bit_t = comp.getBitType();
     auto& int_t = comp.getIntType();
@@ -967,12 +969,12 @@ void CoverCrossSymbol::addBody(const syntax::CoverCrossSyntax& syntax, const Sco
     for (auto item : targets)
         valType.addField(item->name, item->declaredType.getType());
 
-    auto valType_t = comp.emplace<TypeAliasType>("CrossValType", location);
+    auto valType_t = comp.emplace<TypeAliasType>(comp, "CrossValType", location);
     valType_t->targetType.setType(valType.type);
     body->addMember(*valType_t);
 
     auto queueType = comp.emplace<QueueType>(*valType_t, 0u);
-    auto queueType_t = comp.emplace<TypeAliasType>("CrossQueueType", location);
+    auto queueType_t = comp.emplace<TypeAliasType>(comp, "CrossQueueType", location);
     queueType_t->targetType.setType(*queueType);
     body->addMember(*queueType_t);
     body->crossQueueType = queueType_t;

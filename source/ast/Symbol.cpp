@@ -38,8 +38,6 @@ namespace slang::ast {
 
 using namespace syntax;
 
-const InvalidSymbol InvalidSymbol::Instance;
-
 const Scope* Symbol::getHierarchicalParent() const {
     if (kind == SymbolKind::InstanceBody) {
         auto parentInst = as<InstanceBodySymbol>().parentInstance;

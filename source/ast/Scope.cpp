@@ -42,8 +42,8 @@ class DeferredMemberSymbol : public Symbol {
 public:
     const SyntaxNode& node;
 
-    explicit DeferredMemberSymbol(const SyntaxNode& node) :
-        Symbol(SymbolKind::DeferredMember, "", SourceLocation()), node(node) {}
+    explicit DeferredMemberSymbol(Compilation& compilation, const SyntaxNode& node) :
+        Symbol(SymbolKind::DeferredMember, "", SourceLocation(), compilation), node(node) {}
 
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::DeferredMember; }
 };
@@ -231,7 +231,8 @@ void Scope::addMembers(const SyntaxNode& syntax) {
                 }
                 else {
                     auto import = compilation.emplace<ExplicitImportSymbol>(
-                        item->package.valueText(), item->item.valueText(), item->item.location());
+                        compilation, item->package.valueText(), item->item.valueText(),
+                        item->item.location());
 
                     import->setSyntax(*item);
                     import->setAttributes(*this, importDecl.attributes);
@@ -249,7 +250,7 @@ void Scope::addMembers(const SyntaxNode& syntax) {
                     // name itself gets validated and the attributes have somewhere to live.
                     // The actual export functionality is handled in PackageSymbol.
                     auto import = compilation.emplace<WildcardImportSymbol>(
-                        item->package.valueText(), item->item.location());
+                        compilation, item->package.valueText(), item->item.location());
 
                     import->setSyntax(*item);
                     import->setAttributes(*this, exportDecl.attributes);
@@ -258,7 +259,8 @@ void Scope::addMembers(const SyntaxNode& syntax) {
                 }
                 else {
                     auto import = compilation.emplace<ExplicitImportSymbol>(
-                        item->package.valueText(), item->item.valueText(), item->item.location());
+                        compilation, item->package.valueText(), item->item.valueText(),
+                        item->item.location());
 
                     import->setSyntax(*item);
                     import->setAttributes(*this, exportDecl.attributes);
@@ -599,7 +601,7 @@ const Symbol* Scope::lookupName(std::string_view name, LookupLocation location,
 }
 
 void Scope::addDeferredMembers(const SyntaxNode& syntax) {
-    auto sym = compilation.emplace<DeferredMemberSymbol>(syntax);
+    auto sym = compilation.emplace<DeferredMemberSymbol>(compilation, syntax);
     addMember(*sym);
     setNeedElaboration();
 
@@ -890,7 +892,8 @@ void Scope::elaborate() const {
                     EnumType::fromSyntax(
                         compilation, node.as<EnumTypeSyntax>(), context,
                         [this, &symbol](const Symbol& member) {
-                            auto wrapped = compilation.emplace<TransparentMemberSymbol>(member);
+                            auto wrapped = compilation.emplace<TransparentMemberSymbol>(compilation,
+                                                                                        member);
                             insertMember(wrapped, symbol, true, false);
                             symbol = wrapped;
                         });
@@ -1258,8 +1261,8 @@ void Scope::handleDataDeclaration(
         auto& netType = symbol->as<NetType>();
         insertionPoint->indexInScope -= (uint32_t)syntax.declarators.size();
         for (auto decl : syntax.declarators) {
-            auto net = compilation.emplace<NetSymbol>(decl->name.valueText(), decl->name.location(),
-                                                      netType);
+            auto net = compilation.emplace<NetSymbol>(compilation, decl->name.valueText(),
+                                                      decl->name.location(), netType);
             net->setFromDeclarator(*decl);
             net->setAttributes(*this, syntax.attributes);
             insertMember(net, insertionPoint, true, true);
@@ -1435,7 +1438,7 @@ void Scope::addWildcardImport(const PackageImportItemSyntax& item,
         }
     }
 
-    auto import = compilation.emplace<WildcardImportSymbol>(item.package.valueText(),
+    auto import = compilation.emplace<WildcardImportSymbol>(compilation, item.package.valueText(),
                                                             item.item.location());
 
     import->setSyntax(item);

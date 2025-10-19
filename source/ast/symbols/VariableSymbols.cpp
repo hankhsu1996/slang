@@ -86,7 +86,8 @@ void VariableSymbol::fromSyntax(Compilation& compilation, const DataDeclarationS
             DefinitionKind::Interface;
 
     for (auto declarator : syntax.declarators) {
-        auto variable = compilation.emplace<VariableSymbol>(declarator->name.valueText(),
+        auto variable = compilation.emplace<VariableSymbol>(compilation,
+                                                            declarator->name.valueText(),
                                                             declarator->name.location(), *lifetime);
         variable->setDeclaredType(*syntax.type);
         variable->setFromDeclarator(*declarator);
@@ -119,7 +120,8 @@ VariableSymbol& VariableSymbol::fromSyntax(Compilation& compilation,
                                            const ForVariableDeclarationSyntax& syntax,
                                            const VariableSymbol* lastVar) {
     auto nameToken = syntax.declarator->name;
-    auto var = compilation.emplace<VariableSymbol>(nameToken.valueText(), nameToken.location(),
+    auto var = compilation.emplace<VariableSymbol>(compilation, nameToken.valueText(),
+                                                   nameToken.location(),
                                                    VariableLifetime::Automatic);
 
     if (syntax.type)
@@ -133,14 +135,15 @@ VariableSymbol& VariableSymbol::fromSyntax(Compilation& compilation,
     return *var;
 }
 
-VariableSymbol::VariableSymbol(std::string_view name, SourceLocation loc,
+VariableSymbol::VariableSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                                VariableLifetime lifetime) :
-    VariableSymbol(SymbolKind::Variable, name, loc, lifetime) {
+    VariableSymbol(compilation, SymbolKind::Variable, name, loc, lifetime) {
 }
 
-VariableSymbol::VariableSymbol(SymbolKind childKind, std::string_view name, SourceLocation loc,
+VariableSymbol::VariableSymbol(Compilation& compilation, SymbolKind childKind,
+                               std::string_view name, SourceLocation loc,
                                VariableLifetime lifetime) :
-    ValueSymbol(childKind, name, loc), lifetime(lifetime) {
+    ValueSymbol(childKind, name, loc, compilation), lifetime(lifetime) {
     if (lifetime == VariableLifetime::Automatic)
         getDeclaredType()->addFlags(DeclaredTypeFlags::AutomaticInitializer);
 }
@@ -278,9 +281,11 @@ void VariableSymbol::serializeTo(ASTSerializer& serializer) const {
     }
 }
 
-FormalArgumentSymbol::FormalArgumentSymbol(std::string_view name, SourceLocation loc,
-                                           ArgumentDirection direction, VariableLifetime lifetime) :
-    VariableSymbol(SymbolKind::FormalArgument, name, loc, lifetime), direction(direction) {
+FormalArgumentSymbol::FormalArgumentSymbol(Compilation& compilation, std::string_view name,
+                                           SourceLocation loc, ArgumentDirection direction,
+                                           VariableLifetime lifetime) :
+    VariableSymbol(compilation, SymbolKind::FormalArgument, name, loc, lifetime),
+    direction(direction) {
 }
 
 void FormalArgumentSymbol::fromSyntax(const Scope& scope, const PortDeclarationSyntax& syntax,
@@ -302,7 +307,7 @@ void FormalArgumentSymbol::fromSyntax(const Scope& scope, const PortDeclarationS
     }
 
     for (auto declarator : syntax.declarators) {
-        auto arg = comp.emplace<FormalArgumentSymbol>(declarator->name.valueText(),
+        auto arg = comp.emplace<FormalArgumentSymbol>(comp, declarator->name.valueText(),
                                                       declarator->name.location(), direction,
                                                       lifetime);
         arg->setDeclaredType(*header.dataType);
@@ -363,7 +368,7 @@ const Expression* FormalArgumentSymbol::getDefaultValue() const {
                 scope->addDiag(diag::RecursiveDefinition, location)
                     << name << defaultValSyntax->sourceRange();
             }
-            defaultVal = &InvalidExpression::Instance;
+            defaultVal = &InvalidExpression::Instance();
         }
 
         return defaultVal;
@@ -376,7 +381,7 @@ const Expression* FormalArgumentSymbol::getDefaultValue() const {
 }
 
 FormalArgumentSymbol& FormalArgumentSymbol::clone(Compilation& comp) const {
-    auto result = comp.emplace<FormalArgumentSymbol>(name, location, direction, lifetime);
+    auto result = comp.emplace<FormalArgumentSymbol>(comp, name, location, direction, lifetime);
     result->flags = flags;
     result->defaultVal = defaultVal;
     result->defaultValSyntax = defaultValSyntax;
@@ -398,8 +403,10 @@ void FieldSymbol::serializeTo(ASTSerializer& serializer) const {
     serializer.write("fieldIndex", fieldIndex);
 }
 
-NetSymbol::NetSymbol(std::string_view name, SourceLocation loc, const NetType& netType) :
-    ValueSymbol(SymbolKind::Net, name, loc, DeclaredTypeFlags::NetType), netType(netType) {
+NetSymbol::NetSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                     const NetType& netType) :
+    ValueSymbol(SymbolKind::Net, name, loc, compilation, DeclaredTypeFlags::NetType),
+    netType(netType) {
 
     auto dt = getDeclaredType();
     dt->setLink(netType.declaredType);
@@ -425,7 +432,7 @@ void NetSymbol::fromSyntax(const Scope& scope, const NetDeclarationSyntax& synta
     }
 
     for (auto declarator : syntax.declarators) {
-        auto net = comp.emplace<NetSymbol>(declarator->name.valueText(),
+        auto net = comp.emplace<NetSymbol>(comp, declarator->name.valueText(),
                                            declarator->name.location(), netType);
         net->expansionHint = expansionHint;
         net->setDeclaredType(*syntax.type);
@@ -453,7 +460,7 @@ void NetSymbol::fromSyntax(const ASTContext& context, const UserDefinedNetDeclar
         netType = &netTypeSym->as<NetType>();
 
     for (auto declarator : syntax.declarators) {
-        auto net = comp.emplace<NetSymbol>(declarator->name.valueText(),
+        auto net = comp.emplace<NetSymbol>(comp, declarator->name.valueText(),
                                            declarator->name.location(), *netType);
         net->setFromDeclarator(*declarator);
         net->setAttributes(*context.scope, syntax.attributes);
@@ -464,7 +471,7 @@ void NetSymbol::fromSyntax(const ASTContext& context, const UserDefinedNetDeclar
 NetSymbol& NetSymbol::createImplicit(Compilation& compilation, const IdentifierNameSyntax& syntax,
                                      const NetType& netType) {
     auto t = syntax.identifier;
-    auto net = compilation.emplace<NetSymbol>(t.valueText(), t.location(), netType);
+    auto net = compilation.emplace<NetSymbol>(compilation, t.valueText(), t.location(), netType);
     net->setType(compilation.getLogicType());
     net->isImplicit = true;
     net->setSyntax(syntax);
@@ -572,7 +579,8 @@ void NetSymbol::serializeTo(ASTSerializer& serializer) const {
 
 IteratorSymbol::IteratorSymbol(const Scope& scope, std::string_view name, SourceLocation loc,
                                const Type& arrayType, std::string_view indexMethodName) :
-    TempVarSymbol(SymbolKind::Iterator, name, loc, VariableLifetime::Automatic),
+    TempVarSymbol(scope.getCompilation(), SymbolKind::Iterator, name, loc,
+                  VariableLifetime::Automatic),
     arrayType(arrayType), indexMethodName(indexMethodName) {
 
     flags |= VariableFlags::Const;
@@ -585,27 +593,28 @@ IteratorSymbol::IteratorSymbol(const Scope& scope, std::string_view name, Source
     setType(*elemType);
 }
 
-IteratorSymbol::IteratorSymbol(std::string_view name, SourceLocation loc, const Type& arrayType,
-                               const Type& indexType) :
-    TempVarSymbol(SymbolKind::Iterator, name, loc, VariableLifetime::Automatic),
+IteratorSymbol::IteratorSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                               const Type& arrayType, const Type& indexType) :
+    TempVarSymbol(compilation, SymbolKind::Iterator, name, loc, VariableLifetime::Automatic),
     arrayType(arrayType) {
 
     flags |= VariableFlags::Const;
     setType(indexType);
 }
 
-PatternVarSymbol::PatternVarSymbol(std::string_view name, SourceLocation loc, const Type& type) :
-    TempVarSymbol(SymbolKind::PatternVar, name, loc, VariableLifetime::Automatic) {
+PatternVarSymbol::PatternVarSymbol(Compilation& compilation, std::string_view name,
+                                   SourceLocation loc, const Type& type) :
+    TempVarSymbol(compilation, SymbolKind::PatternVar, name, loc, VariableLifetime::Automatic) {
 
     flags |= VariableFlags::Const;
     setType(type);
 }
 
-ClockVarSymbol::ClockVarSymbol(std::string_view name, SourceLocation loc,
+ClockVarSymbol::ClockVarSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                                ArgumentDirection direction, ClockingSkew inputSkew,
                                ClockingSkew outputSkew) :
-    VariableSymbol(SymbolKind::ClockVar, name, loc, VariableLifetime::Static), direction(direction),
-    inputSkew(inputSkew), outputSkew(outputSkew) {
+    VariableSymbol(compilation, SymbolKind::ClockVar, name, loc, VariableLifetime::Static),
+    direction(direction), inputSkew(inputSkew), outputSkew(outputSkew) {
 }
 
 void ClockVarSymbol::fromSyntax(const Scope& scope, const ClockingItemSyntax& syntax,
@@ -642,8 +651,8 @@ void ClockVarSymbol::fromSyntax(const Scope& scope, const ClockingItemSyntax& sy
 
     for (auto decl : syntax.decls) {
         auto name = decl->name;
-        auto arg = comp.emplace<ClockVarSymbol>(name.valueText(), name.location(), dir, inputSkew,
-                                                outputSkew);
+        auto arg = comp.emplace<ClockVarSymbol>(comp, name.valueText(), name.location(), dir,
+                                                inputSkew, outputSkew);
         arg->setSyntax(*decl);
         arg->setAttributes(*parent, syntax.attributes);
         results.push_back(arg);
@@ -702,8 +711,10 @@ void ClockVarSymbol::serializeTo(ASTSerializer& serializer) const {
     }
 }
 
-LocalAssertionVarSymbol::LocalAssertionVarSymbol(std::string_view name, SourceLocation loc) :
-    VariableSymbol(SymbolKind::LocalAssertionVar, name, loc, VariableLifetime::Automatic) {
+LocalAssertionVarSymbol::LocalAssertionVarSymbol(Compilation& compilation, std::string_view name,
+                                                 SourceLocation loc) :
+    VariableSymbol(compilation, SymbolKind::LocalAssertionVar, name, loc,
+                   VariableLifetime::Automatic) {
     getDeclaredType()->addFlags(DeclaredTypeFlags::RequireSequenceType);
 }
 
@@ -712,7 +723,7 @@ void LocalAssertionVarSymbol::fromSyntax(const Scope& scope,
                                          SmallVectorBase<const LocalAssertionVarSymbol*>& results) {
     auto& comp = scope.getCompilation();
     for (auto declarator : syntax.declarators) {
-        auto var = comp.emplace<LocalAssertionVarSymbol>(declarator->name.valueText(),
+        auto var = comp.emplace<LocalAssertionVarSymbol>(comp, declarator->name.valueText(),
                                                          declarator->name.location());
         var->setDeclaredType(*syntax.type);
         var->setFromDeclarator(*declarator);
@@ -728,7 +739,7 @@ void LocalAssertionVarSymbol::fromSyntax(const Scope& scope,
 LocalAssertionVarSymbol& LocalAssertionVarSymbol::fromPort(const Scope& scope,
                                                            const AssertionPortSymbol& port) {
     auto& comp = scope.getCompilation();
-    auto var = comp.emplace<LocalAssertionVarSymbol>(port.name, port.location);
+    auto var = comp.emplace<LocalAssertionVarSymbol>(comp, port.name, port.location);
     var->formalPort = &port;
     var->getDeclaredType()->setLink(port.declaredType);
     var->setParent(scope);

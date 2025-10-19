@@ -43,7 +43,8 @@ public:
     /// false if it was declared using the non-ansi syntax.
     bool isAnsiPort = false;
 
-    PortSymbol(std::string_view name, SourceLocation loc, bool isAnsiPort);
+    PortSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+               bool isAnsiPort);
 
     const Type& getType() const;
     void setType(const Type& newType) { type = &newType; }
@@ -108,7 +109,7 @@ public:
     /// so that generic code can work on both types.
     bool isNullPort = false;
 
-    MultiPortSymbol(std::string_view name, SourceLocation loc,
+    MultiPortSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                     std::span<const PortSymbol* const> ports, ArgumentDirection direction);
 
     const Type& getType() const;
@@ -145,12 +146,12 @@ public:
     /// to any interface type. If true, @a interfaceDef will be nullptr.
     bool isGeneric = false;
 
-    InterfacePortSymbol(std::string_view name, SourceLocation loc) :
-        Symbol(SymbolKind::InterfacePort, name, loc) {}
+    InterfacePortSymbol(Compilation& compilation, std::string_view name, SourceLocation loc) :
+        Symbol(SymbolKind::InterfacePort, name, loc, compilation) {}
 
-    InterfacePortSymbol(std::string_view name, SourceLocation loc, 
-                       SourceRange interfaceNameRange, SourceRange modportNameRange) :
-        Symbol(SymbolKind::InterfacePort, name, loc), 
+    InterfacePortSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                        SourceRange interfaceNameRange, SourceRange modportNameRange) :
+        Symbol(SymbolKind::InterfacePort, name, loc, compilation),
         interfaceNameRange_(interfaceNameRange), modportNameRange_(modportNameRange) {}
 
     bool isInvalid() const { return !interfaceDef && !isGeneric; }
@@ -173,7 +174,7 @@ public:
     /// Gets the source range of the interface name (e.g., "MemBus" in "MemBus.cpu mem_if")
     SourceRange interfaceNameRange() const { return interfaceNameRange_; }
 
-    /// Gets the source range of the modport name (e.g., "cpu" in "MemBus.cpu mem_if")  
+    /// Gets the source range of the modport name (e.g., "cpu" in "MemBus.cpu mem_if")
     SourceRange modportNameRange() const { return modportNameRange_; }
 
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::InterfacePort; }

@@ -43,10 +43,17 @@ namespace slang::ast {
 /// A placeholder symbol type that represents an unknown or invalid symbol.
 /// This is only used when visiting such a symbol.
 struct SLANG_EXPORT InvalidSymbol final : public Symbol {
-    InvalidSymbol() : Symbol(SymbolKind::Unknown, "", SourceLocation()) {}
+    // Constructor uses the invalid compilation singleton
+    InvalidSymbol() :
+        Symbol(SymbolKind::Unknown, "", SourceLocation(), Compilation::getInvalid()) {}
     void serializeTo(ASTSerializer&) const {}
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::Unknown; }
-    static const InvalidSymbol Instance;
+
+    // Lazy-initialized singleton to avoid static initialization order issues
+    static const InvalidSymbol& Instance() {
+        static const InvalidSymbol instance;
+        return instance;
+    }
 };
 
 template<typename T, typename TVisitor>
@@ -174,8 +181,8 @@ decltype(auto) Symbol::visit(TVisitor&& visitor, Args&&... args) const {
 #define SYMBOL(k) case SymbolKind::k: return visitor.visit(*static_cast<const k##Symbol*>(this), std::forward<Args>(args)...)
 #define TYPE(k) case SymbolKind::k: return visitor.visit(*static_cast<const k*>(this), std::forward<Args>(args)...)
     switch (kind) {
-        case SymbolKind::Unknown: return visitor.visit(InvalidSymbol::Instance, std::forward<Args>(args)...);
-        case SymbolKind::DeferredMember: return visitor.visit(InvalidSymbol::Instance, std::forward<Args>(args)...);
+        case SymbolKind::Unknown: return visitor.visit(InvalidSymbol::Instance(), std::forward<Args>(args)...);
+        case SymbolKind::DeferredMember: return visitor.visit(InvalidSymbol::Instance(), std::forward<Args>(args)...);
         case SymbolKind::TypeAlias: return visitor.visit(*static_cast<const TypeAliasType*>(this), std::forward<Args>(args)...);
         case SymbolKind::TypeReference: return visitor.visit(*static_cast<const TypeReferenceSymbol*>(this), std::forward<Args>(args)...);
         SYMBOL(Root);

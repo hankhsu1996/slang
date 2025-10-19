@@ -299,7 +299,7 @@ void StatementBlockSymbol::elaborateVariables(function_ref<void(const Symbol&)> 
         return;
 
     auto createInvalid = [&] {
-        auto& comp = getCompilation();
+        auto& comp = Scope::getCompilation();
         auto& result = *comp.emplace<BlockStatement>(InvalidStatement::Instance, blockKind,
                                                      SourceRange());
         result.blockSymbol = this;
@@ -359,9 +359,10 @@ void StatementBlockSymbol::elaborateVariables(function_ref<void(const Symbol&)> 
     }
 }
 
-ProceduralBlockSymbol::ProceduralBlockSymbol(SourceLocation loc, ProceduralBlockKind procedureKind,
+ProceduralBlockSymbol::ProceduralBlockSymbol(Compilation& compilation, SourceLocation loc,
+                                             ProceduralBlockKind procedureKind,
                                              bool isFromAssertion) :
-    Symbol(SymbolKind::ProceduralBlock, "", loc), procedureKind(procedureKind),
+    Symbol(SymbolKind::ProceduralBlock, "", loc, compilation), procedureKind(procedureKind),
     isFromAssertion(isFromAssertion) {
 }
 
@@ -394,7 +395,7 @@ ProceduralBlockSymbol& ProceduralBlockSymbol::createProceduralBlock(
     const MemberSyntax& syntax, const StatementSyntax& stmtSyntax) {
 
     auto& comp = scope.getCompilation();
-    auto result = comp.emplace<ProceduralBlockSymbol>(location, kind, isFromAssertion);
+    auto result = comp.emplace<ProceduralBlockSymbol>(comp, location, kind, isFromAssertion);
     result->setSyntax(syntax);
     result->setAttributes(scope, syntax.attributes);
     result->stmtSyntax = &stmtSyntax;
@@ -762,7 +763,7 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
     }
     else {
         // Fabricate a genvar symbol to live in this array since it was declared inline.
-        auto genvarSymbol = comp.emplace<GenvarSymbol>(genvar.valueText(), genvar.location());
+        auto genvarSymbol = comp.emplace<GenvarSymbol>(comp, genvar.valueText(), genvar.location());
         genvarSymbol->setSyntax(*genvarSyntax);
         result->addMember(*genvarSymbol);
         result->genvar = genvarSymbol; // Store for LSP go-to-definition
@@ -775,8 +776,9 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
         // localparam of the same name as the genvar.
         auto block = comp.emplace<GenerateBlockSymbol>(comp, "", blockLoc, (uint32_t)entries.size(),
                                                        isUninstantiated);
-        auto implicitParam = comp.emplace<ParameterSymbol>(genvar.valueText(), genvar.location(),
-                                                           true /* isLocal */, false /* isPort */);
+        auto implicitParam = comp.emplace<ParameterSymbol>(comp, genvar.valueText(),
+                                                           genvar.location(), true /* isLocal */,
+                                                           false /* isPort */);
         implicitParam->setSyntax(*genvarSyntax);
         comp.noteReference(*implicitParam);
 
@@ -807,7 +809,7 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
     auto& iterScope = *comp.emplace<StatementBlockSymbol>(comp, "", loc,
                                                           StatementBlockKind::Sequential,
                                                           VariableLifetime::Automatic);
-    auto& local = *comp.emplace<VariableSymbol>(genvar.valueText(), genvar.location(),
+    auto& local = *comp.emplace<VariableSymbol>(comp, genvar.valueText(), genvar.location(),
                                                 VariableLifetime::Automatic);
     local.setType(comp.getIntegerType());
     local.flags |= VariableFlags::CompilerGenerated;

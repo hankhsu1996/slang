@@ -42,7 +42,8 @@ private:
 /// Represents a parameter value.
 class SLANG_EXPORT ParameterSymbol final : public ValueSymbol, public ParameterSymbolBase {
 public:
-    ParameterSymbol(std::string_view name, SourceLocation loc, bool isLocal, bool isPort);
+    ParameterSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                    bool isLocal, bool isPort);
 
     static void fromSyntax(const Scope& scope, const syntax::ParameterDeclarationSyntax& syntax,
                            bool isLocal, bool isPort, SmallVectorBase<ParameterSymbol*>& results);
@@ -77,8 +78,9 @@ public:
     DeclaredType targetType;
     ForwardTypeRestriction typeRestriction;
 
-    TypeParameterSymbol(const Scope& scope, std::string_view name, SourceLocation loc, bool isLocal,
-                        bool isPort, ForwardTypeRestriction typeRestriction);
+    TypeParameterSymbol(Compilation& compilation, const Scope& scope, std::string_view name,
+                        SourceLocation loc, bool isLocal, bool isPort,
+                        ForwardTypeRestriction typeRestriction);
 
     static void fromSyntax(const Scope& scope, const syntax::TypeParameterDeclarationSyntax& syntax,
                            bool isLocal, bool isPort,
@@ -100,7 +102,8 @@ private:
 /// Represents a defparam directive.
 class SLANG_EXPORT DefParamSymbol final : public Symbol {
 public:
-    explicit DefParamSymbol(SourceLocation loc) : Symbol(SymbolKind::DefParam, "", loc) {}
+    explicit DefParamSymbol(Compilation& compilation, SourceLocation loc) :
+        Symbol(SymbolKind::DefParam, "", loc, compilation) {}
 
     const Symbol* getTarget() const;
     const Expression& getInitializer() const;
@@ -125,7 +128,7 @@ class SLANG_EXPORT SpecparamSymbol final : public ValueSymbol {
 public:
     bool isPathPulse = false;
 
-    SpecparamSymbol(std::string_view name, SourceLocation loc);
+    SpecparamSymbol(Compilation& compilation, std::string_view name, SourceLocation loc);
 
     const ConstantValue& getValue(SourceRange referencingRange = {}) const;
 

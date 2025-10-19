@@ -162,7 +162,7 @@ const ParameterSymbolBase& ParameterBuilder::createParam(
         if (decl.hasSyntax && decl.typeSyntax && decl.typeSyntax->typeRestriction)
             typeRestriction = SemanticFacts::getTypeRestriction(*decl.typeSyntax->typeRestriction);
 
-        auto param = comp.emplace<TypeParameterSymbol>(newScope, decl.name, decl.location,
+        auto param = comp.emplace<TypeParameterSymbol>(comp, newScope, decl.name, decl.location,
                                                        decl.isLocalParam, decl.isPortParam,
                                                        typeRestriction);
         param->setAttributes(scope, decl.attributes);
@@ -236,8 +236,8 @@ const ParameterSymbolBase& ParameterBuilder::createParam(
         return *param;
     }
     else {
-        auto param = comp.emplace<ParameterSymbol>(decl.name, decl.location, decl.isLocalParam,
-                                                   decl.isPortParam);
+        auto param = comp.emplace<ParameterSymbol>(comp, decl.name, decl.location,
+                                                   decl.isLocalParam, decl.isPortParam);
         param->setAttributes(scope, decl.attributes);
 
         if (decl.hasSyntax) {

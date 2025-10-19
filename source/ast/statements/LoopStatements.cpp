@@ -307,7 +307,7 @@ const Expression* ForeachLoopStatement::buildLoopDims(const ForeachLoopListSynta
         for (auto loopVar : loopList.loopVariables) {
             if (loopVar->kind == SyntaxKind::IdentifierName) {
                 auto idName = loopVar->as<IdentifierNameSyntax>().identifier;
-                auto it = comp.emplace<IteratorSymbol>(idName.valueText(), idName.location(),
+                auto it = comp.emplace<IteratorSymbol>(comp, idName.valueText(), idName.location(),
                                                        comp.getErrorType(), comp.getErrorType());
                 it->nextTemp = std::exchange(context.firstTempVar, it);
                 dims.push_back({std::nullopt, it});
@@ -380,7 +380,7 @@ const Expression* ForeachLoopStatement::buildLoopDims(const ForeachLoopListSynta
 
         // Build the iterator variable and hook it up to our new context's
         // linked list of iterators.
-        auto it = comp.emplace<IteratorSymbol>(name, idName.identifier.location(), currType,
+        auto it = comp.emplace<IteratorSymbol>(comp, name, idName.identifier.location(), currType,
                                                *indexType);
         it->nextTemp = std::exchange(context.firstTempVar, it);
         dims.back().loopVar = it;

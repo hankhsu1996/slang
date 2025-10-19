@@ -25,8 +25,8 @@ class TimingControl;
 /// This exists as a symbol mostly to provide a place to attach attributes.
 class SLANG_EXPORT EmptyMemberSymbol final : public Symbol {
 public:
-    explicit EmptyMemberSymbol(SourceLocation location) :
-        Symbol(SymbolKind::EmptyMember, "", location) {}
+    explicit EmptyMemberSymbol(Compilation& compilation, SourceLocation location) :
+        Symbol(SymbolKind::EmptyMember, "", location, compilation) {}
 
     void serializeTo(ASTSerializer&) const {}
 
@@ -43,9 +43,9 @@ class SLANG_EXPORT TransparentMemberSymbol final : public Symbol {
 public:
     const Symbol& wrapped;
 
-    TransparentMemberSymbol(const Symbol& wrapped_) :
-        Symbol(SymbolKind::TransparentMember, wrapped_.name, wrapped_.location), wrapped(wrapped_) {
-    }
+    TransparentMemberSymbol(Compilation& compilation, const Symbol& wrapped_) :
+        Symbol(SymbolKind::TransparentMember, wrapped_.name, wrapped_.location, compilation),
+        wrapped(wrapped_) {}
 
     // Wrapped symbols will be exposed in their containing scope.
     void serializeTo(ASTSerializer&) const {}
@@ -60,10 +60,10 @@ public:
     std::string_view importName;
     bool isFromExport = false;
 
-    ExplicitImportSymbol(std::string_view packageName, std::string_view importName,
-                         SourceLocation location) :
-        Symbol(SymbolKind::ExplicitImport, importName, location), packageName(packageName),
-        importName(importName) {}
+    ExplicitImportSymbol(Compilation& compilation, std::string_view packageName,
+                         std::string_view importName, SourceLocation location) :
+        Symbol(SymbolKind::ExplicitImport, importName, location, compilation),
+        packageName(packageName), importName(importName) {}
 
     const PackageSymbol* package() const;
     const Symbol* importedSymbol() const;
@@ -91,8 +91,9 @@ public:
     std::string_view packageName;
     bool isFromExport = false;
 
-    WildcardImportSymbol(std::string_view packageName, SourceLocation location) :
-        Symbol(SymbolKind::WildcardImport, "", location), packageName(packageName) {}
+    WildcardImportSymbol(Compilation& compilation, std::string_view packageName,
+                         SourceLocation location) :
+        Symbol(SymbolKind::WildcardImport, "", location, compilation), packageName(packageName) {}
 
     void setPackage(const PackageSymbol& package);
     const PackageSymbol* getPackage() const;
@@ -120,7 +121,8 @@ public:
     /// to members internal to the instance.
     const Expression* explicitConnection = nullptr;
 
-    ModportPortSymbol(std::string_view name, SourceLocation loc, ArgumentDirection direction);
+    ModportPortSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                      ArgumentDirection direction);
 
     /// Returns an expression that represents whatever this port connects to.
     /// For explicit connections, this just returns @a explicitConnection and for
@@ -148,7 +150,7 @@ public:
     /// The target clocking block of the modport.
     const Symbol* target = nullptr;
 
-    ModportClockingSymbol(std::string_view name, SourceLocation loc);
+    ModportClockingSymbol(Compilation& compilation, std::string_view name, SourceLocation loc);
 
     void serializeTo(ASTSerializer& serializer) const;
 
@@ -177,8 +179,10 @@ public:
 /// Represents a continuous assignment statement.
 class SLANG_EXPORT ContinuousAssignSymbol final : public Symbol {
 public:
-    explicit ContinuousAssignSymbol(const syntax::ExpressionSyntax& syntax);
-    ContinuousAssignSymbol(SourceLocation loc, const Expression& assignment);
+    explicit ContinuousAssignSymbol(Compilation& compilation,
+                                    const syntax::ExpressionSyntax& syntax);
+    ContinuousAssignSymbol(Compilation& compilation, SourceLocation loc,
+                           const Expression& assignment);
 
     const Expression& getAssignment() const;
     const TimingControl* getDelay() const;
@@ -207,7 +211,7 @@ private:
 /// Represents a genvar declaration.
 class SLANG_EXPORT GenvarSymbol final : public Symbol {
 public:
-    GenvarSymbol(std::string_view name, SourceLocation loc);
+    GenvarSymbol(Compilation& compilation, std::string_view name, SourceLocation loc);
 
     void serializeTo(ASTSerializer&) const {}
 
@@ -222,7 +226,7 @@ class SLANG_EXPORT ElabSystemTaskSymbol final : public Symbol {
 public:
     ElabSystemTaskKind taskKind;
 
-    ElabSystemTaskSymbol(ElabSystemTaskKind taskKind, SourceLocation loc);
+    ElabSystemTaskSymbol(Compilation& compilation, ElabSystemTaskKind taskKind, SourceLocation loc);
 
     std::optional<std::string_view> getMessage() const;
     const Expression* getAssertCondition() const;
@@ -277,7 +281,7 @@ public:
 
     PrimitiveSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                     PrimitiveKind primitiveKind) :
-        Symbol(SymbolKind::Primitive, name, loc), Scope(compilation, this),
+        Symbol(SymbolKind::Primitive, name, loc, compilation), Scope(compilation, this),
         primitiveKind(primitiveKind) {}
 
     static PrimitiveSymbol& fromSyntax(const Scope& scope,
@@ -296,7 +300,7 @@ public:
     const syntax::PropertyExprSyntax* defaultValueSyntax = nullptr;
     std::optional<ArgumentDirection> direction;
 
-    AssertionPortSymbol(std::string_view name, SourceLocation loc);
+    AssertionPortSymbol(Compilation& compilation, std::string_view name, SourceLocation loc);
 
     bool isLocalVar() const { return direction.has_value(); }
 
@@ -605,7 +609,8 @@ public:
 
 class SLANG_EXPORT NetAliasSymbol final : public Symbol {
 public:
-    explicit NetAliasSymbol(SourceLocation loc) : Symbol(SymbolKind::NetAlias, ""sv, loc) {}
+    explicit NetAliasSymbol(Compilation& compilation, SourceLocation loc) :
+        Symbol(SymbolKind::NetAlias, ""sv, loc, compilation) {}
 
     std::span<const Expression* const> getNetReferences() const;
 

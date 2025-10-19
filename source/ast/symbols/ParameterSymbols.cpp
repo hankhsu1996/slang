@@ -91,9 +91,9 @@ void ParameterSymbolBase::checkDefaultExpression() const {
     }
 }
 
-ParameterSymbol::ParameterSymbol(std::string_view name, SourceLocation loc, bool isLocal,
-                                 bool isPort) :
-    ValueSymbol(SymbolKind::Parameter, name, loc,
+ParameterSymbol::ParameterSymbol(Compilation& compilation, std::string_view name,
+                                 SourceLocation loc, bool isLocal, bool isPort) :
+    ValueSymbol(SymbolKind::Parameter, name, loc, compilation,
                 DeclaredTypeFlags::InferImplicit | DeclaredTypeFlags::InitializerCantSeeParent |
                     DeclaredTypeFlags::AllowUnboundedLiteral),
     ParameterSymbolBase(*this, isLocal, isPort) {
@@ -104,8 +104,9 @@ void ParameterSymbol::fromSyntax(const Scope& scope, const ParameterDeclarationS
                                  SmallVectorBase<ParameterSymbol*>& results) {
     for (auto decl : syntax.declarators) {
         auto loc = decl->name.location();
-        auto param = scope.getCompilation().emplace<ParameterSymbol>(decl->name.valueText(), loc,
-                                                                     isLocal, isPort);
+        auto& comp = scope.getCompilation();
+        auto param = comp.emplace<ParameterSymbol>(comp, decl->name.valueText(), loc, isLocal,
+                                                   isPort);
         param->setDeclaredType(*syntax.type);
         param->setFromDeclarator(*decl);
 
@@ -206,13 +207,15 @@ static DeclaredTypeFlags getTypeParamFlags(const Scope& scope) {
     return DeclaredTypeFlags::None;
 }
 
-TypeParameterSymbol::TypeParameterSymbol(const Scope& scope, std::string_view name,
-                                         SourceLocation loc, bool isLocal, bool isPort,
-                                         ForwardTypeRestriction typeRestriction) :
-    Symbol(SymbolKind::TypeParameter, name, loc), ParameterSymbolBase(*this, isLocal, isPort),
-    targetType(*this, getTypeParamFlags(scope)), typeRestriction(typeRestriction) {
+TypeParameterSymbol::TypeParameterSymbol(Compilation& compilation, const Scope& scope,
+                                         std::string_view name, SourceLocation loc, bool isLocal,
+                                         bool isPort, ForwardTypeRestriction typeRestriction) :
+    Symbol(SymbolKind::TypeParameter, name, loc, compilation),
+    ParameterSymbolBase(*this, isLocal, isPort), targetType(*this, getTypeParamFlags(scope)),
+    typeRestriction(typeRestriction) {
 
-    auto alias = scope.getCompilation().emplace<TypeAliasType>(name, loc);
+    auto& comp = scope.getCompilation();
+    auto alias = comp.emplace<TypeAliasType>(comp, name, loc);
     alias->setParent(scope);
     alias->targetType.setLink(targetType);
     typeAlias = alias;
@@ -230,7 +233,7 @@ void TypeParameterSymbol::fromSyntax(const Scope& scope,
         auto name = decl->name.valueText();
         auto loc = decl->name.location();
 
-        auto param = comp.emplace<TypeParameterSymbol>(scope, name, loc, isLocal, isPort,
+        auto param = comp.emplace<TypeParameterSymbol>(comp, scope, name, loc, isLocal, isPort,
                                                        typeRestriction);
         param->setSyntax(*decl);
         param->setTypeSyntax(*decl);
@@ -287,7 +290,7 @@ void DefParamSymbol::fromSyntax(const Scope& scope, const DefParamSyntax& syntax
                                 SmallVectorBase<const DefParamSymbol*>& results) {
     auto& comp = scope.getCompilation();
     for (auto assignment : syntax.assignments) {
-        auto sym = comp.emplace<DefParamSymbol>(assignment->getFirstToken().location());
+        auto sym = comp.emplace<DefParamSymbol>(comp, assignment->getFirstToken().location());
         sym->setSyntax(*assignment);
         sym->setAttributes(scope, syntax.attributes);
         results.push_back(sym);
@@ -457,8 +460,9 @@ void DefParamSymbol::serializeTo(ASTSerializer& serializer) const {
     serializer.write("value", getValue());
 }
 
-SpecparamSymbol::SpecparamSymbol(std::string_view name, SourceLocation loc) :
-    ValueSymbol(SymbolKind::Specparam, name, loc,
+SpecparamSymbol::SpecparamSymbol(Compilation& compilation, std::string_view name,
+                                 SourceLocation loc) :
+    ValueSymbol(SymbolKind::Specparam, name, loc, compilation,
                 DeclaredTypeFlags::InferImplicit | DeclaredTypeFlags::InitializerCantSeeParent) {
 }
 
@@ -525,7 +529,8 @@ void SpecparamSymbol::fromSyntax(const Scope& scope, const SpecparamDeclarationS
                                  SmallVectorBase<const SpecparamSymbol*>& results) {
     for (auto decl : syntax.declarators) {
         auto loc = decl->name.location();
-        auto param = scope.getCompilation().emplace<SpecparamSymbol>(decl->name.valueText(), loc);
+        auto& comp = scope.getCompilation();
+        auto param = comp.emplace<SpecparamSymbol>(comp, decl->name.valueText(), loc);
         param->setSyntax(*decl);
         param->setDeclaredType(*syntax.type);
         param->setInitializerSyntax(*decl->value1, decl->equals.location());

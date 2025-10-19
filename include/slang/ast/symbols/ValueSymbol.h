@@ -71,6 +71,7 @@ public:
 
 protected:
     ValueSymbol(SymbolKind kind, std::string_view name, SourceLocation location,
+                Compilation& compilation,
                 bitmask<DeclaredTypeFlags> flags = DeclaredTypeFlags::None);
 
 private:

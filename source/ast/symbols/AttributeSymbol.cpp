@@ -17,20 +17,22 @@ namespace slang::ast {
 
 using namespace syntax;
 
-AttributeSymbol::AttributeSymbol(std::string_view name, SourceLocation loc, const Symbol& symbol,
+AttributeSymbol::AttributeSymbol(Compilation& compilation, std::string_view name,
+                                 SourceLocation loc, const Symbol& symbol,
                                  const ExpressionSyntax& expr) :
-    Symbol(SymbolKind::Attribute, name, loc), symbol(&symbol), expr(&expr) {
+    Symbol(SymbolKind::Attribute, name, loc, compilation), symbol(&symbol), expr(&expr) {
 }
 
-AttributeSymbol::AttributeSymbol(std::string_view name, SourceLocation loc, const Scope& scope,
+AttributeSymbol::AttributeSymbol(Compilation& compilation, std::string_view name,
+                                 SourceLocation loc, const Scope& scope,
                                  LookupLocation lookupLocation, const ExpressionSyntax& expr) :
-    Symbol(SymbolKind::Attribute, name, loc), scope(&scope), expr(&expr),
+    Symbol(SymbolKind::Attribute, name, loc, compilation), scope(&scope), expr(&expr),
     lookupLocation(lookupLocation) {
 }
 
-AttributeSymbol::AttributeSymbol(std::string_view name, SourceLocation loc,
-                                 const ConstantValue& value) :
-    Symbol(SymbolKind::Attribute, name, loc), value(&value) {
+AttributeSymbol::AttributeSymbol(Compilation& compilation, std::string_view name,
+                                 SourceLocation loc, const ConstantValue& value) :
+    Symbol(SymbolKind::Attribute, name, loc, compilation), value(&value) {
 }
 
 const ConstantValue& AttributeSymbol::getValue() const {
@@ -75,7 +77,7 @@ static std::span<const AttributeSymbol* const> createAttributes(
             AttributeSymbol* attr;
             if (!spec->value) {
                 ConstantValue value = SVInt(1, 1, false);
-                attr = comp.emplace<AttributeSymbol>(name, spec->name.location(),
+                attr = comp.emplace<AttributeSymbol>(comp, name, spec->name.location(),
                                                      *comp.allocConstant(std::move(value)));
             }
             else {
@@ -107,7 +109,7 @@ std::span<const AttributeSymbol* const> AttributeSymbol::fromSyntax(
 
     return createAttributes(
         syntax, scope, [&symbol](auto& comp, auto name, auto loc, auto& exprSyntax) {
-            return comp.template emplace<AttributeSymbol>(name, loc, symbol, exprSyntax);
+            return comp.template emplace<AttributeSymbol>(comp, name, loc, symbol, exprSyntax);
         });
 }
 
@@ -121,7 +123,7 @@ std::span<const AttributeSymbol* const> AttributeSymbol::fromSyntax(
     return createAttributes(
         syntax, scope,
         [&scope, &lookupLocation](auto& comp, auto name, auto loc, auto& exprSyntax) {
-            return comp.template emplace<AttributeSymbol>(name, loc, scope, lookupLocation,
+            return comp.template emplace<AttributeSymbol>(comp, name, loc, scope, lookupLocation,
                                                           exprSyntax);
         });
 }

@@ -98,7 +98,8 @@ public:
     /// the parent instance's config rule if there is one up the stack.
     const ResolvedConfig* resolvedConfig = nullptr;
 
-    InstanceSymbol(std::string_view name, SourceLocation loc, InstanceBodySymbol& body);
+    InstanceSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                   InstanceBodySymbol& body);
 
     InstanceSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                    const DefinitionSymbol& definition, ParameterBuilder& paramBuilder,
@@ -244,8 +245,8 @@ public:
     InstanceArraySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                         std::span<const Symbol* const> elements, ConstantRange range,
                         std::optional<EvaluatedDimension> dim = std::nullopt) :
-        Symbol(SymbolKind::InstanceArray, name, loc), Scope(compilation, this), elements(elements),
-        range(range), dimension(dim) {}
+        Symbol(SymbolKind::InstanceArray, name, loc, compilation), Scope(compilation, this),
+        elements(elements), range(range), dimension(dim) {}
 
     /// If this array is part of a multidimensional array, walk upward to find
     /// the root array's name. Otherwise returns the name of this symbol itself.
@@ -272,11 +273,11 @@ public:
     /// since we can't know the destination type of each parameter.
     std::span<const Expression* const> paramExpressions;
 
-    UninstantiatedDefSymbol(std::string_view name, SourceLocation loc,
+    UninstantiatedDefSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                             std::string_view definitionName,
                             std::span<const Expression* const> params) :
-        Symbol(SymbolKind::UninstantiatedDef, name, loc), definitionName(definitionName),
-        paramExpressions(params) {}
+        Symbol(SymbolKind::UninstantiatedDef, name, loc, compilation),
+        definitionName(definitionName), paramExpressions(params) {}
 
     /// Gets the self-determined expressions that are assigned to the ports
     /// in the instantiation. These aren't necessarily correctly typed
@@ -330,10 +331,10 @@ class SLANG_EXPORT PrimitiveInstanceSymbol final : public InstanceSymbolBase {
 public:
     const PrimitiveSymbol& primitiveType;
 
-    PrimitiveInstanceSymbol(std::string_view name, SourceLocation loc,
+    PrimitiveInstanceSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                             const PrimitiveSymbol& primitiveType) :
-        InstanceSymbolBase(SymbolKind::PrimitiveInstance, name, loc), primitiveType(primitiveType) {
-    }
+        InstanceSymbolBase(SymbolKind::PrimitiveInstance, name, loc, compilation),
+        primitiveType(primitiveType) {}
 
     std::span<const Expression* const> getPortConnections() const;
     const TimingControl* getDelay() const;

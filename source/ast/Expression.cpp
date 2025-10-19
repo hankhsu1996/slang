@@ -203,7 +203,10 @@ private:
     }
 };
 
-const InvalidExpression InvalidExpression::Instance(nullptr, ErrorType::Instance);
+const InvalidExpression& InvalidExpression::Instance() {
+    static const InvalidExpression instance(nullptr, ErrorType::Instance());
+    return instance;
+}
 
 const Expression& Expression::bind(const ExpressionSyntax& syntax, const ASTContext& context,
                                    bitmask<ASTFlags> extraFlags) {
@@ -218,7 +221,8 @@ const Expression& Expression::bindLValue(const ExpressionSyntax& lhs, const Type
     // Create a placeholder expression that will carry the type of the rhs.
     // Nothing will ever actually look at this expression, it's there only
     // to fill the space in the created AssignmentExpression.
-    auto rhsExpr = comp.emplace<EmptyArgumentExpression>(rhs, SourceRange{location, location}, comp);
+    auto rhsExpr = comp.emplace<EmptyArgumentExpression>(rhs, SourceRange{location, location},
+                                                         comp);
 
     auto instance = context.getInstance();
     Expression* lhsExpr;
@@ -1422,7 +1426,7 @@ Expression* Expression::tryBindInterfaceRef(const ASTContext& context,
     // Now make sure the interface or modport we found matches the target type.
     // Fabricate a virtual interface type for the rhs that we can use for matching.
     SLANG_ASSERT(iface->parentInstance);
-    const Type* type = comp.emplace<VirtualInterfaceType>(*iface->parentInstance, modport,
+    const Type* type = comp.emplace<VirtualInterfaceType>(comp, *iface->parentInstance, modport,
                                                           /* isRealIface */ true,
                                                           sourceRange.start());
     if (!dims.empty())

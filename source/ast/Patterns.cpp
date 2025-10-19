@@ -85,8 +85,10 @@ bool Pattern::createPatternVars(const ASTContext& context, const PatternSyntax& 
                                      targetType, results);
         case SyntaxKind::VariablePattern: {
             auto& varSyntax = syntax.as<VariablePatternSyntax>();
-            auto var = context.getCompilation().emplace<PatternVarSymbol>(
-                varSyntax.variableName.valueText(), varSyntax.variableName.location(), targetType);
+            auto& comp = context.getCompilation();
+            auto var = comp.emplace<PatternVarSymbol>(comp, varSyntax.variableName.valueText(),
+                                                      varSyntax.variableName.location(),
+                                                      targetType);
             var->setSyntax(varSyntax);
             results.push_back(var);
             break;
@@ -114,7 +116,7 @@ void Pattern::createPlaceholderVars(const ASTContext& context, const PatternSynt
         case SyntaxKind::VariablePattern: {
             auto& comp = context.getCompilation();
             auto& varSyntax = syntax.as<VariablePatternSyntax>();
-            auto var = comp.emplace<PatternVarSymbol>(varSyntax.variableName.valueText(),
+            auto var = comp.emplace<PatternVarSymbol>(comp, varSyntax.variableName.valueText(),
                                                       varSyntax.variableName.location(),
                                                       comp.getErrorType());
             var->setSyntax(varSyntax);

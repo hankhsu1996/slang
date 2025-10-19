@@ -34,7 +34,7 @@ const Statement& SubroutineSymbol::getBody() const {
         if (!syntax || !FunctionDeclarationSyntax::isKind(syntax->kind)) {
             // DPI functions, subroutines created from prototypes, etc
             // don't have a real body.
-            stmt = &StatementList::makeEmpty(getCompilation());
+            stmt = &StatementList::makeEmpty(Scope::getCompilation());
         }
         else if (isConstructing) {
             // Avoid issues with recursive function calls re-entering this
@@ -141,7 +141,8 @@ std::pair<SubroutineSymbol*, bool> SubroutineSymbol::fromSyntax(
     }
     else if (subroutineKind == SubroutineKind::Function) {
         // The function gets an implicit variable inserted that represents the return value.
-        auto implicitReturnVar = compilation.emplace<VariableSymbol>(result->name, result->location,
+        auto implicitReturnVar = compilation.emplace<VariableSymbol>(compilation, result->name,
+                                                                     result->location,
                                                                      VariableLifetime::Automatic);
         implicitReturnVar->setDeclaredType(*proto->returnType);
         implicitReturnVar->flags |= VariableFlags::CompilerGenerated;
@@ -434,8 +435,9 @@ static std::span<const FormalArgumentSymbol* const> cloneArguments(
 
     SmallVector<const FormalArgumentSymbol*> arguments(source.size(), UninitializedTag());
     for (auto arg : source) {
-        auto copied = compilation.emplace<FormalArgumentSymbol>(arg->name, arg->location,
-                                                                arg->direction, arg->lifetime);
+        auto copied = compilation.emplace<FormalArgumentSymbol>(compilation, arg->name,
+                                                                arg->location, arg->direction,
+                                                                arg->lifetime);
         copied->flags = arg->flags;
         copied->getDeclaredType()->setLink(*arg->getDeclaredType());
         copied->setDefaultValue(arg->getDefaultValue());
@@ -721,8 +723,9 @@ bitmask<MethodFlags> SubroutineSymbol::buildArguments(
         }
 
         auto& decl = *fps.declarator;
-        auto arg = comp.emplace<FormalArgumentSymbol>(decl.name.valueText(), decl.name.location(),
-                                                      direction, defaultLifetime);
+        auto arg = comp.emplace<FormalArgumentSymbol>(comp, decl.name.valueText(),
+                                                      decl.name.location(), direction,
+                                                      defaultLifetime);
         arg->flags |= flags;
 
         // If we're given a type, use that. Otherwise, if we were given a
@@ -924,8 +927,9 @@ void SubroutineSymbol::serializeTo(ASTSerializer& serializer) const {
 }
 
 void SubroutineSymbol::addThisVar(const Type& type) {
-    auto tv = getCompilation().emplace<VariableSymbol>("this", type.location,
-                                                       VariableLifetime::Automatic);
+    auto& comp = Scope::getCompilation();
+    auto tv = comp.emplace<VariableSymbol>(comp, "this", type.location,
+                                           VariableLifetime::Automatic);
     tv->setType(type);
     tv->flags |= VariableFlags::Const | VariableFlags::CompilerGenerated;
     thisVar = tv;
@@ -935,7 +939,7 @@ void SubroutineSymbol::addThisVar(const Type& type) {
 MethodPrototypeSymbol::MethodPrototypeSymbol(Compilation& compilation, std::string_view name,
                                              SourceLocation loc, SubroutineKind subroutineKind,
                                              Visibility visibility, bitmask<MethodFlags> flags) :
-    Symbol(SymbolKind::MethodPrototype, name, loc), Scope(compilation, this),
+    Symbol(SymbolKind::MethodPrototype, name, loc, compilation), Scope(compilation, this),
     declaredReturnType(*this), subroutineKind(subroutineKind), visibility(visibility),
     flags(flags) {
 }
@@ -1262,7 +1266,7 @@ bool MethodPrototypeSymbol::checkMethodMatch(const Scope& scope,
 }
 
 void MethodPrototypeSymbol::addExternImpl(const SubroutineSymbol& impl) const {
-    auto node = getCompilation().emplace<ExternImpl>(impl);
+    auto node = Scope::getCompilation().emplace<ExternImpl>(impl);
     node->next = std::exchange(firstExternImpl, node);
 }
 

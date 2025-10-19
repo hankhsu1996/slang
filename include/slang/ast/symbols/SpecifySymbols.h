@@ -51,8 +51,8 @@ public:
     EdgeKind edgeIdentifier;
     bool isStateDependent = false;
 
-    TimingPathSymbol(SourceLocation loc, ConnectionKind connectionKind, Polarity polarity,
-                     Polarity edgePolarity, EdgeKind edgeIdentifier);
+    TimingPathSymbol(Compilation& compilation, SourceLocation loc, ConnectionKind connectionKind,
+                     Polarity polarity, Polarity edgePolarity, EdgeKind edgeIdentifier);
 
     const Expression* getEdgeSourceExpr() const {
         if (!isResolved)
@@ -114,7 +114,7 @@ class SLANG_EXPORT PulseStyleSymbol final : public Symbol {
 public:
     PulseStyleKind pulseStyleKind;
 
-    PulseStyleSymbol(SourceLocation loc, PulseStyleKind pulseStyleKind);
+    PulseStyleSymbol(Compilation& compilation, SourceLocation loc, PulseStyleKind pulseStyleKind);
 
     std::span<const Expression* const> getTerminals() const {
         if (!isResolved)
@@ -179,7 +179,8 @@ public:
 
     SystemTimingCheckKind timingCheckKind;
 
-    SystemTimingCheckSymbol(SourceLocation loc, const SystemTimingCheckDef* def);
+    SystemTimingCheckSymbol(Compilation& compilation, SourceLocation loc,
+                            const SystemTimingCheckDef* def);
 
     std::span<const Arg> getArguments() const {
         if (!isResolved)

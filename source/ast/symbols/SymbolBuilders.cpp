@@ -43,7 +43,7 @@ MethodBuilder::~MethodBuilder() {
 FormalArgumentSymbol& MethodBuilder::addArg(std::string_view name, const Type& type,
                                             ArgumentDirection direction,
                                             std::optional<SVInt> defaultValue) {
-    auto arg = compilation.emplace<FormalArgumentSymbol>(name, NL, direction,
+    auto arg = compilation.emplace<FormalArgumentSymbol>(compilation, name, NL, direction,
                                                          VariableLifetime::Automatic);
     arg->setType(type);
     symbol.addMember(*arg);
@@ -58,8 +58,9 @@ FormalArgumentSymbol& MethodBuilder::addArg(std::string_view name, const Type& t
 }
 
 FormalArgumentSymbol& MethodBuilder::copyArg(const FormalArgumentSymbol& fromArg) {
-    auto arg = compilation.emplace<FormalArgumentSymbol>(fromArg.name, fromArg.location,
-                                                         fromArg.direction, fromArg.lifetime);
+    auto arg = compilation.emplace<FormalArgumentSymbol>(compilation, fromArg.name,
+                                                         fromArg.location, fromArg.direction,
+                                                         fromArg.lifetime);
     arg->flags = fromArg.flags;
     arg->setDefaultValue(fromArg.getDefaultValue());
     symbol.addMember(*arg);
@@ -99,7 +100,8 @@ StructBuilder::StructBuilder(const Scope& scope, LookupLocation lookupLocation) 
 
 void StructBuilder::addField(std::string_view name, const Type& fieldType,
                              bitmask<VariableFlags> flags) {
-    auto field = compilation.emplace<FieldSymbol>(name, NL, currBitOffset, currFieldIndex);
+    auto field = compilation.emplace<FieldSymbol>(compilation, name, NL, currBitOffset,
+                                                  currFieldIndex);
     field->flags = flags;
     field->setType(fieldType);
     type.addMember(*field);

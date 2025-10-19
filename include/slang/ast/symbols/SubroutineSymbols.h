@@ -105,7 +105,7 @@ public:
 
     SubroutineSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                      VariableLifetime defaultLifetime, SubroutineKind subroutineKind) :
-        Symbol(SymbolKind::Subroutine, name, loc), Scope(compilation, this),
+        Symbol(SymbolKind::Subroutine, name, loc, compilation), Scope(compilation, this),
         declaredReturnType(*this), defaultLifetime(defaultLifetime),
         subroutineKind(subroutineKind) {}
 

@@ -30,7 +30,7 @@ static bool isEmptyType(const DataTypeSyntax& syntax) {
 }
 
 CheckerSymbol::CheckerSymbol(Compilation& compilation, std::string_view name, SourceLocation loc) :
-    Symbol(SymbolKind::Checker, name, loc), Scope(compilation, this) {
+    Symbol(SymbolKind::Checker, name, loc, compilation), Scope(compilation, this) {
 }
 
 CheckerSymbol& CheckerSymbol::fromSyntax(const Scope& scope,
@@ -53,7 +53,7 @@ CheckerSymbol& CheckerSymbol::fromSyntax(const Scope& scope,
             if (item->previewNode)
                 result->addMembers(*item->previewNode);
 
-            auto port = comp.emplace<AssertionPortSymbol>(item->name.valueText(),
+            auto port = comp.emplace<AssertionPortSymbol>(comp, item->name.valueText(),
                                                           item->name.location());
             port->setSyntax(*item);
             port->setAttributes(scope, item->attributes);
@@ -207,9 +207,9 @@ void createCheckers(const CheckerSymbol& checker, const TSyntax& syntax, const A
 
 } // namespace
 
-CheckerInstanceSymbol::CheckerInstanceSymbol(std::string_view name, SourceLocation loc,
-                                             CheckerInstanceBodySymbol& body) :
-    InstanceSymbolBase(SymbolKind::CheckerInstance, name, loc), body(body) {
+CheckerInstanceSymbol::CheckerInstanceSymbol(Compilation& compilation, std::string_view name,
+                                             SourceLocation loc, CheckerInstanceBodySymbol& body) :
+    InstanceSymbolBase(SymbolKind::CheckerInstance, name, loc, compilation), body(body) {
     body.parentInstance = this;
 }
 
@@ -279,8 +279,8 @@ static const Symbol* createCheckerFormal(Compilation& comp, const AssertionPortS
     // Output ports are special; they aren't involved in the rewriting process,
     // they just act like normal formal ports / arguments.
     if (port.direction == ArgumentDirection::Out) {
-        auto arg = comp.emplace<FormalArgumentSymbol>(port.name, port.location, *port.direction,
-                                                      VariableLifetime::Static);
+        auto arg = comp.emplace<FormalArgumentSymbol>(comp, port.name, port.location,
+                                                      *port.direction, VariableLifetime::Static);
         arg->getDeclaredType()->setLink(port.declaredType);
 
         if (auto portSyntax = port.getSyntax()) {
@@ -500,7 +500,7 @@ CheckerInstanceSymbol& CheckerInstanceSymbol::fromSyntax(
     for (auto member : checkerSyntax->as<CheckerDeclarationSyntax>().members)
         body->addMembers(*member);
 
-    auto instance = comp.emplace<CheckerInstanceSymbol>(name, loc, *body);
+    auto instance = comp.emplace<CheckerInstanceSymbol>(comp, name, loc, *body);
     instance->arrayPath = path.copy(comp);
     instance->setSyntax(syntax);
     instance->setAttributes(*context.scope, attributes);
@@ -545,7 +545,8 @@ CheckerInstanceSymbol& CheckerInstanceSymbol::createInvalid(const CheckerSymbol&
     for (auto member : checkerSyntax->as<CheckerDeclarationSyntax>().members)
         body->addMembers(*member);
 
-    auto instance = comp.emplace<CheckerInstanceSymbol>(checker.name, checker.location, *body);
+    auto instance = comp.emplace<CheckerInstanceSymbol>(comp, checker.name, checker.location,
+                                                        *body);
     instance->setSyntax(*checkerSyntax);
     instance->connections = connections.copy(comp);
     return *instance;
@@ -879,7 +880,7 @@ CheckerInstanceBodySymbol::CheckerInstanceBodySymbol(Compilation& compilation,
                                                      const ASTContext& originalContext,
                                                      uint32_t instanceDepth, bool isProcedural,
                                                      bitmask<InstanceFlags> flags) :
-    Symbol(SymbolKind::CheckerInstanceBody, checker.name, checker.location),
+    Symbol(SymbolKind::CheckerInstanceBody, checker.name, checker.location, compilation),
     Scope(compilation, this), checker(checker), assertionDetails(assertionDetails),
     instanceDepth(instanceDepth), isProcedural(isProcedural), flags(flags),
     originalContext(originalContext) {

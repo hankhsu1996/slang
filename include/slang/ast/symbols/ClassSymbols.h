@@ -29,8 +29,8 @@ public:
     Visibility visibility;
     RandMode randMode = RandMode::None;
 
-    ClassPropertySymbol(std::string_view name, SourceLocation loc, VariableLifetime lifetime,
-                        Visibility visibility);
+    ClassPropertySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                        VariableLifetime lifetime, Visibility visibility);
 
     void serializeTo(ASTSerializer& serializer) const;
 
@@ -184,8 +184,7 @@ namespace detail {
 class ClassSpecializationKey {
 public:
     ClassSpecializationKey(std::span<const ConstantValue* const> paramValues,
-                           std::span<const Type* const> typeParams,
-                           const Compilation* compilation);
+                           std::span<const Type* const> typeParams, const Compilation* compilation);
 
     size_t hash() const { return savedHash; }
 
@@ -214,11 +213,12 @@ public:
     /// Set to true if the generic class is an interface class.
     bool isInterface = false;
 
-    GenericClassDefSymbol(std::string_view name, SourceLocation loc) :
-        Symbol(SymbolKind::GenericClassDef, name, loc) {}
-    GenericClassDefSymbol(std::string_view name, SourceLocation loc,
+    GenericClassDefSymbol(Compilation& compilation, std::string_view name, SourceLocation loc) :
+        Symbol(SymbolKind::GenericClassDef, name, loc, compilation) {}
+    GenericClassDefSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                           SpecializeFunc specializeFunc) :
-        Symbol(SymbolKind::GenericClassDef, name, loc), specializeFunc{specializeFunc} {}
+        Symbol(SymbolKind::GenericClassDef, name, loc, compilation),
+        specializeFunc{specializeFunc} {}
 
     /// Gets the default specialization for the class, or nullptr if the generic
     /// class has no default specialization (because some parameters are not defaulted).

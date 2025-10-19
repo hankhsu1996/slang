@@ -24,6 +24,10 @@ namespace slang::syntax {
 class SyntaxTree;
 }
 
+namespace slang::ast::builtins {
+class Builtins;
+}
+
 namespace slang::ast {
 
 class AttributeSymbol;
@@ -266,6 +270,16 @@ public:
     Compilation(const Compilation& other) = delete;
     Compilation(Compilation&& other) = delete;
     ~Compilation();
+
+    /// Gets a singleton invalid Compilation instance for use by sentinel symbols
+    /// like InvalidSymbol and ErrorType. This instance should never be used for
+    /// actual compilation work and exists only to provide a valid compilation
+    /// pointer for static symbol instances that are created before any real
+    /// compilation objects exist.
+    static Compilation& getInvalid();
+
+    /// Returns true if this is the invalid compilation instance returned by getInvalid().
+    bool isInvalid() const;
 
     /// @name Top-level API
     /// @{
@@ -768,7 +782,8 @@ protected:
     // the given name / scope (which can happen for multiple libraries at the root scope),
     // and the second element is a boolean that indicates whether there exists at least
     // one nested module with the given name (requiring a more involved lookup).
-    flat_hash_map<std::tuple<std::string_view, const Scope*>, std::pair<std::vector<const Symbol*>, bool>>
+    flat_hash_map<std::tuple<std::string_view, const Scope*>,
+                  std::pair<std::vector<const Symbol*>, bool>>
         definitionMap;
 
 private:
@@ -858,6 +873,9 @@ private:
     // The value indicates whether the node has been used as an lvalue vs non-lvalue,
     // for things like variables and nets.
     flat_hash_map<const syntax::SyntaxNode*, std::pair<bool, bool>> referenceStatusMap;
+
+    // The built-in types and system subroutines.
+    std::unique_ptr<builtins::Builtins> builtins;
 
     // A cache of vector types, keyed on various properties such as bit width.
     flat_hash_map<uint32_t, const Type*> vectorTypeCache;

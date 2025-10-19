@@ -57,7 +57,8 @@ public:
     const Symbol* getDeclaredSymbol() const { return declaredSymbol; }
     void setDeclaredSymbol(const Symbol* symbol) { declaredSymbol = symbol; }
 
-    VariableSymbol(std::string_view name, SourceLocation loc, VariableLifetime lifetime);
+    VariableSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                   VariableLifetime lifetime);
 
     void checkInitializer() const;
 
@@ -97,8 +98,8 @@ public:
     }
 
 protected:
-    VariableSymbol(SymbolKind childKind, std::string_view name, SourceLocation loc,
-                   VariableLifetime lifetime);
+    VariableSymbol(Compilation& compilation, SymbolKind childKind, std::string_view name,
+                   SourceLocation loc, VariableLifetime lifetime);
 
 private:
     const Symbol* declaredSymbol = nullptr;
@@ -109,8 +110,8 @@ class SLANG_EXPORT FormalArgumentSymbol final : public VariableSymbol {
 public:
     ArgumentDirection direction = ArgumentDirection::In;
 
-    FormalArgumentSymbol(std::string_view name, SourceLocation loc, ArgumentDirection direction,
-                         VariableLifetime lifetime);
+    FormalArgumentSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                         ArgumentDirection direction, VariableLifetime lifetime);
 
     bool mergeVariable(const VariableSymbol& variable);
     const VariableSymbol* getMergedVariable() const { return mergedVar; }
@@ -163,9 +164,9 @@ public:
     /// If this field was marked with random qualifier, the mode indicated by that qualifier.
     RandMode randMode = RandMode::None;
 
-    FieldSymbol(std::string_view name, SourceLocation loc, uint64_t bitOffset,
-                uint32_t fieldIndex) :
-        VariableSymbol(SymbolKind::Field, name, loc, VariableLifetime::Automatic),
+    FieldSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                uint64_t bitOffset, uint32_t fieldIndex) :
+        VariableSymbol(compilation, SymbolKind::Field, name, loc, VariableLifetime::Automatic),
         bitOffset(bitOffset), fieldIndex(fieldIndex) {}
 
     void serializeTo(ASTSerializer& serializer) const;
@@ -180,7 +181,8 @@ public:
     enum ExpansionHint { None, Vectored, Scalared } expansionHint = None;
     bool isImplicit = false;
 
-    NetSymbol(std::string_view name, SourceLocation loc, const NetType& netType);
+    NetSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+              const NetType& netType);
 
     const TimingControl* getDelay() const;
     std::optional<ChargeStrength> getChargeStrength() const;
@@ -241,8 +243,9 @@ public:
     }
 
 protected:
-    TempVarSymbol(SymbolKind childKind, std::string_view name, SourceLocation loc,
-                  VariableLifetime lifetime) : VariableSymbol(childKind, name, loc, lifetime) {}
+    TempVarSymbol(Compilation& compilation, SymbolKind childKind, std::string_view name,
+                  SourceLocation loc, VariableLifetime lifetime) :
+        VariableSymbol(compilation, childKind, name, loc, lifetime) {}
 };
 
 /// Represents an iterator variable created for array manipulation methods.
@@ -258,8 +261,8 @@ public:
 
     IteratorSymbol(const Scope& scope, std::string_view name, SourceLocation loc,
                    const Type& arrayType, std::string_view indexMethodName);
-    IteratorSymbol(std::string_view name, SourceLocation loc, const Type& arrayType,
-                   const Type& indexType);
+    IteratorSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                   const Type& arrayType, const Type& indexType);
 
     void serializeTo(ASTSerializer&) const {}
 
@@ -269,7 +272,8 @@ public:
 /// Represents a pattern variable materialized for a pattern matching expression.
 class SLANG_EXPORT PatternVarSymbol final : public TempVarSymbol {
 public:
-    PatternVarSymbol(std::string_view name, SourceLocation loc, const Type& type);
+    PatternVarSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                     const Type& type);
 
     void serializeTo(ASTSerializer&) const {}
 
@@ -283,8 +287,8 @@ public:
     ClockingSkew inputSkew;
     ClockingSkew outputSkew;
 
-    ClockVarSymbol(std::string_view name, SourceLocation loc, ArgumentDirection direction,
-                   ClockingSkew inputSkew, ClockingSkew outputSkew);
+    ClockVarSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                   ArgumentDirection direction, ClockingSkew inputSkew, ClockingSkew outputSkew);
 
     static void fromSyntax(const Scope& scope, const syntax::ClockingItemSyntax& syntax,
                            SmallVectorBase<const ClockVarSymbol*>& results);
@@ -300,7 +304,7 @@ class SLANG_EXPORT LocalAssertionVarSymbol final : public VariableSymbol {
 public:
     const AssertionPortSymbol* formalPort = nullptr;
 
-    LocalAssertionVarSymbol(std::string_view name, SourceLocation loc);
+    LocalAssertionVarSymbol(Compilation& compilation, std::string_view name, SourceLocation loc);
 
     static void fromSyntax(const Scope& scope, const syntax::LocalVariableDeclarationSyntax& syntax,
                            SmallVectorBase<const LocalAssertionVarSymbol*>& results);

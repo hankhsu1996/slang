@@ -18,13 +18,15 @@ class Scope;
 
 class SLANG_EXPORT AttributeSymbol final : public Symbol {
 public:
-    AttributeSymbol(std::string_view name, SourceLocation loc, const Symbol& symbol,
+    AttributeSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                    const Symbol& symbol, const syntax::ExpressionSyntax& expr);
+
+    AttributeSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                    const Scope& scope, LookupLocation lookupLocation,
                     const syntax::ExpressionSyntax& expr);
 
-    AttributeSymbol(std::string_view name, SourceLocation loc, const Scope& scope,
-                    LookupLocation lookupLocation, const syntax::ExpressionSyntax& expr);
-
-    AttributeSymbol(std::string_view name, SourceLocation loc, const ConstantValue& value);
+    AttributeSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
+                    const ConstantValue& value);
 
     const ConstantValue& getValue() const;
 

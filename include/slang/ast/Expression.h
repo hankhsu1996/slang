@@ -362,13 +362,11 @@ public:
     decltype(auto) visit(TVisitor&& visitor, Args&&... args) const;
 
 protected:
-    Expression(ExpressionKind kind, const Type& type, SourceRange sourceRange,
-               Compilation& comp) :
+    Expression(ExpressionKind kind, const Type& type, SourceRange sourceRange, Compilation& comp) :
         kind(kind), type(&type), sourceRange(sourceRange), compilation(&comp) {}
 
     // Special constructor for cases where Compilation is not available (e.g., static instances)
-    Expression(ExpressionKind kind, const Type& type, SourceRange sourceRange,
-               std::nullptr_t) :
+    Expression(ExpressionKind kind, const Type& type, SourceRange sourceRange, std::nullptr_t) :
         kind(kind), type(&type), sourceRange(sourceRange), compilation(nullptr) {}
 
     static Expression& create(Compilation& compilation, const ExpressionSyntax& syntax,
@@ -460,7 +458,9 @@ public:
 
     static bool isKind(ExpressionKind kind) { return kind == ExpressionKind::Invalid; }
 
-    static const InvalidExpression Instance;
+    // Lazy-initialized singleton to avoid static initialization order issues
+    // Implementation in Expression.cpp to avoid circular dependency
+    static const InvalidExpression& Instance();
 };
 
 } // namespace slang::ast

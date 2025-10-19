@@ -23,14 +23,16 @@ namespace slang::ast {
 
 using namespace syntax;
 
-NetType::NetType(NetKind netKind, std::string_view name, const Type& dataType) :
-    Symbol(SymbolKind::NetType, name, SourceLocation()), declaredType(*this), netKind(netKind) {
+NetType::NetType(Compilation& compilation, NetKind netKind, std::string_view name,
+                 const Type& dataType) :
+    Symbol(SymbolKind::NetType, name, SourceLocation(), compilation), declaredType(*this),
+    netKind(netKind) {
     declaredType.setType(dataType);
     resolver = nullptr;
 }
 
-NetType::NetType(std::string_view name, SourceLocation location) :
-    Symbol(SymbolKind::NetType, name, location),
+NetType::NetType(Compilation& compilation, std::string_view name, SourceLocation location) :
+    Symbol(SymbolKind::NetType, name, location, compilation),
     declaredType(*this, DeclaredTypeFlags::UserDefinedNetType), netKind(UserDefined) {
 }
 
@@ -128,7 +130,7 @@ void NetType::serializeTo(ASTSerializer& serializer) const {
 
 NetType& NetType::fromSyntax(const Scope& scope, const NetTypeDeclarationSyntax& syntax) {
     auto& comp = scope.getCompilation();
-    auto result = comp.emplace<NetType>(syntax.name.valueText(), syntax.name.location());
+    auto result = comp.emplace<NetType>(comp, syntax.name.valueText(), syntax.name.location());
     result->setSyntax(syntax);
     result->setAttributes(scope, syntax.attributes);
     result->declaredType.setTypeSyntax(*syntax.type);

@@ -24,7 +24,7 @@ public:
 
     StatementBlockSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                          StatementBlockKind blockKind, VariableLifetime defaultLifetime) :
-        Symbol(SymbolKind::StatementBlock, name, loc), Scope(compilation, this),
+        Symbol(SymbolKind::StatementBlock, name, loc, compilation), Scope(compilation, this),
         blockKind(blockKind), defaultLifetime(defaultLifetime) {}
 
     void setTemporaryParent(const Scope& scope, SymbolIndex index) { setParent(scope, index); }
@@ -71,8 +71,8 @@ public:
     ProceduralBlockKind procedureKind;
     bool isFromAssertion;
 
-    ProceduralBlockSymbol(SourceLocation loc, ProceduralBlockKind procedureKind,
-                          bool isFromAssertion);
+    ProceduralBlockSymbol(Compilation& compilation, SourceLocation loc,
+                          ProceduralBlockKind procedureKind, bool isFromAssertion);
 
     const Statement& getBody() const;
     void serializeTo(ASTSerializer& serializer) const;
@@ -130,7 +130,7 @@ public:
 
     GenerateBlockSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                         uint32_t constructIndex, bool isUninstantiated) :
-        Symbol(SymbolKind::GenerateBlock, name, loc), Scope(compilation, this),
+        Symbol(SymbolKind::GenerateBlock, name, loc, compilation), Scope(compilation, this),
         constructIndex(constructIndex), isUninstantiated(isUninstantiated),
         isUnnamed(name.empty()) {}
 
@@ -177,7 +177,7 @@ public:
 
     GenerateBlockArraySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                              uint32_t constructIndex) :
-        Symbol(SymbolKind::GenerateBlockArray, name, loc), Scope(compilation, this),
+        Symbol(SymbolKind::GenerateBlockArray, name, loc, compilation), Scope(compilation, this),
         constructIndex(constructIndex), isUnnamed(name.empty()) {}
 
     std::string getExternalName() const;

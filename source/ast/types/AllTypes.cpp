@@ -120,11 +120,15 @@ namespace slang::ast {
 using namespace parsing;
 using namespace syntax;
 
-const ErrorType ErrorType::Instance;
+ErrorType::ErrorType() :
+    Type(SymbolKind::ErrorType, "", SourceLocation(), Compilation::getInvalid()) {
+}
 
 IntegralType::IntegralType(SymbolKind kind, std::string_view name, SourceLocation loc,
-                           bitwidth_t bitWidth_, bool isSigned_, bool isFourState_) :
-    Type(kind, name, loc), bitWidth(bitWidth_), isSigned(isSigned_), isFourState(isFourState_) {
+                           bitwidth_t bitWidth_, bool isSigned_, bool isFourState_,
+                           Compilation& compilation) :
+    Type(kind, name, loc, compilation), bitWidth(bitWidth_), isSigned(isSigned_),
+    isFourState(isFourState_) {
 }
 
 bool IntegralType::isKind(SymbolKind kind) {
@@ -187,7 +191,7 @@ const Type& IntegralType::fromSyntax(Compilation& compilation, SyntaxKind intege
             // Use PackedArrayType::fromSyntax to store expressions alongside the type
             auto& pair = dims[0];
             return PackedArrayType::fromSyntax(*context.scope, compilation.getScalarType(flags),
-                                             pair.first, *pair.second);
+                                               pair.first, *pair.second);
         }
     }
 
@@ -217,13 +221,14 @@ ConstantValue IntegralType::getDefaultValueImpl() const {
         return SVInt(bitWidth, 0, isSigned);
 }
 
-PredefinedIntegerType::PredefinedIntegerType(Kind integerKind) :
-    PredefinedIntegerType(integerKind, getSigned(integerKind)) {
+PredefinedIntegerType::PredefinedIntegerType(Kind integerKind, Compilation& compilation) :
+    PredefinedIntegerType(integerKind, getSigned(integerKind), compilation) {
 }
 
-PredefinedIntegerType::PredefinedIntegerType(Kind integerKind, bool isSigned) :
+PredefinedIntegerType::PredefinedIntegerType(Kind integerKind, bool isSigned,
+                                             Compilation& compilation) :
     IntegralType(SymbolKind::PredefinedIntegerType, getName(integerKind), SourceLocation(),
-                 getWidth(integerKind), isSigned, getFourState(integerKind)),
+                 getWidth(integerKind), isSigned, getFourState(integerKind), compilation),
     integerKind(integerKind) {
 }
 
@@ -231,17 +236,19 @@ bool PredefinedIntegerType::isDefaultSigned(Kind integerKind) {
     return getSigned(integerKind);
 }
 
-ScalarType::ScalarType(Kind scalarKind) : ScalarType(scalarKind, false) {
+ScalarType::ScalarType(Kind scalarKind, Compilation& compilation) :
+    ScalarType(scalarKind, false, compilation) {
 }
 
-ScalarType::ScalarType(Kind scalarKind, bool isSigned) :
+ScalarType::ScalarType(Kind scalarKind, bool isSigned, Compilation& compilation) :
     IntegralType(SymbolKind::ScalarType, getName(scalarKind), SourceLocation(), 1, isSigned,
-                 scalarKind != Kind::Bit),
+                 scalarKind != Kind::Bit, compilation),
     scalarKind(scalarKind) {
 }
 
-FloatingType::FloatingType(Kind floatKind_) :
-    Type(SymbolKind::FloatingType, getName(floatKind_), SourceLocation()), floatKind(floatKind_) {
+FloatingType::FloatingType(Kind floatKind_, Compilation& compilation) :
+    Type(SymbolKind::FloatingType, getName(floatKind_), SourceLocation(), compilation),
+    floatKind(floatKind_) {
 }
 
 ConstantValue FloatingType::getDefaultValueImpl() const {
@@ -254,7 +261,7 @@ ConstantValue FloatingType::getDefaultValueImpl() const {
 EnumType::EnumType(Compilation& compilation, SourceLocation loc, const Type& baseType_,
                    const ASTContext& context) :
     IntegralType(SymbolKind::EnumType, "", loc, baseType_.getBitWidth(), baseType_.isSigned(),
-                 baseType_.isFourState()),
+                 baseType_.isFourState(), compilation),
     Scope(compilation, this), baseType(baseType_), systemId(compilation.getNextEnumSystemId()) {
 
     // Enum types don't live as members of the parent scope (they're "owned" by the declaration
@@ -582,8 +589,10 @@ void EnumType::serializeTo(ASTSerializer& serializer) const {
     serializer.write("baseType", baseType);
 }
 
-EnumValueSymbol::EnumValueSymbol(std::string_view name, SourceLocation loc) :
-    ValueSymbol(SymbolKind::EnumValue, name, loc, DeclaredTypeFlags::InitializerCantSeeParent) {
+EnumValueSymbol::EnumValueSymbol(Compilation& compilation, std::string_view name,
+                                 SourceLocation loc) :
+    ValueSymbol(SymbolKind::EnumValue, name, loc, compilation,
+                DeclaredTypeFlags::InitializerCantSeeParent) {
 }
 
 EnumValueSymbol& EnumValueSymbol::fromSyntax(Compilation& compilation,
@@ -593,7 +602,7 @@ EnumValueSymbol& EnumValueSymbol::fromSyntax(Compilation& compilation,
     if (index)
         name = getEnumValueName(compilation, name, *index);
 
-    auto ev = compilation.emplace<EnumValueSymbol>(name, syntax.name.location());
+    auto ev = compilation.emplace<EnumValueSymbol>(compilation, name, syntax.name.location());
     ev->setType(type);
     ev->setSyntax(syntax);
     return *ev;
@@ -643,10 +652,10 @@ void EnumValueSymbol::serializeTo(ASTSerializer& serializer) const {
     serializer.write("value", getValue());
 }
 
-PackedArrayType::PackedArrayType(const Type& elementType, ConstantRange range,
-                                 bitwidth_t fullWidth, const EvaluatedDimension& evalDim) :
+PackedArrayType::PackedArrayType(const Type& elementType, ConstantRange range, bitwidth_t fullWidth,
+                                 const EvaluatedDimension& evalDim) :
     IntegralType(SymbolKind::PackedArrayType, "", SourceLocation(), fullWidth,
-                 elementType.isSigned(), elementType.isFourState()),
+                 elementType.isSigned(), elementType.isFourState(), elementType.getCompilation()),
     elementType(elementType), range(range), evalDim(evalDim) {
 }
 
@@ -683,7 +692,8 @@ const Type& PackedArrayType::fromSyntax(const Scope& scope, const Type& elementT
 }
 
 const Type& PackedArrayType::fromDim(const Scope& scope, const Type& elementType, ConstantRange dim,
-                                     DeferredSourceRange sourceRange, const EvaluatedDimension& evalDim) {
+                                     DeferredSourceRange sourceRange,
+                                     const EvaluatedDimension& evalDim) {
     if (elementType.isError())
         return elementType;
 
@@ -712,8 +722,10 @@ FixedSizeUnpackedArrayType::FixedSizeUnpackedArrayType(const Type& elementType, 
                                                        uint64_t selectableWidth,
                                                        uint64_t bitstreamWidth,
                                                        const EvaluatedDimension& evalDim) :
-    Type(SymbolKind::FixedSizeUnpackedArrayType, "", SourceLocation()), elementType(elementType),
-    range(range), selectableWidth(selectableWidth), bitstreamWidth(bitstreamWidth), evalDim(evalDim) {
+    Type(SymbolKind::FixedSizeUnpackedArrayType, "", SourceLocation(),
+         elementType.getCompilation()),
+    elementType(elementType), range(range), selectableWidth(selectableWidth),
+    bitstreamWidth(bitstreamWidth), evalDim(evalDim) {
 }
 
 const Type& FixedSizeUnpackedArrayType::fromDims(const Scope& scope, const Type& elementType,
@@ -728,8 +740,7 @@ const Type& FixedSizeUnpackedArrayType::fromDims(const Scope& scope, const Type&
 }
 
 const Type& FixedSizeUnpackedArrayType::fromDim(const Scope& scope, const Type& elementType,
-                                                ConstantRange dim,
-                                                DeferredSourceRange sourceRange,
+                                                ConstantRange dim, DeferredSourceRange sourceRange,
                                                 const EvaluatedDimension& evalDim) {
     if (elementType.isError())
         return elementType;
@@ -762,7 +773,8 @@ void FixedSizeUnpackedArrayType::serializeTo(ASTSerializer& serializer) const {
 }
 
 DynamicArrayType::DynamicArrayType(const Type& elementType) :
-    Type(SymbolKind::DynamicArrayType, "", SourceLocation()), elementType(elementType) {
+    Type(SymbolKind::DynamicArrayType, "", SourceLocation(), elementType.getCompilation()),
+    elementType(elementType) {
 }
 
 ConstantValue DynamicArrayType::getDefaultValueImpl() const {
@@ -774,8 +786,8 @@ void DynamicArrayType::serializeTo(ASTSerializer& serializer) const {
 }
 
 DPIOpenArrayType::DPIOpenArrayType(const Type& elementType, bool isPacked) :
-    Type(SymbolKind::DPIOpenArrayType, "", SourceLocation()), elementType(elementType),
-    isPacked(isPacked) {
+    Type(SymbolKind::DPIOpenArrayType, "", SourceLocation(), elementType.getCompilation()),
+    elementType(elementType), isPacked(isPacked) {
 }
 
 ConstantValue DPIOpenArrayType::getDefaultValueImpl() const {
@@ -788,8 +800,8 @@ void DPIOpenArrayType::serializeTo(ASTSerializer& serializer) const {
 }
 
 AssociativeArrayType::AssociativeArrayType(const Type& elementType, const Type* indexType) :
-    Type(SymbolKind::AssociativeArrayType, "", SourceLocation()), elementType(elementType),
-    indexType(indexType) {
+    Type(SymbolKind::AssociativeArrayType, "", SourceLocation(), elementType.getCompilation()),
+    elementType(elementType), indexType(indexType) {
 }
 
 ConstantValue AssociativeArrayType::getDefaultValueImpl() const {
@@ -804,8 +816,8 @@ void AssociativeArrayType::serializeTo(ASTSerializer& serializer) const {
 
 QueueType::QueueType(const Type& elementType, uint32_t maxBound,
                      const EvaluatedDimension& evalDim) :
-    Type(SymbolKind::QueueType, "", SourceLocation()), elementType(elementType),
-    maxBound(maxBound), evalDim(evalDim) {
+    Type(SymbolKind::QueueType, "", SourceLocation(), elementType.getCompilation()),
+    elementType(elementType), maxBound(maxBound), evalDim(evalDim) {
 }
 
 ConstantValue QueueType::getDefaultValueImpl() const {
@@ -821,7 +833,7 @@ void QueueType::serializeTo(ASTSerializer& serializer) const {
 
 PackedStructType::PackedStructType(Compilation& compilation, bool isSigned, SourceLocation loc,
                                    const ASTContext& context) :
-    IntegralType(SymbolKind::PackedStructType, "", loc, 0, isSigned, false),
+    IntegralType(SymbolKind::PackedStructType, "", loc, 0, isSigned, false, compilation),
     Scope(compilation, this), systemId(compilation.getNextStructSystemId()) {
 
     // Struct types don't live as members of the parent scope (they're "owned" by
@@ -860,8 +872,9 @@ const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTyp
         }
 
         for (auto decl : member->declarators) {
-            auto field = comp.emplace<FieldSymbol>(decl->name.valueText(), decl->name.location(),
-                                                   0u, (uint32_t)members.size());
+            auto field = comp.emplace<FieldSymbol>(comp, decl->name.valueText(),
+                                                   decl->name.location(), 0u,
+                                                   (uint32_t)members.size());
             field->setType(type);
             field->setSyntax(*decl);
             field->setAttributes(*context.scope, member->attributes);
@@ -909,7 +922,7 @@ const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTyp
 
 UnpackedStructType::UnpackedStructType(Compilation& compilation, SourceLocation loc,
                                        const ASTContext& context) :
-    Type(SymbolKind::UnpackedStructType, "", loc), Scope(compilation, this),
+    Type(SymbolKind::UnpackedStructType, "", loc, compilation), Scope(compilation, this),
     systemId(compilation.getNextStructSystemId()) {
 
     // Struct types don't live as members of the parent scope (they're "owned" by
@@ -953,8 +966,9 @@ const Type& UnpackedStructType::fromSyntax(const ASTContext& context,
         }
 
         for (auto decl : member->declarators) {
-            auto field = comp.emplace<FieldSymbol>(decl->name.valueText(), decl->name.location(),
-                                                   bitOffset, (uint32_t)fields.size());
+            auto field = comp.emplace<FieldSymbol>(comp, decl->name.valueText(),
+                                                   decl->name.location(), bitOffset,
+                                                   (uint32_t)fields.size());
             field->setDeclaredType(*member->type);
             field->setFromDeclarator(*decl);
             field->setAttributes(*context.scope, member->attributes);
@@ -990,7 +1004,7 @@ const Type& UnpackedStructType::fromSyntax(const ASTContext& context,
 
 PackedUnionType::PackedUnionType(Compilation& compilation, bool isSigned, bool isTagged,
                                  bool isSoft, SourceLocation loc, const ASTContext& context) :
-    IntegralType(SymbolKind::PackedUnionType, "", loc, 0, isSigned, false),
+    IntegralType(SymbolKind::PackedUnionType, "", loc, 0, isSigned, false, compilation),
     Scope(compilation, this), systemId(compilation.getNextUnionSystemId()), isTagged(isTagged),
     isSoft(isSoft), tagBits(0) {
 
@@ -1032,7 +1046,7 @@ const Type& PackedUnionType::fromSyntax(Compilation& comp, const StructUnionType
 
         for (auto decl : member->declarators) {
             auto name = decl->name;
-            auto field = comp.emplace<FieldSymbol>(name.valueText(), name.location(), 0u,
+            auto field = comp.emplace<FieldSymbol>(comp, name.valueText(), name.location(), 0u,
                                                    fieldIndex++);
             field->setType(type);
             field->setSyntax(*decl);
@@ -1090,7 +1104,7 @@ void PackedUnionType::serializeTo(ASTSerializer& serializer) const {
 
 UnpackedUnionType::UnpackedUnionType(Compilation& compilation, bool isTagged, SourceLocation loc,
                                      const ASTContext& context) :
-    Type(SymbolKind::UnpackedUnionType, "", loc), Scope(compilation, this),
+    Type(SymbolKind::UnpackedUnionType, "", loc, compilation), Scope(compilation, this),
     systemId(compilation.getNextUnionSystemId()), isTagged(isTagged) {
 
     // Union types don't live as members of the parent scope (they're "owned" by
@@ -1128,8 +1142,9 @@ const Type& UnpackedUnionType::fromSyntax(const ASTContext& context,
             result->addMembers(*member->previewNode);
 
         for (auto decl : member->declarators) {
-            auto field = comp.emplace<FieldSymbol>(decl->name.valueText(), decl->name.location(),
-                                                   0u, (uint32_t)fields.size());
+            auto field = comp.emplace<FieldSymbol>(comp, decl->name.valueText(),
+                                                   decl->name.location(), 0u,
+                                                   (uint32_t)fields.size());
             field->setDeclaredType(*member->type);
             field->setFromDeclarator(*decl);
             field->setAttributes(*context.scope, member->attributes);
@@ -1227,7 +1242,7 @@ const Type& VirtualInterfaceType::fromSyntax(const ASTContext& context,
         }
     }
 
-    return *comp.emplace<VirtualInterfaceType>(iface, modport, /* isRealIface */ false, loc);
+    return *comp.emplace<VirtualInterfaceType>(comp, iface, modport, /* isRealIface */ false, loc);
 }
 
 ConstantValue VirtualInterfaceType::getDefaultValueImpl() const {
@@ -1246,7 +1261,7 @@ ForwardingTypedefSymbol& ForwardingTypedefSymbol::fromSyntax(
         typeRestriction = SemanticFacts::getTypeRestriction(*syntax.typeRestriction);
 
     auto& comp = scope.getCompilation();
-    auto result = comp.emplace<ForwardingTypedefSymbol>(syntax.name.valueText(),
+    auto result = comp.emplace<ForwardingTypedefSymbol>(comp, syntax.name.valueText(),
                                                         syntax.name.location(), typeRestriction);
     result->setSyntax(syntax);
     result->setAttributes(scope, syntax.attributes);
@@ -1308,15 +1323,17 @@ void ForwardingTypedefSymbol::serializeTo(ASTSerializer& serializer) const {
         serializer.write("next", *next);
 }
 
-TypeAliasType::TypeAliasType(std::string_view name, SourceLocation loc) :
-    Type(SymbolKind::TypeAlias, name, loc), targetType(*this, DeclaredTypeFlags::TypedefTarget) {
+TypeAliasType::TypeAliasType(Compilation& compilation, std::string_view name, SourceLocation loc) :
+    Type(SymbolKind::TypeAlias, name, loc, compilation),
+    targetType(*this, DeclaredTypeFlags::TypedefTarget) {
     canonical = nullptr;
 }
 
 TypeAliasType& TypeAliasType::fromSyntax(const Scope& scope,
                                          const TypedefDeclarationSyntax& syntax) {
     auto& comp = scope.getCompilation();
-    auto result = comp.emplace<TypeAliasType>(syntax.name.valueText(), syntax.name.location());
+    auto result = comp.emplace<TypeAliasType>(comp, syntax.name.valueText(),
+                                              syntax.name.location());
     result->targetType.setTypeSyntax(*syntax.type);
     result->targetType.setDimensionSyntax(syntax.dimensions);
     result->setSyntax(syntax);
@@ -1371,8 +1388,8 @@ void TypeAliasType::serializeTo(ASTSerializer& serializer) const {
 }
 
 TypeReferenceSymbol::TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation,
-                                        const syntax::SyntaxNode* syntax) :
-    Type(SymbolKind::TypeReference, "", usageLocation.start()),
+                                         const syntax::SyntaxNode* syntax) :
+    Type(SymbolKind::TypeReference, "", usageLocation.start(), resolvedType.getCompilation()),
     resolvedType(&resolvedType), usageLocation(usageLocation) {
     // Set canonical type directly to delegate to the resolved type's canonical form
     canonical = &resolvedType.getCanonicalType();
@@ -1381,10 +1398,10 @@ TypeReferenceSymbol::TypeReferenceSymbol(const Type& resolvedType, SourceRange u
 }
 
 const TypeReferenceSymbol& TypeReferenceSymbol::create(const Type& resolvedType,
-                                                      SourceRange usageLocation,
-                                                      const syntax::SyntaxNode* syntax,
-                                                      Compilation& compilation,
-                                                      const Scope* usageScope) {
+                                                       SourceRange usageLocation,
+                                                       const syntax::SyntaxNode* syntax,
+                                                       Compilation& compilation,
+                                                       const Scope* usageScope) {
     auto& typeRef = *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation, syntax);
     // Set parent scope to usage context for proper LSP navigation
     if (usageScope) {

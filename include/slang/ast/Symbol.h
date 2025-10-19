@@ -13,6 +13,7 @@
 
 namespace slang::ast {
 
+class Compilation;
 class DeclaredType;
 class DefinitionSymbol;
 class Scope;
@@ -160,6 +161,9 @@ public:
     /// be created without any originating syntax; in those cases, this returns nullptr.
     const syntax::SyntaxNode* getSyntax() const { return originatingSyntax; }
 
+    /// Gets the compilation that created this symbol.
+    Compilation& getCompilation() const { return *compilation; }
+
     /// Determines whether this symbol also represents a scope.
     bool isScope() const { return scopeOrNull(); }
 
@@ -285,8 +289,8 @@ public:
     decltype(auto) visit(TVisitor&& visitor, Args&&... args) const;
 
 protected:
-    Symbol(SymbolKind kind, std::string_view name, SourceLocation location) :
-        kind(kind), name(name), location(location) {}
+    Symbol(SymbolKind kind, std::string_view name, SourceLocation location, Compilation& comp) :
+        kind(kind), name(name), location(location), compilation(&comp) {}
 
 private:
     friend class Scope;
@@ -302,6 +306,7 @@ private:
     mutable SymbolIndex indexInScope{0};
 
     const syntax::SyntaxNode* originatingSyntax = nullptr;
+    Compilation* compilation = nullptr;
 };
 
 inline SymbolIndex operator+(SymbolIndex si, uint32_t offset) {

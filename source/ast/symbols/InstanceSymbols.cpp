@@ -347,16 +347,16 @@ void InstanceSymbolBase::getArrayDimensions(SmallVectorBase<ConstantRange>& dime
         getInstanceArrayDimensions(scope->asSymbol().as<InstanceArraySymbol>(), dimensions);
 }
 
-InstanceSymbol::InstanceSymbol(std::string_view name, SourceLocation loc,
+InstanceSymbol::InstanceSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                                InstanceBodySymbol& body) :
-    InstanceSymbolBase(SymbolKind::Instance, name, loc), body(body) {
+    InstanceSymbolBase(SymbolKind::Instance, name, loc, compilation), body(body) {
     body.parentInstance = this;
 }
 
 InstanceSymbol::InstanceSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                                const DefinitionSymbol& definition, ParameterBuilder& paramBuilder,
                                bitmask<InstanceFlags> flags) :
-    InstanceSymbol(name, loc,
+    InstanceSymbol(compilation, name, loc,
                    InstanceBodySymbol::fromDefinition(compilation, definition, loc, paramBuilder,
                                                       flags)) {
 }
@@ -368,7 +368,7 @@ InstanceSymbol& InstanceSymbol::createDefault(Compilation& comp, const Definitio
                                               SourceLocation locationOverride) {
     auto loc = locationOverride ? locationOverride : definition.location;
     auto& result = *comp.emplace<InstanceSymbol>(
-        definition.name, loc,
+        comp, definition.name, loc,
         InstanceBodySymbol::fromDefinition(comp, definition, loc, InstanceFlags::None,
                                            hierarchyOverrideNode, configBlock, configRule));
 
@@ -464,7 +464,7 @@ InstanceSymbol& InstanceSymbol::createInvalid(Compilation& compilation,
                                               const DefinitionSymbol& definition) {
     // Give this instance an empty name so that it can't be referenced by name.
     return *compilation.emplace<InstanceSymbol>(
-        "", SourceLocation::NoLocation,
+        compilation, "", SourceLocation::NoLocation,
         InstanceBodySymbol::fromDefinition(compilation, definition, definition.location,
                                            InstanceFlags::Uninstantiated, nullptr, nullptr,
                                            nullptr));
@@ -954,7 +954,7 @@ void InstanceSymbol::serializeTo(ASTSerializer& serializer) const {
 InstanceBodySymbol::InstanceBodySymbol(Compilation& compilation, const DefinitionSymbol& definition,
                                        const HierarchyOverrideNode* hierarchyOverrideNode,
                                        bitmask<InstanceFlags> flags) :
-    Symbol(SymbolKind::InstanceBody, definition.name, definition.location),
+    Symbol(SymbolKind::InstanceBody, definition.name, definition.location, compilation),
     Scope(compilation, this), hierarchyOverrideNode(hierarchyOverrideNode), flags(flags),
     definition(definition) {
 
@@ -1107,7 +1107,7 @@ void InstanceBodySymbol::finishElaboration(function_ref<void(const Symbol&)> ins
             }
             else {
                 InstanceSymbol::fromSyntax(
-                    getCompilation(),
+                    Scope::getCompilation(),
                     info.bindSyntax->instantiation->as<HierarchyInstantiationSyntax>(), context,
                     instances, implicitNets, &info);
             }
@@ -1209,7 +1209,8 @@ static void createUninstantiatedDef(Compilation& compilation, const TSyntax& syn
                                implicitNetNames, implicitNets);
 
     auto [name, loc] = detail::getNameLoc(*instanceSyntax);
-    auto sym = compilation.emplace<UninstantiatedDefSymbol>(name, loc, moduleName, params);
+    auto sym = compilation.emplace<UninstantiatedDefSymbol>(compilation, name, loc, moduleName,
+                                                            params);
     sym->setSyntax(*instanceSyntax);
     sym->setAttributes(*context.scope, syntax.attributes);
     results.push_back(sym);
@@ -1467,7 +1468,7 @@ PrimitiveInstanceSymbol* createPrimInst(Compilation& compilation, const Scope& s
                                         std::span<const AttributeInstanceSyntax* const> attributes,
                                         SmallVectorBase<uint32_t>& path) {
     auto [name, loc] = ast::detail::getNameLoc(syntax);
-    auto result = compilation.emplace<PrimitiveInstanceSymbol>(name, loc, primitive);
+    auto result = compilation.emplace<PrimitiveInstanceSymbol>(compilation, name, loc, primitive);
     result->arrayPath = path.copy(compilation);
     result->setSyntax(syntax);
     result->setAttributes(scope, attributes);
