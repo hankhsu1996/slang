@@ -640,13 +640,12 @@ public:
     SourceRange usageLocation;
 
     TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation,
-                        const syntax::SyntaxNode* syntax);
+                        const syntax::SyntaxNode* syntax, Compilation& comp);
 
     /// Creates a TypeReferenceSymbol for typedef usages to preserve location information.
-    /// @param usageScope The scope where this type reference appears (usage context)
     static const TypeReferenceSymbol& create(const Type& resolvedType, SourceRange usageLocation,
                                              const syntax::SyntaxNode* syntax,
-                                             Compilation& compilation, const Scope* usageScope);
+                                             Compilation& compilation);
 
     /// Returns the usage location where this type reference appears.
     SourceRange getUsageLocation() const { return usageLocation; }

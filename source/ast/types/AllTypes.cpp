@@ -1388,26 +1388,19 @@ void TypeAliasType::serializeTo(ASTSerializer& serializer) const {
 }
 
 TypeReferenceSymbol::TypeReferenceSymbol(const Type& resolvedType, SourceRange usageLocation,
-                                         const syntax::SyntaxNode* syntax) :
-    Type(SymbolKind::TypeReference, "", usageLocation.start(), resolvedType.getCompilation()),
-    resolvedType(&resolvedType), usageLocation(usageLocation) {
-    // Set canonical type directly to delegate to the resolved type's canonical form
+                                         const syntax::SyntaxNode* syntax, Compilation& comp) :
+    Type(SymbolKind::TypeReference, "", usageLocation.start(), comp), resolvedType(&resolvedType),
+    usageLocation(usageLocation) {
     canonical = &resolvedType.getCanonicalType();
-    // Store the syntax node for LSP deduplication
     setSyntax(*syntax);
 }
 
 const TypeReferenceSymbol& TypeReferenceSymbol::create(const Type& resolvedType,
                                                        SourceRange usageLocation,
                                                        const syntax::SyntaxNode* syntax,
-                                                       Compilation& compilation,
-                                                       const Scope* usageScope) {
-    auto& typeRef = *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation, syntax);
-    // Set parent scope to usage context for proper LSP navigation
-    if (usageScope) {
-        typeRef.setParent(*usageScope);
-    }
-    return typeRef;
+                                                       Compilation& compilation) {
+    return *compilation.emplace<TypeReferenceSymbol>(resolvedType, usageLocation, syntax,
+                                                     compilation);
 }
 
 ConstantValue TypeReferenceSymbol::getDefaultValueImpl() const {

@@ -1297,8 +1297,9 @@ const Type& Type::fromLookupResult(Compilation& compilation, const LookupResult&
 
     // NEW: Handle typedef and class type usage FIRST, wrapping just the base type
     if (shouldWrapType) {
-        finalType = &TypeReferenceSymbol::create(*finalType, sourceRange, syntax, compilation,
-                                                 context.scope);
+        // Use lookup context's compilation (where the reference appears)
+        // not the symbol's compilation (where the typedef is defined).
+        finalType = &TypeReferenceSymbol::create(*finalType, sourceRange, syntax, compilation);
     }
 
     // THEN apply array dimensions on top of the (possibly wrapped) base type
