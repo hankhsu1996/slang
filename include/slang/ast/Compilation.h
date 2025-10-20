@@ -462,6 +462,18 @@ public:
     /// Gets a list of all packages in the design.
     std::vector<const PackageSymbol*> getPackages() const;
 
+    /// Gets direct access to the package map (for language servers - avoids vector conversion).
+    const flat_hash_map<std::string_view, const PackageSymbol*>& getPackageMap() const {
+        return packageMap;
+    }
+
+    /// Gets direct access to the definition map (for language servers - avoids vector conversion).
+    const flat_hash_map<std::tuple<std::string_view, const Scope*>,
+                        std::pair<std::vector<const Symbol*>, bool>>&
+    getDefinitionMap() const {
+        return definitionMap;
+    }
+
     /// Gets the built-in gate type with the given name, or nullptr if there is no such gate.
     const PrimitiveSymbol* getGateType(std::string_view name) const;
 
