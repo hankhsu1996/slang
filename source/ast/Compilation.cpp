@@ -985,9 +985,15 @@ const PackageSymbol& Compilation::createPackage(const Scope& scope,
     auto [it, inserted] = packageMap.emplace(package.name, &package);
     if (!inserted && !package.name.empty() &&
         scope.asSymbol().kind == SymbolKind::CompilationUnit) {
-        auto& diag = scope.addDiag(diag::Redefinition, package.location);
-        diag << package.name;
-        diag.addNote(diag::NotePreviousDefinition, it->second->location);
+        if (hasFlag(CompilationFlags::LanguageServerMode)) {
+            // In LSP mode, allow redefinitions and use the latest one
+            it->second = &package;
+        }
+        else {
+            auto& diag = scope.addDiag(diag::Redefinition, package.location);
+            diag << package.name;
+            diag.addNote(diag::NotePreviousDefinition, it->second->location);
+        }
     }
 
     checkElemTimeScale(package.timeScale, syntax.header->name.range());
