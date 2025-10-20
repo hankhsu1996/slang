@@ -1667,17 +1667,26 @@ std::optional<std::span<const ConstantRange>> InterfacePortSymbol::getDeclaredRa
 
     ASTContext context(*scope, LookupLocation::before(*this), ASTFlags::NonProcedural);
 
-    SmallVector<ConstantRange, 4> buffer;
+    SmallVector<ConstantRange, 4> rangeBuffer;
+    SmallVector<EvaluatedDimension, 4> dimBuffer;
     for (auto dimSyntax : syntax->as<DeclaratorSyntax>().dimensions) {
         auto dim = context.evalDimension(*dimSyntax, /* requireRange */ true, /* isPacked */ false);
         if (!dim.isRange())
             return std::nullopt;
 
-        buffer.push_back(dim.range);
+        rangeBuffer.push_back(dim.range);
+        dimBuffer.push_back(dim);
     }
 
-    range = buffer.copy(scope->getCompilation());
+    range = rangeBuffer.copy(scope->getCompilation());
+    dimensions = dimBuffer.copy(scope->getCompilation());
     return range;
+}
+
+std::optional<std::span<const EvaluatedDimension>> InterfacePortSymbol::getDimensions() const {
+    if (!dimensions)
+        getDeclaredRange();
+    return dimensions;
 }
 
 InterfacePortSymbol::IfaceConn InterfacePortSymbol::getConnection() const {

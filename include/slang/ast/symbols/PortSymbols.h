@@ -177,10 +177,15 @@ public:
     /// Gets the source range of the modport name (e.g., "cpu" in "MemBus.cpu mem_if")
     SourceRange modportNameRange() const { return modportNameRange_; }
 
+    /// Gets the evaluated dimensions for LSP (includes both range and expressions).
+    /// Returns nullopt if an error occurs evaluating the dimensions.
+    std::optional<std::span<const EvaluatedDimension>> getDimensions() const;
+
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::InterfacePort; }
 
 private:
     mutable std::optional<std::span<const ConstantRange>> range;
+    mutable std::optional<std::span<const EvaluatedDimension>> dimensions;
     SourceRange interfaceNameRange_;
     SourceRange modportNameRange_;
 };
