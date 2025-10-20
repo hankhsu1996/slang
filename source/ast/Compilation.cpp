@@ -279,10 +279,23 @@ std::span<const CompilationUnitSymbol* const> Compilation::getCompilationUnits()
 std::vector<const Symbol*> Compilation::getDefinitions() const {
     std::vector<const Symbol*> result;
     for (auto& [key, val] : definitionMap) {
-        for (auto sym : val.first) {
-            result.insert(std::ranges::upper_bound(result, sym->name, {},
-                                                   [](auto item) { return item->name; }),
-                          sym);
+        if (hasFlag(CompilationFlags::LanguageServerMode)) {
+            // Language server mode: return only highest priority definition
+            // Prevents duplicate instances when preamble and overlay both define same module
+            if (!val.first.empty()) {
+                auto sym = val.first.front();
+                result.insert(std::ranges::upper_bound(result, sym->name, {},
+                                                       [](auto item) { return item->name; }),
+                              sym);
+            }
+        }
+        else {
+            // Normal mode: return all definitions (preserves existing behavior)
+            for (auto sym : val.first) {
+                result.insert(std::ranges::upper_bound(result, sym->name, {},
+                                                       [](auto item) { return item->name; }),
+                              sym);
+            }
         }
     }
 
