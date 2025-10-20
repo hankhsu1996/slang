@@ -461,6 +461,12 @@ public:
     // Lazy-initialized singleton to avoid static initialization order issues
     // Implementation in Expression.cpp to avoid circular dependency
     static const InvalidExpression& Instance();
+
+    template<typename TVisitor>
+    void visitExprs(TVisitor&& visitor) const {
+        if (child)
+            child->visit(visitor);
+    }
 };
 
 } // namespace slang::ast
