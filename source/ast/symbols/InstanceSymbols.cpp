@@ -582,7 +582,7 @@ void InstanceSymbol::fromSyntax(Compilation& comp, const HierarchyInstantiationS
             if (defSym.definitionKind != DefinitionKind::Interface) {
                 UninstantiatedDefSymbol::fromSyntax(comp, syntax, specificInstance, context,
                                                     results, implicitNets, builder.implicitNetNames,
-                                                    builder.netType);
+                                                    builder.netType, def);
                 return;
             }
         }
@@ -1210,13 +1210,13 @@ static void createUninstantiatedDef(Compilation& compilation, const TSyntax& syn
                                     SmallVectorBase<const Symbol*>& results,
                                     SmallVectorBase<const Symbol*>& implicitNets,
                                     SmallSet<std::string_view, 8>& implicitNetNames,
-                                    const NetType& netType) {
+                                    const NetType& netType, const DefinitionSymbol* definition) {
     detail::createImplicitNets(*instanceSyntax, context, netType, InstanceFlags::None,
                                implicitNetNames, implicitNets);
 
     auto [name, loc] = detail::getNameLoc(*instanceSyntax);
     auto sym = compilation.emplace<UninstantiatedDefSymbol>(compilation, name, loc, moduleName,
-                                                            params);
+                                                            params, definition);
     sym->setSyntax(*instanceSyntax);
     sym->setAttributes(*context.scope, syntax.attributes);
     results.push_back(sym);
@@ -1227,12 +1227,13 @@ static void createUninstantiatedDefs(Compilation& compilation, const TSyntax& sy
                                      std::string_view moduleName, const ASTContext& context,
                                      std::span<const Expression* const> params,
                                      SmallVectorBase<const Symbol*>& results,
-                                     SmallVectorBase<const Symbol*>& implicitNets) {
+                                     SmallVectorBase<const Symbol*>& implicitNets,
+                                     const DefinitionSymbol* definition) {
     SmallSet<std::string_view, 8> implicitNetNames;
     auto& netType = context.scope->getDefaultNetType();
     for (auto instanceSyntax : syntax.instances) {
         createUninstantiatedDef(compilation, syntax, instanceSyntax, moduleName, context, params,
-                                results, implicitNets, implicitNetNames, netType);
+                                results, implicitNets, implicitNetNames, netType, definition);
     }
 }
 
@@ -1261,32 +1262,47 @@ void UninstantiatedDefSymbol::fromSyntax(Compilation& compilation,
                                          const HierarchyInstantiationSyntax& syntax,
                                          const ASTContext& parentContext,
                                          SmallVectorBase<const Symbol*>& results,
-                                         SmallVectorBase<const Symbol*>& implicitNets) {
+                                         SmallVectorBase<const Symbol*>& implicitNets,
+                                         const Symbol* definition) {
     ASTContext context = parentContext.resetFlags(ASTFlags::NonProcedural);
     auto params = createUninstantiatedParams(syntax, context);
+
+    const DefinitionSymbol* defSym = nullptr;
+    if (definition && definition->kind == SymbolKind::Definition) {
+        defSym = &definition->as<DefinitionSymbol>();
+    }
 
     createUninstantiatedDefs(compilation, syntax, syntax.type.valueText(), context, params, results,
-                             implicitNets);
+                             implicitNets, defSym);
 }
 
-void UninstantiatedDefSymbol::fromSyntax(
-    Compilation& compilation, const syntax::HierarchyInstantiationSyntax& syntax,
-    const syntax::HierarchicalInstanceSyntax* specificInstance, const ASTContext& parentContext,
-    SmallVectorBase<const Symbol*>& results, SmallVectorBase<const Symbol*>& implicitNets,
-    SmallSet<std::string_view, 8>& implicitNetNames, const NetType& netType) {
+void UninstantiatedDefSymbol::fromSyntax(Compilation& compilation,
+                                         const syntax::HierarchyInstantiationSyntax& syntax,
+                                         const syntax::HierarchicalInstanceSyntax* specificInstance,
+                                         const ASTContext& parentContext,
+                                         SmallVectorBase<const Symbol*>& results,
+                                         SmallVectorBase<const Symbol*>& implicitNets,
+                                         SmallSet<std::string_view, 8>& implicitNetNames,
+                                         const NetType& netType, const Symbol* definition) {
 
     ASTContext context = parentContext.resetFlags(ASTFlags::NonProcedural);
     auto params = createUninstantiatedParams(syntax, context);
+
+    const DefinitionSymbol* defSym = nullptr;
+    if (definition && definition->kind == SymbolKind::Definition) {
+        defSym = &definition->as<DefinitionSymbol>();
+    }
 
     if (specificInstance) {
         createUninstantiatedDef(compilation, syntax, specificInstance, syntax.type.valueText(),
-                                context, params, results, implicitNets, implicitNetNames, netType);
+                                context, params, results, implicitNets, implicitNetNames, netType,
+                                defSym);
     }
     else {
         for (auto instanceSyntax : syntax.instances) {
             createUninstantiatedDef(compilation, syntax, instanceSyntax, syntax.type.valueText(),
                                     context, params, results, implicitNets, implicitNetNames,
-                                    netType);
+                                    netType, defSym);
         }
     }
 }
@@ -1303,12 +1319,14 @@ void UninstantiatedDefSymbol::fromSyntax(Compilation& compilation,
 
     if (specificInstance) {
         createUninstantiatedDef(compilation, syntax, specificInstance, syntax.type.valueText(),
-                                context, {}, results, implicitNets, implicitNetNames, netType);
+                                context, {}, results, implicitNets, implicitNetNames, netType,
+                                nullptr);
     }
     else {
         for (auto instanceSyntax : syntax.instances) {
             createUninstantiatedDef(compilation, syntax, instanceSyntax, syntax.type.valueText(),
-                                    context, {}, results, implicitNets, implicitNetNames, netType);
+                                    context, {}, results, implicitNets, implicitNetNames, netType,
+                                    nullptr);
         }
     }
 }
@@ -1320,7 +1338,7 @@ void UninstantiatedDefSymbol::fromSyntax(Compilation& compilation,
                                          SmallVectorBase<const Symbol*>& implicitNets) {
     ASTContext context = parentContext.resetFlags(ASTFlags::NonProcedural);
     createUninstantiatedDefs(compilation, syntax, syntax.type->getLastToken().valueText(), context,
-                             {}, results, implicitNets);
+                             {}, results, implicitNets, nullptr);
 
     for (auto sym : results)
         sym->as<UninstantiatedDefSymbol>().mustBeChecker = true;

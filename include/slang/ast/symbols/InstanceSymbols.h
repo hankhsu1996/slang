@@ -275,9 +275,14 @@ public:
 
     UninstantiatedDefSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                             std::string_view definitionName,
-                            std::span<const Expression* const> params) :
+                            std::span<const Expression* const> params,
+                            const DefinitionSymbol* definition) :
         Symbol(SymbolKind::UninstantiatedDef, name, loc, compilation),
-        definitionName(definitionName), paramExpressions(params) {}
+        definitionName(definitionName), paramExpressions(params), definition(definition) {}
+
+    /// Gets the definition symbol for this instance, or nullptr if the definition
+    /// could not be found.
+    const DefinitionSymbol* getDefinition() const { return definition; }
 
     /// Gets the self-determined expressions that are assigned to the ports
     /// in the instantiation. These aren't necessarily correctly typed
@@ -296,14 +301,16 @@ public:
     static void fromSyntax(Compilation& compilation,
                            const syntax::HierarchyInstantiationSyntax& syntax,
                            const ASTContext& context, SmallVectorBase<const Symbol*>& results,
-                           SmallVectorBase<const Symbol*>& implicitNets);
+                           SmallVectorBase<const Symbol*>& implicitNets,
+                           const Symbol* definition = nullptr);
 
     static void fromSyntax(Compilation& compilation,
                            const syntax::HierarchyInstantiationSyntax& syntax,
                            const syntax::HierarchicalInstanceSyntax* specificInstance,
                            const ASTContext& context, SmallVectorBase<const Symbol*>& results,
                            SmallVectorBase<const Symbol*>& implicitNets,
-                           SmallSet<std::string_view, 8>& implicitNetNames, const NetType& netType);
+                           SmallSet<std::string_view, 8>& implicitNetNames, const NetType& netType,
+                           const Symbol* definition = nullptr);
 
     static void fromSyntax(Compilation& compilation,
                            const syntax::PrimitiveInstantiationSyntax& syntax,
@@ -322,6 +329,7 @@ public:
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::UninstantiatedDef; }
 
 private:
+    const DefinitionSymbol* definition;
     mutable std::optional<std::span<const AssertionExpr* const>> ports;
     mutable std::span<std::string_view const> portNames;
     mutable bool mustBeChecker = false;
