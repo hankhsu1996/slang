@@ -151,7 +151,11 @@ const ParameterSymbolBase& ParameterBuilder::createParam(
         }
     };
 
-    auto& comp = scope.getCompilation();
+    // Use newScope's compilation instead of ParameterBuilder's scope compilation.
+    // This ensures parameter symbols get the correct compilation reference (definition's
+    // compilation in cross-compilation scenarios like preamble vs overlay).
+    auto& comp = newScope.getCompilation();
+
     const ExpressionSyntax* newInitializer = nullptr;
     bool isFromConfig = false;
     if (auto it = assignments.find(decl.name); it != assignments.end())
