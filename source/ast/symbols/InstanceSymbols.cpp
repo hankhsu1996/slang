@@ -509,7 +509,15 @@ void InstanceSymbol::fromSyntax(Compilation& comp, const HierarchyInstantiationS
     // If this instance is not instantiated then we'll just fill in a placeholder
     // and move on. This is likely inside an untaken generate branch.
     if (flags.has(InstanceFlags::Uninstantiated)) {
-        UninstantiatedDefSymbol::fromSyntax(comp, syntax, context, results, implicitNets);
+        const Symbol* definition = nullptr;
+        if (comp.hasFlag(CompilationFlags::LanguageServerMode)) {
+            // For LSP: Look up the definition so go-to-definition works in unelaborated code.
+            auto defResult = comp.getDefinition(defName, *context.scope, syntax.type.range(),
+                                                diag::UnknownModule);
+            definition = defResult.definition;
+        }
+        UninstantiatedDefSymbol::fromSyntax(comp, syntax, context, results, implicitNets,
+                                            definition);
         return;
     }
 
