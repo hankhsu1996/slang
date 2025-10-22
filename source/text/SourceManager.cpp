@@ -590,7 +590,12 @@ SourceManager::BufferOrError SourceManager::openCached(const fs::path& fullPath,
     fs::path absPath;
     if (!disableProximatePaths) {
         std::error_code ec;
-        absPath = fs::weakly_canonical(fullPath, ec);
+        // Convert to absolute first to avoid weakly_canonical issues with
+        // relative paths containing ../ when parent directories don't exist
+        auto absolutePath = fs::absolute(fullPath, ec);
+        if (ec)
+            return nonstd::make_unexpected(ec);
+        absPath = fs::weakly_canonical(absolutePath, ec);
         if (ec)
             return nonstd::make_unexpected(ec);
     }
