@@ -256,6 +256,15 @@ bool SourceManager::isPreprocessedLoc(SourceLocation location) const {
     return isMacroLoc(location) || isIncludedFileLoc(location);
 }
 
+bool SourceManager::isValidLocation(SourceLocation location) const {
+    if (!location.valid())
+        return false;
+
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    auto idx = getBufferIndex(location.buffer());
+    return idx < bufferEntries.size();
+}
+
 std::optional<bool> SourceManager::isBeforeInCompilationUnit(SourceLocation left,
                                                              SourceLocation right) const {
     // Simple check: if they're in the same buffer, just do an easy compare
@@ -731,7 +740,10 @@ bool SourceManager::isMacroLocImpl(SourceLocation location, TLock&) const {
         return false;
 
     auto idx = getBufferIndex(buffer);
-    SLANG_ASSERT(idx < bufferEntries.size());
+    // Bounds check for cross-compilation safety (preamble locations in overlay SM)
+    if (idx >= bufferEntries.size())
+        return false;
+
     return std::get_if<ExpansionInfo>(&bufferEntries[idx]) != nullptr;
 }
 
@@ -745,7 +757,10 @@ bool SourceManager::isMacroArgLocImpl(SourceLocation location, TLock&) const {
         return false;
 
     auto idx = getBufferIndex(buffer);
-    SLANG_ASSERT(idx < bufferEntries.size());
+    // Bounds check for cross-compilation safety
+    if (idx >= bufferEntries.size())
+        return false;
+
     auto info = std::get_if<ExpansionInfo>(&bufferEntries[idx]);
     return info && info->isMacroArg;
 }

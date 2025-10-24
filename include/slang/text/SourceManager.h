@@ -122,6 +122,12 @@ public:
     /// Determines whether the given location is from a macro expansion or an include file.
     bool isPreprocessedLoc(SourceLocation location) const;
 
+    /// Determines whether the given location is valid for this SourceManager.
+    /// Returns false if the location's BufferID doesn't exist in this SourceManager,
+    /// which can happen when attempting to use a location from one compilation
+    /// (e.g., preamble) with another compilation's SourceManager (e.g., overlay).
+    bool isValidLocation(SourceLocation location) const;
+
     /// Determines whether the @a left location comes before the @a right location
     /// within the "compilation unit space", which is a hypothetical source space where
     /// all macros and include files have been expanded out into a flat file.
