@@ -61,6 +61,16 @@ public:
     /// and that path does not exist or is not a directory.
     std::error_code addUserDirectories(std::string_view pattern);
 
+    /// @brief Sets the BufferID offset for this SourceManager.
+    ///
+    /// This offset is added to all BufferIDs created by this SourceManager,
+    /// allowing multiple SourceManagers to have non-overlapping BufferID spaces.
+    /// This is useful for cross-compilation scenarios where preamble and overlay
+    /// compilations need distinct BufferID ranges.
+    ///
+    /// @param offset The offset to apply to all BufferIDs (e.g., 1024 for preamble)
+    void setBufferIDOffset(uint32_t offset) { bufferIDOffset = offset; }
+
     /// Gets the source line number for a given source location.
     size_t getLineNumber(SourceLocation location) const;
 
@@ -331,8 +341,15 @@ private:
     flat_hash_map<BufferID, std::vector<DiagnosticDirectiveInfo>> diagDirectives;
 
     std::atomic<uint32_t> unnamedBufferCount = 0;
+    uint32_t bufferIDOffset = 0;
     bool disableProximatePaths = false;
     bool disableLocalIncludes = false;
+
+    // Helper to convert BufferID to bufferEntries index
+    size_t getBufferIndex(BufferID buffer) const {
+        SLANG_ASSERT(buffer.getId() >= bufferIDOffset);
+        return buffer.getId() - bufferIDOffset;
+    }
 
     template<IsLock TLock>
     FileInfo* getFileInfo(BufferID buffer, TLock& lock);

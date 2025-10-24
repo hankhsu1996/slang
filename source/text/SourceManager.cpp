@@ -202,8 +202,9 @@ std::string_view SourceManager::getMacroName(SourceLocation location) const {
     if (!buffer)
         return {};
 
-    SLANG_ASSERT(buffer.getId() < bufferEntries.size());
-    auto info = std::get_if<ExpansionInfo>(&bufferEntries[buffer.getId()]);
+    auto idx = getBufferIndex(buffer);
+    SLANG_ASSERT(idx < bufferEntries.size());
+    auto info = std::get_if<ExpansionInfo>(&bufferEntries[idx]);
     if (!info)
         return {};
 
@@ -237,8 +238,9 @@ bool SourceManager::isIncludedFileLocImpl(SourceLocation location, TLock& lock) 
     if (!buffer)
         return false;
 
-    SLANG_ASSERT(buffer.getId() < bufferEntries.size());
-    auto info = std::get_if<ExpansionInfo>(&bufferEntries[buffer.getId()]);
+    auto idx = getBufferIndex(buffer);
+    SLANG_ASSERT(idx < bufferEntries.size());
+    auto info = std::get_if<ExpansionInfo>(&bufferEntries[idx]);
     if (info)
         return isIncludedFileLocImpl(info->expansionRange.start(), lock);
 
@@ -352,7 +354,7 @@ SourceLocation SourceManager::createExpansionLoc(SourceLocation originalLoc,
     std::unique_lock<std::shared_mutex> lock(mutex);
 
     bufferEntries.emplace_back(ExpansionInfo(originalLoc, expansionRange, isMacroArg));
-    return SourceLocation(BufferID((uint32_t)(bufferEntries.size() - 1), ""sv), 0);
+    return SourceLocation(BufferID(bufferIDOffset + (uint32_t)(bufferEntries.size() - 1), ""sv), 0);
 }
 
 SourceLocation SourceManager::createExpansionLoc(SourceLocation originalLoc,
@@ -361,7 +363,7 @@ SourceLocation SourceManager::createExpansionLoc(SourceLocation originalLoc,
     std::unique_lock<std::shared_mutex> lock(mutex);
 
     bufferEntries.emplace_back(ExpansionInfo(originalLoc, expansionRange, macroName));
-    return SourceLocation(BufferID((uint32_t)(bufferEntries.size() - 1), macroName), 0);
+    return SourceLocation(BufferID(bufferIDOffset + (uint32_t)(bufferEntries.size() - 1), macroName), 0);
 }
 
 SourceBuffer SourceManager::assignText(std::string_view text, SourceLocation includedFrom,
@@ -537,18 +539,24 @@ std::vector<BufferID> SourceManager::getAllBuffers() const {
 
 template<IsLock TLock>
 SourceManager::FileInfo* SourceManager::getFileInfo(BufferID buffer, TLock&) {
-    if (!buffer || buffer.getId() >= bufferEntries.size())
+    if (!buffer)
+        return nullptr;
+    auto idx = getBufferIndex(buffer);
+    if (idx >= bufferEntries.size())
         return nullptr;
 
-    return std::get_if<FileInfo>(&bufferEntries[buffer.getId()]);
+    return std::get_if<FileInfo>(&bufferEntries[idx]);
 }
 
 template<IsLock TLock>
 const SourceManager::FileInfo* SourceManager::getFileInfo(BufferID buffer, TLock&) const {
-    if (!buffer || buffer.getId() >= bufferEntries.size())
+    if (!buffer)
+        return nullptr;
+    auto idx = getBufferIndex(buffer);
+    if (idx >= bufferEntries.size())
         return nullptr;
 
-    return std::get_if<FileInfo>(&bufferEntries[buffer.getId()]);
+    return std::get_if<FileInfo>(&bufferEntries[idx]);
 }
 
 SourceBuffer SourceManager::createBufferEntry(FileData* fd, SourceLocation includedFrom,
@@ -563,7 +571,7 @@ SourceBuffer SourceManager::createBufferEntry(FileData* fd, SourceLocation inclu
 
     bufferEntries.emplace_back(FileInfo(fd, library, includedFrom, sortKey));
     return SourceBuffer{std::string_view(fd->mem.data(), fd->mem.size()), library,
-                        BufferID((uint32_t)(bufferEntries.size() - 1), fd->name)};
+                        BufferID(bufferIDOffset + (uint32_t)(bufferEntries.size() - 1), fd->name)};
 }
 
 bool SourceManager::isCached(const fs::path& path) const {
@@ -722,8 +730,9 @@ bool SourceManager::isMacroLocImpl(SourceLocation location, TLock&) const {
     if (!buffer)
         return false;
 
-    SLANG_ASSERT(buffer.getId() < bufferEntries.size());
-    return std::get_if<ExpansionInfo>(&bufferEntries[buffer.getId()]) != nullptr;
+    auto idx = getBufferIndex(buffer);
+    SLANG_ASSERT(idx < bufferEntries.size());
+    return std::get_if<ExpansionInfo>(&bufferEntries[idx]) != nullptr;
 }
 
 template<IsLock TLock>
@@ -735,8 +744,9 @@ bool SourceManager::isMacroArgLocImpl(SourceLocation location, TLock&) const {
     if (!buffer)
         return false;
 
-    SLANG_ASSERT(buffer.getId() < bufferEntries.size());
-    auto info = std::get_if<ExpansionInfo>(&bufferEntries[buffer.getId()]);
+    auto idx = getBufferIndex(buffer);
+    SLANG_ASSERT(idx < bufferEntries.size());
+    auto info = std::get_if<ExpansionInfo>(&bufferEntries[idx]);
     return info && info->isMacroArg;
 }
 
@@ -746,8 +756,9 @@ SourceRange SourceManager::getExpansionRangeImpl(SourceLocation location, TLock&
     if (!buffer)
         return SourceRange();
 
-    SLANG_ASSERT(buffer.getId() < bufferEntries.size());
-    return std::get<ExpansionInfo>(bufferEntries[buffer.getId()]).expansionRange;
+    auto idx = getBufferIndex(buffer);
+    SLANG_ASSERT(idx < bufferEntries.size());
+    return std::get<ExpansionInfo>(bufferEntries[idx]).expansionRange;
 }
 
 template<IsLock TLock>
@@ -756,8 +767,9 @@ SourceLocation SourceManager::getOriginalLocImpl(SourceLocation location, TLock&
     if (!buffer)
         return SourceLocation();
 
-    SLANG_ASSERT(buffer.getId() < bufferEntries.size());
-    return std::get<ExpansionInfo>(bufferEntries[buffer.getId()]).originalLoc + location.offset();
+    auto idx = getBufferIndex(buffer);
+    SLANG_ASSERT(idx < bufferEntries.size());
+    return std::get<ExpansionInfo>(bufferEntries[idx]).originalLoc + location.offset();
 }
 
 void SourceManager::computeLineOffsets(const SmallVector<char>& buffer,
