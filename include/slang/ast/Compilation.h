@@ -269,7 +269,7 @@ public:
     explicit Compilation(const Bag& options = {}, const SourceLibrary* defaultLib = nullptr);
     Compilation(const Compilation& other) = delete;
     Compilation(Compilation&& other) = delete;
-    ~Compilation();
+    virtual ~Compilation();
 
     /// Gets a singleton invalid Compilation instance for use by sentinel symbols
     /// like InvalidSymbol and ErrorType. This instance should never be used for

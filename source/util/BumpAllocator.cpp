@@ -8,6 +8,7 @@
 #include "slang/util/BumpAllocator.h"
 
 #include <new>
+#include <sys/mman.h>
 
 namespace slang {
 
@@ -20,13 +21,15 @@ BumpAllocator::~BumpAllocator() {
     Segment* seg = head;
     while (seg) {
         Segment* prev = seg->prev;
-        ::operator delete(seg);
+        size_t size = seg->size;
+        munmap(seg, size);
         seg = prev;
     }
 }
 
 BumpAllocator::BumpAllocator(BumpAllocator&& other) noexcept :
-    head(std::exchange(other.head, nullptr)), endPtr(other.endPtr) {
+    head(std::exchange(other.head, nullptr)),
+    endPtr(other.endPtr) {
 }
 
 BumpAllocator& BumpAllocator::operator=(BumpAllocator&& other) noexcept {
@@ -65,9 +68,14 @@ byte* BumpAllocator::allocateSlow(size_t size, size_t alignment) {
 }
 
 BumpAllocator::Segment* BumpAllocator::allocSegment(Segment* prev, size_t size) {
-    auto seg = (Segment*)::operator new(size);
+    auto seg = (Segment*)mmap(nullptr, size, PROT_READ | PROT_WRITE,
+                               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (seg == MAP_FAILED) {
+        throw std::bad_alloc();
+    }
     seg->prev = prev;
     seg->current = (byte*)seg + sizeof(Segment);
+    seg->size = size;  // Store for munmap
     return seg;
 }
 

@@ -19,8 +19,11 @@ namespace slang {
 /// BumpAllocator - Fast O(1) allocator.
 ///
 /// Allocates items sequentially in memory, with underlying memory allocated in
-/// blocks as needed. Individual items cannot be deallocated; the entire thing
-/// must be destroyed to release the memory.
+/// blocks as needed via mmap. Individual items cannot be deallocated; the entire
+/// thing must be destroyed to release the memory.
+///
+/// Uses mmap instead of malloc for each segment to provide memory isolation
+/// and prevent fragmentation when multiple allocators coexist.
 class SLANG_EXPORT BumpAllocator {
 public:
     BumpAllocator();
@@ -93,6 +96,7 @@ protected:
     struct Segment {
         Segment* prev;
         byte* current;
+        size_t size;  // Track size for munmap
     };
 
     Segment* head;
