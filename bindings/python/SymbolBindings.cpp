@@ -422,7 +422,7 @@ void registerSymbols(py::module_& m) {
 
     py::classh<UninstantiatedDefSymbol, Symbol>(m, "UninstantiatedDefSymbol")
         .def_readonly("definitionName", &UninstantiatedDefSymbol::definitionName)
-        .def_readonly("paramExpressions", &UninstantiatedDefSymbol::paramExpressions)
+        .def_property_readonly("parameters", &UninstantiatedDefSymbol::getParameters)
         .def_property_readonly("portConnections", &UninstantiatedDefSymbol::getPortConnections)
         .def_property_readonly("portNames", &UninstantiatedDefSymbol::getPortNames)
         .def_property_readonly("isChecker", &UninstantiatedDefSymbol::isChecker);

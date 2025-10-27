@@ -268,17 +268,17 @@ public:
     /// The name of the definition.
     std::string_view definitionName;
 
-    /// The self-determined expressions that are assigned to the parameters
-    /// in the instantiation. These aren't necessarily correctly typed
-    /// since we can't know the destination type of each parameter.
-    std::span<const Expression* const> paramExpressions;
-
     UninstantiatedDefSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                             std::string_view definitionName,
-                            std::span<const Expression* const> params,
+                            std::span<const ParameterSymbolBase* const> params,
                             const DefinitionSymbol* definition) :
         Symbol(SymbolKind::UninstantiatedDef, name, loc, compilation),
-        definitionName(definitionName), paramExpressions(params), definition(definition) {}
+        definitionName(definitionName), parameters(params), definition(definition) {}
+
+    /// Gets the parameter symbols for this instance. These are properly typed
+    /// parameter symbols created via ParameterBuilder, providing full type
+    /// information for assignment patterns and other context-dependent expressions.
+    std::span<const ParameterSymbolBase* const> getParameters() const { return parameters; }
 
     /// Gets the definition symbol for this instance, or nullptr if the definition
     /// could not be found.
@@ -330,6 +330,7 @@ public:
 
 private:
     const DefinitionSymbol* definition;
+    std::span<const ParameterSymbolBase* const> parameters;
     mutable std::optional<std::span<const AssertionExpr* const>> ports;
     mutable std::span<std::string_view const> portNames;
     mutable bool mustBeChecker = false;

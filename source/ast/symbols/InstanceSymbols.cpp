@@ -582,8 +582,8 @@ void InstanceSymbol::fromSyntax(Compilation& comp, const HierarchyInstantiationS
             return;
         }
 
-        // In LSP mode, use UninstantiatedDefSymbol for module/program instances
-        // to maintain consistent lightweight analysis without full elaboration.
+        // In LSP mode, use UninstantiatedDefSymbol for module/program sub-instances
+        // to avoid expensive recursive body elaboration.
         // Exception: Interfaces need full elaboration for proper signal/modport access.
         if (comp.hasFlag(CompilationFlags::LanguageServerMode)) {
             auto& defSym = def->as<DefinitionSymbol>();
@@ -1214,7 +1214,7 @@ template<typename TSyntax>
 static void createUninstantiatedDef(Compilation& compilation, const TSyntax& syntax,
                                     const HierarchicalInstanceSyntax* instanceSyntax,
                                     std::string_view moduleName, const ASTContext& context,
-                                    std::span<const Expression* const> params,
+                                    std::span<const ParameterSymbolBase* const> params,
                                     SmallVectorBase<const Symbol*>& results,
                                     SmallVectorBase<const Symbol*>& implicitNets,
                                     SmallSet<std::string_view, 8>& implicitNetNames,
@@ -1233,7 +1233,7 @@ static void createUninstantiatedDef(Compilation& compilation, const TSyntax& syn
 template<typename TSyntax>
 static void createUninstantiatedDefs(Compilation& compilation, const TSyntax& syntax,
                                      std::string_view moduleName, const ASTContext& context,
-                                     std::span<const Expression* const> params,
+                                     std::span<const ParameterSymbolBase* const> params,
                                      SmallVectorBase<const Symbol*>& results,
                                      SmallVectorBase<const Symbol*>& implicitNets,
                                      const DefinitionSymbol* definition) {
@@ -1245,25 +1245,43 @@ static void createUninstantiatedDefs(Compilation& compilation, const TSyntax& sy
     }
 }
 
-static std::span<const Expression* const> createUninstantiatedParams(
-    const HierarchyInstantiationSyntax& syntax, const ASTContext& context) {
+static std::span<const ParameterSymbolBase* const> createUninstantiatedParams(
+    const HierarchyInstantiationSyntax& syntax, const ASTContext& context,
+    const DefinitionSymbol* definition) {
 
-    SmallVector<const Expression*> params;
-    if (syntax.parameters) {
-        for (auto expr : syntax.parameters->parameters) {
-            // Empty expressions are just ignored here.
-            if (expr->kind == SyntaxKind::OrderedParamAssignment) {
-                params.push_back(
-                    &Expression::bind(*expr->as<OrderedParamAssignmentSyntax>().expr, context));
-            }
-            else if (expr->kind == SyntaxKind::NamedParamAssignment) {
-                if (auto ex = expr->as<NamedParamAssignmentSyntax>().expr)
-                    params.push_back(&Expression::bind(*ex, context, ASTFlags::AllowDataType));
-            }
-        }
+    SmallVector<const ParameterSymbolBase*> params;
+    auto& comp = context.getCompilation();
+
+    if (!syntax.parameters) {
+        return params.copy(comp);
     }
 
-    return params.copy(context.getCompilation());
+    // If we have a definition, use ParameterBuilder for proper type checking.
+    // This reuses all the logic from normal instance elaboration including assignment
+    // context for parameter expressions (which fixes assignment pattern type deduction).
+    if (definition) {
+        // Create temporary scope for parameter symbols
+        auto tempScope = comp.emplace<CompilationUnitSymbol>(comp, definition->sourceLibrary);
+
+        // Use ParameterBuilder (same as normal instances)
+        ParameterBuilder paramBuilder(*context.scope, definition->name, definition->parameters);
+        paramBuilder.setInstanceContext(context);
+        paramBuilder.setAssignments(*syntax.parameters, /* isFromConfig */ false);
+
+        // Create parameters with full type checking
+        for (auto& decl : definition->parameters) {
+            auto& param = paramBuilder.createParam(decl, *tempScope, syntax.sourceRange().start());
+            // Store the ParameterSymbolBase directly (no extraction needed)
+            params.push_back(&param);
+        }
+    }
+    else {
+        // Fallback: no definition available, return empty parameters
+        // (Without definition, we can't create ParameterSymbols)
+        return params.copy(comp);
+    }
+
+    return params.copy(comp);
 }
 
 void UninstantiatedDefSymbol::fromSyntax(Compilation& compilation,
@@ -1273,12 +1291,13 @@ void UninstantiatedDefSymbol::fromSyntax(Compilation& compilation,
                                          SmallVectorBase<const Symbol*>& implicitNets,
                                          const Symbol* definition) {
     ASTContext context = parentContext.resetFlags(ASTFlags::NonProcedural);
-    auto params = createUninstantiatedParams(syntax, context);
 
     const DefinitionSymbol* defSym = nullptr;
     if (definition && definition->kind == SymbolKind::Definition) {
         defSym = &definition->as<DefinitionSymbol>();
     }
+
+    auto params = createUninstantiatedParams(syntax, context, defSym);
 
     createUninstantiatedDefs(compilation, syntax, syntax.type.valueText(), context, params, results,
                              implicitNets, defSym);
@@ -1294,12 +1313,13 @@ void UninstantiatedDefSymbol::fromSyntax(Compilation& compilation,
                                          const NetType& netType, const Symbol* definition) {
 
     ASTContext context = parentContext.resetFlags(ASTFlags::NonProcedural);
-    auto params = createUninstantiatedParams(syntax, context);
 
     const DefinitionSymbol* defSym = nullptr;
     if (definition && definition->kind == SymbolKind::Definition) {
         defSym = &definition->as<DefinitionSymbol>();
     }
+
+    auto params = createUninstantiatedParams(syntax, context, defSym);
 
     if (specificInstance) {
         createUninstantiatedDef(compilation, syntax, specificInstance, syntax.type.valueText(),
@@ -1466,8 +1486,8 @@ void UninstantiatedDefSymbol::serializeTo(ASTSerializer& serializer) const {
     serializer.write("definitionName", definitionName);
 
     serializer.startArray("parameters");
-    for (auto expr : paramExpressions)
-        serializer.serialize(*expr);
+    for (auto param : parameters)
+        serializer.serialize(param->symbol);
     serializer.endArray();
 
     auto conns = getPortConnections();
