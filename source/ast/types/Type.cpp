@@ -486,6 +486,14 @@ bool Type::isMatching(const Type& rhs) const {
         return true;
     }
 
+    // Handle built-in types from different compilations (cross-compilation case)
+    // Built-in types are allocated per-Compilation (in Builtins), so they won't have
+    // the same pointer address across preamble/overlay compilations. Built-in types
+    // have no syntax (not declared in source), so if both types have the same kind
+    // and neither has syntax, they match structurally.
+    if (l->kind == r->kind && !l->getSyntax() && !r->getSyntax())
+        return true;
+
     // This is not specified in the standard but people naturally expect it to work:
     // if an enum is declared in an include file and included in multiple compilation
     // units, they will have separate instantiations but should probably still be
