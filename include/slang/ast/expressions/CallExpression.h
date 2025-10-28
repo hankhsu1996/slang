@@ -112,7 +112,8 @@ public:
     static Expression& fromArgs(Compilation& compilation, const Subroutine& subroutine,
                                 const Expression* thisClass,
                                 const syntax::ArgumentListSyntax* argSyntax, SourceRange range,
-                                const ASTContext& context);
+                                const ASTContext& context,
+                                const syntax::InvocationExpressionSyntax* invocationSyntax = nullptr);
 
     static Expression& fromSystemMethod(
         Compilation& compilation, const Expression& expr,

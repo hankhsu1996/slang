@@ -263,6 +263,12 @@ public:
 
     void serializeTo(ASTSerializer& serializer) const;
 
+    template<typename TVisitor>
+    void visitStmts(TVisitor&& visitor) const {
+        if (child)
+            child->visit(visitor);
+    }
+
     static const InvalidStatement Instance;
 };
 

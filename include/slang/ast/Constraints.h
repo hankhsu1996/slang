@@ -117,7 +117,10 @@ public:
     void serializeTo(ASTSerializer& serializer) const;
 
     template<typename TVisitor>
-    void visitExprs(TVisitor&&) const {}
+    void visitExprs(TVisitor&& visitor) const {
+        if (child)
+            child->visit(visitor);
+    }
 };
 
 /// Represents a list of constraints.

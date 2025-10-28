@@ -124,6 +124,12 @@ public:
     static bool isKind(TimingControlKind kind) { return kind == TimingControlKind::Invalid; }
 
     void serializeTo(ASTSerializer& serializer) const;
+
+    template<typename TVisitor>
+    void visitExprs(TVisitor&& visitor) const {
+        if (child)
+            child->visit(visitor);
+    }
 };
 
 /// Represents a delay time control.

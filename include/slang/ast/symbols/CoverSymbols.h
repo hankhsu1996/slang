@@ -346,6 +346,12 @@ public:
     static bool isKind(BinsSelectExprKind kind) { return kind == BinsSelectExprKind::Invalid; }
 
     void serializeTo(ASTSerializer& serializer) const;
+
+    template<typename TVisitor>
+    void visitExprs(TVisitor&& visitor) const {
+        if (child)
+            child->visit(visitor);
+    }
 };
 
 class SLANG_EXPORT ConditionBinsSelectExpr final : public BinsSelectExpr {

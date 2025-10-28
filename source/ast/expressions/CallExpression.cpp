@@ -135,7 +135,7 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
     }
 
     auto& result = fromArgs(compilation, subroutine, thisClass,
-                            syntax ? syntax->arguments : nullptr, range, context);
+                            syntax ? syntax->arguments : nullptr, range, context, syntax);
     if (syntax)
         context.setAttributes(result, syntax->attributes);
 
@@ -306,7 +306,8 @@ bool CallExpression::bindArgs(const ArgumentListSyntax* argSyntax,
 Expression& CallExpression::fromArgs(Compilation& compilation, const Subroutine& subroutine,
                                      const Expression* thisClass,
                                      const ArgumentListSyntax* argSyntax, SourceRange range,
-                                     const ASTContext& context) {
+                                     const ASTContext& context,
+                                     const InvocationExpressionSyntax* invocationSyntax) {
     SmallVector<const Expression*> boundArgs;
     const SubroutineSymbol& symbol = *std::get<0>(subroutine);
     bool bad = !bindArgs(argSyntax, symbol.getArguments(), symbol.name, range, context, boundArgs);
@@ -314,6 +315,11 @@ Expression& CallExpression::fromArgs(Compilation& compilation, const Subroutine&
     auto result = compilation.emplace<CallExpression>(&symbol, symbol.getReturnType(), thisClass,
                                                       boundArgs.copy(compilation),
                                                       context.getLocation(), range, compilation);
+
+    // Preserve syntax on CallExpression for LSP usage, even if wrapped in InvalidExpression
+    if (invocationSyntax)
+        result->syntax = invocationSyntax;
+
     if (bad)
         return badExpr(compilation, result);
 

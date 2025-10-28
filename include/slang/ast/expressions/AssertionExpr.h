@@ -275,6 +275,12 @@ public:
     static bool isKind(AssertionExprKind kind) { return kind == AssertionExprKind::Invalid; }
 
     void serializeTo(ASTSerializer& serializer) const;
+
+    template<typename TVisitor>
+    void visitExprs(TVisitor&& visitor) const {
+        if (child)
+            child->visit(visitor);
+    }
 };
 
 /// Encodes a repetition of some sub-sequence.
