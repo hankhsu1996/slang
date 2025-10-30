@@ -506,6 +506,12 @@ void InstanceSymbol::fromSyntax(Compilation& comp, const HierarchyInstantiationS
         currScope = sym.getParentScope();
     } while (currScope);
 
+    // In LSP mode, skip body elaboration for nested instances to avoid expensive
+    // recursive processing. Top-level instances (no parentInst) elaborate normally.
+    if (comp.hasFlag(CompilationFlags::LanguageServerMode) && parentInst) {
+        flags |= InstanceFlags::SkipBody;
+    }
+
     // If this instance is not instantiated then we'll just fill in a placeholder
     // and move on. This is likely inside an untaken generate branch.
     if (flags.has(InstanceFlags::Uninstantiated)) {
@@ -580,19 +586,6 @@ void InstanceSymbol::fromSyntax(Compilation& comp, const HierarchyInstantiationS
                                                 implicitNets, builder.implicitNetNames,
                                                 builder.netType);
             return;
-        }
-
-        // In LSP mode, use UninstantiatedDefSymbol for module/program sub-instances
-        // to avoid expensive recursive body elaboration.
-        // Exception: Interfaces need full elaboration for proper signal/modport access.
-        if (comp.hasFlag(CompilationFlags::LanguageServerMode)) {
-            auto& defSym = def->as<DefinitionSymbol>();
-            if (defSym.definitionKind != DefinitionKind::Interface) {
-                UninstantiatedDefSymbol::fromSyntax(comp, syntax, specificInstance, context,
-                                                    results, implicitNets, builder.implicitNetNames,
-                                                    builder.netType, def);
-                return;
-            }
         }
 
         auto confRule = defResult.configRule;
@@ -1026,33 +1019,38 @@ InstanceBodySymbol& InstanceBodySymbol::fromDefinition(Compilation& comp,
     if (definition.portList)
         result->addMembers(*definition.portList);
 
-    // Finally add members from the body.
-    for (auto member : declSyntax.members) {
-        // If this is a parameter declaration we will create the symbol manually
-        // as we need to apply any overrides.
-        if (member->kind != SyntaxKind::ParameterDeclarationStatement) {
-            result->addMembers(*member);
-        }
-        else {
-            auto createParam = [&](auto& declarator) {
-                SLANG_ASSERT(paramIt != definition.parameters.end());
-
-                auto& decl = *paramIt;
-                SLANG_ASSERT(declarator.name.valueText() == decl.name);
-
-                auto& param = paramBuilder.createParam(decl, *result, instanceLoc);
-                params.push_back(&param);
-                paramIt++;
-            };
-
-            auto paramBase = member->as<ParameterDeclarationStatementSyntax>().parameter;
-            if (paramBase->kind == SyntaxKind::ParameterDeclaration) {
-                for (auto declarator : paramBase->as<ParameterDeclarationSyntax>().declarators)
-                    createParam(*declarator);
+    // Skip body for nested module/program in LSP mode. Interface instances always elaborate.
+    if (!flags.has(InstanceFlags::SkipBody) ||
+        definition.definitionKind == DefinitionKind::Interface) {
+        // Finally add members from the body.
+        for (auto member : declSyntax.members) {
+            // If this is a parameter declaration we will create the symbol manually
+            // as we need to apply any overrides.
+            if (member->kind != SyntaxKind::ParameterDeclarationStatement) {
+                result->addMembers(*member);
             }
             else {
-                for (auto declarator : paramBase->as<TypeParameterDeclarationSyntax>().declarators)
-                    createParam(*declarator);
+                auto createParam = [&](auto& declarator) {
+                    SLANG_ASSERT(paramIt != definition.parameters.end());
+
+                    auto& decl = *paramIt;
+                    SLANG_ASSERT(declarator.name.valueText() == decl.name);
+
+                    auto& param = paramBuilder.createParam(decl, *result, instanceLoc);
+                    params.push_back(&param);
+                    paramIt++;
+                };
+
+                auto paramBase = member->as<ParameterDeclarationStatementSyntax>().parameter;
+                if (paramBase->kind == SyntaxKind::ParameterDeclaration) {
+                    for (auto declarator : paramBase->as<ParameterDeclarationSyntax>().declarators)
+                        createParam(*declarator);
+                }
+                else {
+                    for (auto declarator :
+                         paramBase->as<TypeParameterDeclarationSyntax>().declarators)
+                        createParam(*declarator);
+                }
             }
         }
     }

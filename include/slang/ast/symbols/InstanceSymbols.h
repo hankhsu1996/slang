@@ -57,10 +57,15 @@ enum class SLANG_EXPORT InstanceFlags : uint8_t {
     /// The instance is the target of a bind instantiation.
     TargetedByBind = 1 << 3,
 
+    /// Skip body member elaboration for this instance.
+    /// Applied to nested instances in LSP mode to avoid expensive recursive elaboration.
+    /// Instances without this flag get normal full body elaboration.
+    SkipBody = 1 << 4,
+
     /// Flags that prevent caching of this instance in the elaboration cache.
     PreventsCaching = Uninstantiated | FromBind | ParentFromBind
 };
-SLANG_BITMASK(InstanceFlags, TargetedByBind)
+SLANG_BITMASK(InstanceFlags, SkipBody)
 
 /// Common functionality for module, interface, program, and primitive instances.
 class SLANG_EXPORT InstanceSymbolBase : public Symbol {
