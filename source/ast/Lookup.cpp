@@ -512,11 +512,26 @@ bool lookupDownward(std::span<const NamePlusLoc> nameParts, NameComponents name,
                     result.addDiag(*context.scope, diag::DotIntoInstArray, it->dotLocation);
                 }
                 else {
-                    auto& diag = result.addDiag(*context.scope,
-                                                diag::CouldNotResolveHierarchicalPath,
-                                                it->dotLocation);
-                    diag << name.text;
-                    diag << name.range;
+                    // In LSP mode, hierarchical references into un-elaborated instance
+                    // bodies should generate an informational note at the start of the
+                    // hierarchical path (e.g., 'inst' in 'inst.foo.bar'), similar to
+                    // top-level hierarchical references that can't be resolved.
+                    if (context.getCompilation().hasFlag(CompilationFlags::LanguageServerMode) &&
+                        prevSym.kind == SymbolKind::InstanceBody &&
+                        result.flags.has(LookupResultFlags::IsHierarchical) &&
+                        !result.path.empty()) {
+                        result.addDiag(*context.scope,
+                                      diag::UnresolvedHierarchicalPath,
+                                      result.path.front().sourceRange)
+                            << result.path.front().symbol->name;
+                    }
+                    else {
+                        auto& diag = result.addDiag(*context.scope,
+                                                    diag::CouldNotResolveHierarchicalPath,
+                                                    it->dotLocation);
+                        diag << name.text;
+                        diag << name.range;
+                    }
                 }
                 return true;
             }
