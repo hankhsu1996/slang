@@ -1856,6 +1856,11 @@ void Lookup::unqualifiedImpl(const Scope& scope, std::string_view name, LookupLo
                     // to avoid problems with recursive constant evaluation.
                     flags &= ~LookupFlags::AllowDeclaredAfter;
                     break;
+                case SymbolKind::CoverageBin:
+                    // Coverage bins can never be looked up before their declaration,
+                    // to avoid finding the bin itself during its own resolution.
+                    flags &= ~LookupFlags::AllowDeclaredAfter;
+                    break;
                 default:
                     break;
             }
