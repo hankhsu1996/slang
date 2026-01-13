@@ -1,0 +1,167 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//:bazel/version_info.bzl", "version_info")
+load("//:bazel/export_header.bzl", "export_header")
+
+genrule(
+    name = "generate_diagnostics",
+    srcs = [
+        "//scripts:diagnostic_gen",
+        "//scripts:diagnostics",
+    ],
+    outs = [
+        "slang/diagnostics/AllDiags.h",
+        "slang/diagnostics/AnalysisDiags.h",
+        "slang/diagnostics/CompilationDiags.h",
+        "slang/diagnostics/ConstEvalDiags.h",
+        "slang/diagnostics/DeclarationsDiags.h",
+        "slang/diagnostics/DriverDiags.h",
+        "slang/diagnostics/ExpressionsDiags.h",
+        "slang/diagnostics/GeneralDiags.h",
+        "slang/diagnostics/LexerDiags.h",
+        "slang/diagnostics/LookupDiags.h",
+        "slang/diagnostics/MetaDiags.h",
+        "slang/diagnostics/NumericDiags.h",
+        "slang/diagnostics/ParserDiags.h",
+        "slang/diagnostics/PreprocessorDiags.h",
+        "slang/diagnostics/StatementsDiags.h",
+        "slang/diagnostics/SysFuncsDiags.h",
+        "slang/diagnostics/TypesDiags.h",
+        "DiagCode.cpp",
+    ],
+    cmd = """
+        python3 $(location //scripts:diagnostic_gen) \
+        --outDir $(RULEDIR) \
+        --srcDir $(GENDIR)/source \
+        --incDir $(GENDIR)/include \
+        --diagnostics $(location //scripts:diagnostics)
+    """,
+)
+
+# Generate syntax-related code
+genrule(
+    name = "generate_syntax",
+    srcs = [
+        "//scripts:syntax_gen",
+        "//scripts:syntax",
+        "//scripts:trivia",
+        "//scripts:tokenkinds",
+        "//scripts:systemnames",
+    ],
+    outs = [
+        "slang/syntax/AllSyntax.h",
+        "AllSyntax.cpp",
+        "SyntaxClone.cpp",
+        "slang/syntax/SyntaxKind.h",
+        "slang/syntax/SyntaxFwd.h",
+        "slang/syntax/SyntaxDoc.dox",
+        "slang/syntax/CSTJsonVisitorGen.h",
+        "slang/parsing/TokenKind.h",
+        "slang/parsing/KnownSystemName.h",
+        "TokenKind.cpp",
+        "KnownSystemName.cpp",
+    ],
+    cmd = """
+        python3 $(location //scripts:syntax_gen) \
+        --dir $(RULEDIR) \
+        --syntax $(location //scripts:syntax)
+    """,
+)
+
+# Generate version information
+version_info(
+    name = "generate_version",
+    src = "util/VersionInfo.cpp.in",
+    out = "VersionInfo.cpp",
+    version_hash = "unknown",
+    version_major = "9",
+    version_minor = "1",
+    version_patch = "0",
+)
+
+# Generate export header
+export_header(
+    name = "generate_export_header",
+    base_name = "slang",
+    export_file_name = "slang_export.h",
+    out = "slang/slang_export.h",
+    custom_content = """
+#if defined(_MSC_VER) && !defined(__ICL)
+  #pragma warning(disable:4251)
+  #pragma warning(disable:4275)
+#elif defined(__GNUC__) && !defined(__clang__)
+  #pragma GCC diagnostic ignored "-Wattributes"
+#endif
+""",
+)
+
+# Main library target
+cc_library(
+    name = "slang_slang",
+    srcs = [
+        ":generate_diagnostics",
+        ":generate_syntax",
+        ":generate_version",
+        ":generate_export_header",
+        "//source/ast:ast_sources",
+    ] + glob([
+        "analysis/*.cpp",
+        "diagnostics/*.cpp",
+        "driver/*.cpp",
+        "numeric/*.cpp",
+        "parsing/*.cpp",
+        "syntax/*.cpp",
+        "text/*.cpp",
+        "util/*.cpp",
+    ]),
+    hdrs = [
+        "//include:slang_headers",
+        "//source/ast:ast_headers",
+    ] + glob(
+        [
+            "analysis/*.h",
+            "numeric/*.h",
+            "diagnostics/*.h",
+            "driver/*.h",
+            "parsing/*.h",
+            "syntax/*.h",
+            "text/*.h",
+            "util/*.h",
+        ],
+        allow_empty = True,
+    ),
+    copts = [
+        "-std=c++20",
+        "-Wall",
+        "-Wextra",
+        "-Wno-deprecated-declarations",
+    ],
+    includes = [
+        ".",
+        "../third_party",
+        "analysis",
+        "ast",
+        "ast/builtins",
+        "diagnostics",
+        "driver",
+        "numeric",
+        "parsing",
+        "syntax",
+        "text",
+        "util",
+    ],
+    deps = [
+        "//include:slang_headers",
+        "//third_party:third_party",
+        "@fmt",
+        "@boost.unordered",
+    ],
+    linkstatic = True,
+    visibility = ["//visibility:public"],
+)
+
+# Alias
+cc_library(
+    name = "slang_core",
+    visibility = ["//visibility:public"],
+    deps = [":slang_slang"],
+)
