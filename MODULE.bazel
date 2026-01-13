@@ -1,0 +1,26 @@
+"""
+Module definition for the Slang project.
+"""
+
+module(
+    name = "slang",
+    version = "9.1.0",
+    compatibility_level = 1,
+)
+
+# Core build dependencies
+bazel_dep(name = "rules_cc", version = "0.2.4")
+bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "platforms", version = "0.0.11")
+
+# Testing dependencies
+bazel_dep(name = "rules_testing", version = "0.0.4")
+bazel_dep(name = "catch2", version = "3.8.0")
+
+# Python binding dependencies
+bazel_dep(name = "pybind11_bazel", version = "2.13.6")
+
+# External libraries
+bazel_dep(name = "fmt", version = "11.1.3")
+bazel_dep(name = "boost.unordered", version = "1.89.0")
