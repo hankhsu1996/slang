@@ -2004,6 +2004,8 @@ void Compilation::checkDPIMethods(std::span<const SubroutineSymbol* const> dpiIm
                     diag.addNote(diag::NotePreviousDefinition, it->second->name.location());
                 }
             }
+
+            resolvedDPIExports.emplace_back(&sub, std::string(cId));
         }
     }
 }
