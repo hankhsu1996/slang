@@ -1129,7 +1129,7 @@ void Compilation::noteInstanceWithDefBind(const Symbol& instance) {
 void Compilation::noteDPIExportDirective(const DPIExportSyntax& syntax, const Scope& scope) {
     SLANG_ASSERT(!isFrozen());
 
-    dpiExports.emplace_back(&syntax, &scope);
+    dpiExportDirectives.emplace_back(&syntax, &scope);
 }
 
 void Compilation::addOutOfBlockDecl(const Scope& scope, const ScopedNameSyntax& name,
@@ -1502,7 +1502,7 @@ void Compilation::elaborate() {
     // causing undefined behavior.
 
     // Check all DPI methods for correctness.
-    if (!dpiExports.empty() || !elabVisitor.dpiImports.empty())
+    if (!dpiExportDirectives.empty() || !elabVisitor.dpiImports.empty())
         checkDPIMethods(elabVisitor.dpiImports);
 
     // Check extern interface methods for correctness.
@@ -1910,7 +1910,7 @@ void Compilation::checkDPIMethods(std::span<const SubroutineSymbol* const> dpiIm
     flat_hash_map<std::tuple<std::string_view, const Scope*>, const DPIExportSyntax*>
         exportsByScope;
     flat_hash_map<const SubroutineSymbol*, const DPIExportSyntax*> previousExports;
-    auto exports = dpiExports;
+    auto exports = dpiExportDirectives;
     for (auto [syntax, scope] : exports) {
         if (syntax->specString.valueText() == "DPI")
             scope->addDiag(diag::DPISpecDisallowed, syntax->specString.range());
@@ -2007,7 +2007,7 @@ void Compilation::checkDPIMethods(std::span<const SubroutineSymbol* const> dpiIm
             }
 
             if (shouldRecordResolved)
-                resolvedDPIExports.emplace_back(&sub, std::string(cId));
+                dpiExports.emplace_back(&sub, std::string(cId));
         }
     }
 }
