@@ -115,8 +115,8 @@ void registerCompilation(py::module_& m) {
              [](const Compilation& self) {
                  py::list result;
                  auto parent = py::cast(&self);
-                 for (auto& [sub, cId] : self.getDPIExports())
-                     result.append(py::make_tuple(py::cast(sub, byrefint, parent), cId));
+                 for (auto& entry : self.getDPIExports())
+                     result.append(py::cast(&entry, byrefint, parent));
                  return result;
              })
         .def("getAttributes",
@@ -158,6 +158,11 @@ void registerCompilation(py::module_& m) {
         .def_readwrite("definition", &Compilation::DefinitionLookupResult::definition)
         .def_readwrite("configRoot", &Compilation::DefinitionLookupResult::configRoot)
         .def_readwrite("configRule", &Compilation::DefinitionLookupResult::configRule);
+
+    py::class_<Compilation::DPIExport>(m, "DPIExport")
+        .def_readonly("subroutine", &Compilation::DPIExport::subroutine)
+        .def_readonly("cIdentifier", &Compilation::DPIExport::cIdentifier)
+        .def_readonly("syntax", &Compilation::DPIExport::syntax);
 
     py::class_<ScriptSession>(m, "ScriptSession")
         .def(py::init<>())
