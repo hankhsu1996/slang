@@ -249,7 +249,8 @@ void registerSyntax(py::module_& m) {
     };
 
     py::classh<SyntaxNode>(m, "SyntaxNode")
-        .def_readonly("parent", &SyntaxNode::parent)
+        .def_property_readonly("parent",
+                               [](const SyntaxNode& n) -> const SyntaxNode* { return n.parent; })
         .def_readonly("kind", &SyntaxNode::kind)
         .def("getFirstToken", &SyntaxNode::getFirstToken)
         .def("getLastToken", &SyntaxNode::getLastToken)
