@@ -69,6 +69,7 @@ Expression& CallExpression::fromSyntaxImpl(Compilation& compilation, const Expre
 
 Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutine& subroutine,
                                        const Expression* thisClass,
+                                       const HierarchicalReference* hierRef,
                                        const InvocationExpressionSyntax* syntax,
                                        const ArrayOrRandomizeMethodExpressionSyntax* withClause,
                                        SourceRange range, const ASTContext& context) {
@@ -134,7 +135,7 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
         }
     }
 
-    auto& result = fromArgs(compilation, subroutine, thisClass,
+    auto& result = fromArgs(compilation, subroutine, thisClass, hierRef,
                             syntax ? syntax->arguments : nullptr, range, context);
     if (syntax)
         context.setAttributes(result, syntax->attributes);
@@ -305,6 +306,7 @@ bool CallExpression::bindArgs(const ArgumentListSyntax* argSyntax,
 
 Expression& CallExpression::fromArgs(Compilation& comp, const Subroutine& subroutine,
                                      const Expression* thisClass,
+                                     const HierarchicalReference* hierRef,
                                      const ArgumentListSyntax* argSyntax, SourceRange range,
                                      const ASTContext& context) {
     const SubroutineSymbol& symbol = *std::get<0>(subroutine);
@@ -314,7 +316,8 @@ Expression& CallExpression::fromArgs(Compilation& comp, const Subroutine& subrou
     bool bad = !bindArgs(argSyntax, symbol.getArguments(), symbol.name, range, context, boundArgs);
 
     auto result = comp.emplace<CallExpression>(&symbol, symbol.getReturnType(), thisClass,
-                                               boundArgs.copy(comp), context.getLocation(), range);
+                                               boundArgs.copy(comp), context.getLocation(), hierRef,
+                                               range);
     if (bad)
         return badExpr(comp, result);
 
@@ -648,7 +651,7 @@ Expression& CallExpression::createSystemCall(
     const Type& type = subroutine.checkArguments(context, buffer, range, iterOrThis);
     auto expr = compilation.emplace<CallExpression>(callInfo, type, nullptr,
                                                     buffer.copy(compilation), context.getLocation(),
-                                                    range);
+                                                    nullptr, range);
 
     if (type.isError())
         return badExpr(compilation, expr);
@@ -915,6 +918,9 @@ void CallExpression::serializeTo(ASTSerializer& serializer) const {
 
     if (thisClass())
         serializer.write("thisClass", *thisClass());
+
+    if (hierRef.target)
+        serializer.write("isHierarchical", true);
 
     if (!arguments().empty()) {
         serializer.startArray("arguments");
