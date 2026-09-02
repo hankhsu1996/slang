@@ -9,6 +9,7 @@
 
 #include "slang/ast/Constraints.h"
 #include "slang/ast/Expression.h"
+#include "slang/ast/HierarchicalReference.h"
 #include "slang/syntax/SyntaxFwd.h"
 
 namespace slang::ast {
@@ -57,11 +58,22 @@ public:
     /// The subroutine that is being called.
     Subroutine subroutine;
 
+    /// Information about the path used to refer to the subroutine,
+    /// if this call was created via hierarchical reference.
+    HierarchicalReference hierRef;
+
     CallExpression(const Subroutine& subroutine, const Type& returnType,
                    const Expression* thisClass, std::span<const Expression*> arguments,
-                   LookupLocation lookupLocation, SourceRange sourceRange) :
+                   LookupLocation lookupLocation, const HierarchicalReference* hierRef,
+                   SourceRange sourceRange) :
         Expression(ExpressionKind::Call, returnType, sourceRange), subroutine(subroutine),
-        thisClass_(thisClass), arguments_(arguments), lookupLocation(lookupLocation) {}
+        thisClass_(thisClass), arguments_(arguments), lookupLocation(lookupLocation) {
+
+        if (hierRef && hierRef->target) {
+            this->hierRef = *hierRef;
+            this->hierRef.expr = this;
+        }
+    }
 
     /// If this call is for a class method, returns the expression representing the
     /// class handle on which the method is being invoked. Otherwise returns nullptr.
@@ -105,13 +117,13 @@ public:
                                   const ASTContext& context);
 
     static Expression& fromLookup(Compilation& compilation, const Subroutine& subroutine,
-                                  const Expression* thisClass,
+                                  const Expression* thisClass, const HierarchicalReference* hierRef,
                                   const syntax::InvocationExpressionSyntax* syntax,
                                   const syntax::ArrayOrRandomizeMethodExpressionSyntax* withClause,
                                   SourceRange range, const ASTContext& context);
 
     static Expression& fromArgs(Compilation& compilation, const Subroutine& subroutine,
-                                const Expression* thisClass,
+                                const Expression* thisClass, const HierarchicalReference* hierRef,
                                 const syntax::ArgumentListSyntax* argSyntax, SourceRange range,
                                 const ASTContext& context);
 

@@ -1020,8 +1020,8 @@ Expression& MemberAccessExpression::fromSelector(
 
                 warnIfNotProcedural();
             }
-            return CallExpression::fromLookup(comp, &sub, &expr, invocation, withClause, range,
-                                              context);
+            return CallExpression::fromLookup(comp, &sub, &expr, nullptr, invocation, withClause,
+                                              range, context);
         }
         case SymbolKind::ConstraintBlock:
         case SymbolKind::Coverpoint:

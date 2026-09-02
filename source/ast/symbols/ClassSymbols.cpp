@@ -634,7 +634,7 @@ const Expression* ClassType::getBaseConstructorCall() const {
 
             callExpr = &CallExpression::fromArgs(context.getCompilation(),
                                                  &baseConstructor->as<SubroutineSymbol>(), nullptr,
-                                                 extendsArgs, range, context);
+                                                 nullptr, extendsArgs, range, context);
         }
         else if (!extendsArgs->parameters.empty()) {
             auto& diag = context.addDiag(diag::TooManyArguments, extendsArgs->sourceRange());

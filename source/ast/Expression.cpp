@@ -1074,7 +1074,7 @@ Expression& Expression::bindName(Compilation& comp, const NameSyntax& syntax,
 
         SourceRange callRange = invocation ? invocation->sourceRange() : syntax.sourceRange();
         CallExpression::SystemCallInfo callInfo{result.systemSubroutine, context.scope, {}};
-        return CallExpression::fromLookup(comp, callInfo, nullptr, invocation, withClause,
+        return CallExpression::fromLookup(comp, callInfo, nullptr, nullptr, invocation, withClause,
                                           callRange, context);
     }
 
@@ -1139,8 +1139,10 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
         case SymbolKind::Subroutine: {
             SLANG_ASSERT(result.selectors.empty());
             SourceRange callRange = invocation ? invocation->sourceRange() : result.nameRange;
+            auto hierRef = HierarchicalReference::fromLookup(comp, result);
             expr = &CallExpression::fromLookup(comp, &symbol->as<SubroutineSymbol>(), accessViaExpr,
-                                               invocation, withClause, callRange, context);
+                                               &hierRef, invocation, withClause, callRange,
+                                               context);
             invocation = nullptr;
             withClause = nullptr;
 
@@ -1148,8 +1150,7 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
                 // A call to a subroutine via a hierarchical name needs to be counted
                 // as a potential "hierachical assignment" since we will need to
                 // descend into the call during analysis to find assignments.
-                auto ref = comp.emplace<HierarchicalReference>(
-                    HierarchicalReference::fromLookup(comp, result));
+                auto ref = comp.emplace<HierarchicalReference>(hierRef);
                 comp.noteHierarchicalAssignment(*ref);
             }
 

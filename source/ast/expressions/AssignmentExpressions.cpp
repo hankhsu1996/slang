@@ -685,7 +685,8 @@ Expression& NewClassExpression::fromSyntax(Compilation& comp,
     if (auto constructor = classType->getConstructor()) {
         Lookup::ensureVisible(*constructor, context, range);
         constructorCall = &CallExpression::fromArgs(comp, &constructor->as<SubroutineSymbol>(),
-                                                    nullptr, syntax.argList, range, context);
+                                                    nullptr, nullptr, syntax.argList, range,
+                                                    context);
     }
     else if (syntax.argList && !syntax.argList->parameters.empty()) {
         auto& diag = context.addDiag(diag::TooManyArguments, syntax.argList->sourceRange());

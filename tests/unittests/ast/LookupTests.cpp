@@ -7,6 +7,7 @@
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Lookup.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/CallExpression.h"
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
@@ -2874,4 +2875,46 @@ endmodule
     // 'j' resolves to the first 'bit [3:0] j' which has no initializer
     auto& jSym = body.find<VariableSymbol>("j");
     CHECK(jSym.getInitializer() == nullptr);
+}
+
+TEST_CASE("Subroutine call records the path that reached it") {
+    auto tree = SyntaxTree::fromText(R"(
+interface I;
+    task t; endtask
+endinterface
+
+module m(I i);
+    task local_t; endtask
+
+    initial begin
+        i.t();
+        local_t();
+    end
+endmodule
+
+module top;
+    I i();
+    m m1(i);
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& m = compilation.getRoot().lookupName<InstanceSymbol>("top.m1");
+    auto stmtList = m.body.membersOfType<ProceduralBlockSymbol>()
+                        .begin()
+                        ->getBody()
+                        .as<BlockStatement>()
+                        .body.as<StatementList>()
+                        .list;
+    REQUIRE(stmtList.size() == 2);
+
+    auto& viaPort = stmtList[0]->as<ExpressionStatement>().expr.as<CallExpression>();
+    REQUIRE(viaPort.hierRef.target);
+    CHECK(viaPort.hierRef.isViaIfacePort());
+    CHECK(viaPort.hierRef.expr == &viaPort);
+
+    auto& local = stmtList[1]->as<ExpressionStatement>().expr.as<CallExpression>();
+    CHECK(!local.hierRef.target);
 }
