@@ -55,23 +55,35 @@ public:
 
     using Subroutine = std::variant<const SubroutineSymbol*, SystemCallInfo>;
 
+    /// How a call's name reached the subroutine it resolved to. Two calls can
+    /// resolve to one subroutine and still differ here, which is what tells
+    /// them apart once the name itself is gone.
+    struct NameLookupInfo {
+        /// The path used to refer to the subroutine, if the name was
+        /// resolved via a hierarchical reference.
+        HierarchicalReference hierRef;
+
+        /// Set to true if the name was qualified with `super`, which selects
+        /// the base class's implementation regardless of the dynamic type.
+        bool viaSuper = false;
+    };
+
     /// The subroutine that is being called.
     Subroutine subroutine;
 
-    /// Information about the path used to refer to the subroutine,
-    /// if this call was created via hierarchical reference.
-    HierarchicalReference hierRef;
+    /// How the name that produced this call reached its subroutine.
+    NameLookupInfo lookupInfo;
 
     CallExpression(const Subroutine& subroutine, const Type& returnType,
                    const Expression* thisClass, std::span<const Expression*> arguments,
-                   LookupLocation lookupLocation, const HierarchicalReference* hierRef,
+                   LookupLocation lookupLocation, const NameLookupInfo* lookupInfo,
                    SourceRange sourceRange) :
         Expression(ExpressionKind::Call, returnType, sourceRange), subroutine(subroutine),
         thisClass_(thisClass), arguments_(arguments), lookupLocation(lookupLocation) {
-
-        if (hierRef && hierRef->target) {
-            this->hierRef = *hierRef;
-            this->hierRef.expr = this;
+        if (lookupInfo) {
+            this->lookupInfo = *lookupInfo;
+            if (this->lookupInfo.hierRef.target)
+                this->lookupInfo.hierRef.expr = this;
         }
     }
 
@@ -117,13 +129,13 @@ public:
                                   const ASTContext& context);
 
     static Expression& fromLookup(Compilation& compilation, const Subroutine& subroutine,
-                                  const Expression* thisClass, const HierarchicalReference* hierRef,
+                                  const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                   const syntax::InvocationExpressionSyntax* syntax,
                                   const syntax::ArrayOrRandomizeMethodExpressionSyntax* withClause,
                                   SourceRange range, const ASTContext& context);
 
     static Expression& fromArgs(Compilation& compilation, const Subroutine& subroutine,
-                                const Expression* thisClass, const HierarchicalReference* hierRef,
+                                const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                 const syntax::ArgumentListSyntax* argSyntax, SourceRange range,
                                 const ASTContext& context);
 

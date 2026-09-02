@@ -1083,6 +1083,10 @@ const Symbol* findSuperHandle(const Scope& scope, bitmask<LookupFlags> flags, So
         return nullptr;
     }
 
+    // Both "super.foo" and "this.super.foo" resolve the base class here.
+    if (base)
+        result.flags |= LookupResultFlags::ViaSuper;
+
     return base;
 }
 
