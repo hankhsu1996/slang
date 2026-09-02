@@ -131,6 +131,17 @@ public:
     void setOverride(const SubroutineSymbol& parentMethod) const;
     const SubroutineSymbol* getOverride() const { return overrides; }
 
+    /// Records the C identifier this DPI import links against, as resolved while
+    /// DPI methods are checked.
+    void setDPICIdentifier(std::string_view id) const { dpiCIdentifier = id; }
+
+    /// @returns the C identifier this DPI import links against: the explicit
+    /// c_identifier if the declaration gave one, and otherwise the subroutine's
+    /// own name. Empty for a subroutine that is not a DPI import, and for one
+    /// whose identifier is not a valid C identifier, which is diagnosed while
+    /// the compilation is elaborated.
+    std::string_view getDPICIdentifier() const { return dpiCIdentifier; }
+
     const MethodPrototypeSymbol* getPrototype() const { return prototype; }
     void connectExternInterfacePrototype() const;
 
@@ -189,6 +200,7 @@ private:
     mutable const MethodPrototypeSymbol* prototype = nullptr;
     mutable std::optional<bool> cachedHasOutputArgs;
     mutable bool isConstructing = false;
+    mutable std::string_view dpiCIdentifier;
 };
 
 /// Represents a class method prototype.
