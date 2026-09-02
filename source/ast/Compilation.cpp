@@ -1922,6 +1922,7 @@ void Compilation::checkDPIMethods(std::span<const SubroutineSymbol* const> dpiIm
 
         auto& dis = syntax->as<DPIImportSyntax>();
         std::string_view cId = getCId(*scope, dis.c_identifier, dis.method->name->getLastToken());
+        sub->setDPICIdentifier(cId);
         if (cId.empty())
             continue;
 
