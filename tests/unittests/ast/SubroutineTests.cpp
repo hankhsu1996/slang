@@ -326,6 +326,25 @@ endmodule
     CHECK(exports[1].syntax->c_identifier.valueText() == "my_f2");
 }
 
+TEST_CASE("DPI import records the C identifier it links against") {
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    import "DPI-C" function void f1();
+    import "DPI-C" my_f2 = function void f2();
+    function void local_f; endfunction
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& m = compilation.getRoot().lookupName<InstanceSymbol>("m");
+    CHECK(m.body.find<SubroutineSymbol>("f1").getDPICIdentifier() == "f1");
+    CHECK(m.body.find<SubroutineSymbol>("f2").getDPICIdentifier() == "my_f2");
+    CHECK(m.body.find<SubroutineSymbol>("local_f").getDPICIdentifier().empty());
+}
+
 TEST_CASE("Compilation collects DPI exports from each instance") {
     auto tree = SyntaxTree::fromText(R"(
 module Sub #(parameter int ID = 0);

@@ -931,6 +931,9 @@ void SubroutineSymbol::serializeTo(ASTSerializer& serializer) const {
 
     if (flags)
         serializer.write("flags", flagsToStr(flags));
+
+    if (!dpiCIdentifier.empty())
+        serializer.write("dpiCIdentifier", dpiCIdentifier);
 }
 
 void SubroutineSymbol::addThisVar(const Type& type) {
