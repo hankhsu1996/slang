@@ -113,9 +113,13 @@ enum class SLANG_EXPORT LookupResultFlags : uint8_t {
     FromForwardTypedef = 1 << 4,
 
     /// The lookup was resolved through an interface port connection.
-    IfacePort = 1 << 5
+    IfacePort = 1 << 5,
+
+    /// The lookup was resolved through a `super` handle, which selects the
+    /// base class's member regardless of the dynamic type of the object.
+    ViaSuper = 1 << 6
 };
-SLANG_BITMASK(LookupResultFlags, IfacePort)
+SLANG_BITMASK(LookupResultFlags, ViaSuper)
 
 /// This type denotes the ordering of symbols within a particular scope, for the purposes of
 /// determining whether a found symbol is visible compared to the given location.

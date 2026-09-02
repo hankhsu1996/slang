@@ -2911,10 +2911,45 @@ endmodule
     REQUIRE(stmtList.size() == 2);
 
     auto& viaPort = stmtList[0]->as<ExpressionStatement>().expr.as<CallExpression>();
-    REQUIRE(viaPort.hierRef.target);
-    CHECK(viaPort.hierRef.isViaIfacePort());
-    CHECK(viaPort.hierRef.expr == &viaPort);
+    REQUIRE(viaPort.lookupInfo.hierRef.target);
+    CHECK(viaPort.lookupInfo.hierRef.isViaIfacePort());
+    CHECK(viaPort.lookupInfo.hierRef.expr == &viaPort);
 
     auto& local = stmtList[1]->as<ExpressionStatement>().expr.as<CallExpression>();
-    CHECK(!local.hierRef.target);
+    CHECK(!local.lookupInfo.hierRef.target);
+}
+
+TEST_CASE("Subroutine call records super qualification") {
+    auto tree = SyntaxTree::fromText(R"(
+class Base;
+    virtual function int f; return 1; endfunction
+endclass
+
+class Mid extends Base;
+    function int viaSuper; return super.f(); endfunction
+    function int viaThisSuper; return this.super.f(); endfunction
+    function int unqualified; return f(); endfunction
+endclass
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& mid = compilation.getRoot().lookupName<ClassType>("$unit::Mid");
+    auto callIn = [&](std::string_view name) -> const CallExpression& {
+        auto& sub = mid.find<SubroutineSymbol>(name);
+        return sub.getBody().as<ReturnStatement>().expr->as<CallExpression>();
+    };
+
+    // Mid does not override f, so all three resolve to the same subroutine and
+    // only the qualification tells the dispatching call from the two that must
+    // reach the base implementation directly.
+    auto& viaSuper = callIn("viaSuper");
+    auto& viaThisSuper = callIn("viaThisSuper");
+    auto& unqualified = callIn("unqualified");
+    CHECK(std::get<0>(viaSuper.subroutine) == std::get<0>(unqualified.subroutine));
+
+    CHECK(viaSuper.lookupInfo.viaSuper);
+    CHECK(viaThisSuper.lookupInfo.viaSuper);
+    CHECK(!unqualified.lookupInfo.viaSuper);
 }
