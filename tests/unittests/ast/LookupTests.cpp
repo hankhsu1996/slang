@@ -11,9 +11,11 @@
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
+#include "slang/ast/symbols/ClassSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
+#include "slang/ast/symbols/SubroutineSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/Type.h"
 #include "slang/diagnostics/LookupDiags.h"
@@ -2935,10 +2937,18 @@ endclass
     compilation.addSyntaxTree(tree);
     NO_COMPILATION_ERRORS;
 
-    auto& mid = compilation.getRoot().lookupName<ClassType>("$unit::Mid");
+    REQUIRE(!compilation.getRoot().compilationUnits.empty());
+    auto* midSym = compilation.getRoot().compilationUnits[0]->lookupName("Mid");
+    REQUIRE(midSym);
+    auto& mid = midSym->as<ClassType>();
+
     auto callIn = [&](std::string_view name) -> const CallExpression& {
-        auto& sub = mid.find<SubroutineSymbol>(name);
-        return sub.getBody().as<ReturnStatement>().expr->as<CallExpression>();
+        auto* sub = mid.find(name);
+        REQUIRE(sub);
+        return sub->as<SubroutineSymbol>()
+            .getBody()
+            .as<ReturnStatement>()
+            .expr->as<CallExpression>();
     };
 
     // Mid does not override f, so all three resolve to the same subroutine and
