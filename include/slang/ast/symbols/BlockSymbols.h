@@ -123,6 +123,26 @@ private:
                                                         const syntax::StatementSyntax& stmtSyntax);
 };
 
+/// One conditional generate construct on the path to a block, and which way it had to
+/// go for that block to be selected.
+///
+/// A construct appears at the same position of every path through it, and carries the
+/// same `condition` and, for a case item, the same `caseItems` span, so two blocks
+/// under one construct are recognized as being under it by comparing what they carry
+/// here.
+struct SLANG_EXPORT GenerateSelection {
+    /// The `if` condition, or the expression a `case` selects on.
+    const Expression* condition = nullptr;
+
+    /// The labels this alternative is matched against. Empty for an `if`, and empty
+    /// for a `default`, which matches no label of its own. One span per case item,
+    /// shared by every block beneath that item.
+    std::span<const Expression* const> caseItems = {};
+
+    /// Which side of `condition` this level went.
+    GenerateBranchKind kind = GenerateBranchKind::IllegalUnconditional;
+};
+
 /// Represents blocks that are instantiated by a loop generate or conditional
 /// generate construct.
 class SLANG_EXPORT GenerateBlockSymbol final : public Symbol, public Scope {
@@ -135,15 +155,20 @@ public:
     bool isUninstantiated = false;
     bool isUnnamed = false;
 
-    /// Storage for either the loop iteration index or the bound if/case condition.
-    /// The active member is selected by branchKind.
-    union {
-        const SVInt* arrayIndex = nullptr;
-        const Expression* conditionExpression;
-    };
+    /// The loop iteration index, for a block a loop generate produced.
+    const SVInt* arrayIndex = nullptr;
 
-    /// Bound case-item label expressions for case-generate blocks.
-    std::span<const Expression* const> caseItemExpressions = {};
+    /// Every conditional generate construct that had to go a particular way for this
+    /// block to be selected, outermost first and ending with the one that produced it.
+    /// Empty for a block no conditional produced.
+    ///
+    /// A directly nested conditional's blocks are treated as belonging to the outer
+    /// construct (27.5 of IEEE 1800-2023), which leaves the conditions of the enclosing
+    /// levels named by no block: `if (a) if (b) x;` and `if (b) x;` produce the same
+    /// one block under the same one condition, even though the first stands only where
+    /// `a` held as well. Recording the path states what the flattening drops, so what
+    /// selects a block is the whole of this span and nothing outside it.
+    std::span<const GenerateSelection> selectionPath = {};
 
     GenerateBlockSymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                         uint32_t constructIndex, bool isUninstantiated) :
@@ -156,17 +181,18 @@ public:
         return branchKind == GenerateBranchKind::LoopIteration ? arrayIndex : nullptr;
     }
 
-    /// Returns the bound if/case condition, or nullptr if this block is not a conditional branch.
+    /// Returns the bound if/case condition of the construct that produced this block,
+    /// or nullptr if no conditional produced it. It is the last level of the selection
+    /// path, and states when the block is selected only where that path has one level.
     const Expression* getConditionExpression() const {
-        switch (branchKind) {
-            case GenerateBranchKind::IfTrue:
-            case GenerateBranchKind::IfFalse:
-            case GenerateBranchKind::CaseItem:
-            case GenerateBranchKind::CaseDefault:
-                return conditionExpression;
-            default:
-                return nullptr;
-        }
+        return selectionPath.empty() ? nullptr : selectionPath.back().condition;
+    }
+
+    /// Returns the labels the alternative that produced this block is matched against,
+    /// which is empty for every block but a `case` item's.
+    std::span<const Expression* const> getCaseItemExpressions() const {
+        return selectionPath.empty() ? std::span<const Expression* const>{}
+                                     : selectionPath.back().caseItems;
     }
 
     std::string getExternalName() const;
@@ -175,11 +201,13 @@ public:
 
     static void fromSyntax(Compilation& compilation, const syntax::IfGenerateSyntax& syntax,
                            const ASTContext& context, uint32_t constructIndex,
-                           bool isUninstantiated, SmallVectorBase<GenerateBlockSymbol*>& results);
+                           bool isUninstantiated, SmallVectorBase<GenerateBlockSymbol*>& results,
+                           std::span<const GenerateSelection> enclosing = {});
 
     static void fromSyntax(Compilation& compilation, const syntax::CaseGenerateSyntax& syntax,
                            const ASTContext& context, uint32_t constructIndex,
-                           bool isUninstantiated, SmallVectorBase<GenerateBlockSymbol*>& results);
+                           bool isUninstantiated, SmallVectorBase<GenerateBlockSymbol*>& results,
+                           std::span<const GenerateSelection> enclosing = {});
 
     static GenerateBlockSymbol& fromSyntax(const Scope& scope,
                                            const syntax::GenerateBlockSyntax& syntax,

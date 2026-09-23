@@ -533,7 +533,7 @@ void registerSymbols(nb::module_& m) {
         .def_ro("constructIndex", &GenerateBlockSymbol::constructIndex)
         .def_ro("isUninstantiated", &GenerateBlockSymbol::isUninstantiated)
         .def_ro("branchKind", &GenerateBlockSymbol::branchKind)
-        .def_ro("caseItemExpressions", &GenerateBlockSymbol::caseItemExpressions)
+        .def_prop_ro("caseItemExpressions", &GenerateBlockSymbol::getCaseItemExpressions)
         .def_prop_ro("arrayIndex", &GenerateBlockSymbol::getArrayIndex)
         .def_prop_ro("conditionExpression", &GenerateBlockSymbol::getConditionExpression)
         .def_prop_ro("externalName", &GenerateBlockSymbol::getExternalName);
