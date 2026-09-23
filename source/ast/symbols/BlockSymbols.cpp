@@ -477,20 +477,31 @@ static void createCondGenBlock(Compilation& compilation, const SyntaxNode& synta
                                const SyntaxList<AttributeInstanceSyntax>& attributes,
                                SmallVectorBase<GenerateBlockSymbol*>& results,
                                GenerateBranchKind branchKind, const Expression* conditionExpr,
-                               std::span<const Expression* const> caseItemExprs) {
+                               std::span<const Expression* const> caseItemExprs,
+                               std::span<const GenerateSelection> enclosing = {}) {
     // [27.5] If a generate block in a conditional generate construct consists of only one item
     // that is itself a conditional generate construct and if that item is not surrounded by
     // begin-end keywords, then this generate block is not treated as a separate scope. The
     // generate construct within this block is said to be directly nested. The generate blocks
     // of the directly nested construct are treated as if they belong to the outer construct.
+    //
+    // The flattening leaves the enclosing levels named by no block of the construct, so the
+    // path is carried down and each level appends what it states.
+    SmallVector<GenerateSelection> path;
+    path.append_range(enclosing);
+    path.push_back(GenerateSelection{conditionExpr, caseItemExprs, branchKind});
+    auto selectionPath = path.copy(compilation);
+
     switch (syntax.kind) {
         case SyntaxKind::IfGenerate:
             GenerateBlockSymbol::fromSyntax(compilation, syntax.as<IfGenerateSyntax>(), context,
-                                            constructIndex, isUninstantiated, results);
+                                            constructIndex, isUninstantiated, results,
+                                            selectionPath);
             return;
         case SyntaxKind::CaseGenerate:
             GenerateBlockSymbol::fromSyntax(compilation, syntax.as<CaseGenerateSyntax>(), context,
-                                            constructIndex, isUninstantiated, results);
+                                            constructIndex, isUninstantiated, results,
+                                            selectionPath);
             return;
         default:
             break;
@@ -509,8 +520,7 @@ static void createCondGenBlock(Compilation& compilation, const SyntaxNode& synta
     block->setSyntax(syntax);
     block->setAttributes(*context.scope, attributes);
     block->branchKind = branchKind;
-    block->conditionExpression = conditionExpr;
-    block->caseItemExpressions = caseItemExprs;
+    block->selectionPath = selectionPath;
     results.push_back(block);
 
     addBlockMembers(*block, syntax);
@@ -519,7 +529,8 @@ static void createCondGenBlock(Compilation& compilation, const SyntaxNode& synta
 void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const IfGenerateSyntax& syntax,
                                      const ASTContext& context, uint32_t constructIndex,
                                      bool isUninstantiated,
-                                     SmallVectorBase<GenerateBlockSymbol*>& results) {
+                                     SmallVectorBase<GenerateBlockSymbol*>& results,
+                                     std::span<const GenerateSelection> enclosing) {
     std::optional<bool> selector;
     auto& cond = Expression::bind(*syntax.condition, context);
     ConstantValue cv = context.eval(cond);
@@ -528,18 +539,19 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const IfGenerateS
 
     createCondGenBlock(compilation, *syntax.block, context, constructIndex,
                        !selector.has_value() || !selector.value(), syntax.attributes, results,
-                       GenerateBranchKind::IfTrue, &cond, {});
+                       GenerateBranchKind::IfTrue, &cond, {}, enclosing);
     if (syntax.elseClause) {
         createCondGenBlock(compilation, *syntax.elseClause->clause, context, constructIndex,
                            !selector.has_value() || selector.value(), syntax.attributes, results,
-                           GenerateBranchKind::IfFalse, &cond, {});
+                           GenerateBranchKind::IfFalse, &cond, {}, enclosing);
     }
 }
 
 void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerateSyntax& syntax,
                                      const ASTContext& context, uint32_t constructIndex,
                                      bool isUninstantiated,
-                                     SmallVectorBase<GenerateBlockSymbol*>& results) {
+                                     SmallVectorBase<GenerateBlockSymbol*>& results,
+                                     std::span<const GenerateSelection> enclosing) {
 
     SmallVector<const ExpressionSyntax*> expressions;
     const SyntaxNode* defBlock = nullptr;
@@ -614,6 +626,8 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
             }
         }
 
+        // One span per item, so every block beneath an item carries the same one and a
+        // consumer can tell two blocks under one item from two blocks under two items.
         auto itemExprSpan = itemExprs.copy(compilation);
 
         if (currentFound && !found) {
@@ -622,7 +636,7 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
             matchRange = currentMatchRange;
             createCondGenBlock(compilation, *sci.clause, context, constructIndex, isUninstantiated,
                                syntax.attributes, results, GenerateBranchKind::CaseItem, condExpr,
-                               itemExprSpan);
+                               itemExprSpan, enclosing);
         }
         else {
             // If we previously found a block, this block also matched, which we should warn about.
@@ -636,15 +650,16 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
             // This block is not taken, so create it as uninstantiated.
             createCondGenBlock(compilation, *sci.clause, context, constructIndex, true,
                                syntax.attributes, results, GenerateBranchKind::CaseItem, condExpr,
-                               itemExprSpan);
+                               itemExprSpan, enclosing);
         }
     }
 
     if (defBlock) {
-        // Only instantiated if no other blocks were instantiated.
+        // Only instantiated if no other blocks were instantiated, which is every label the
+        // construct carries failing to match.
         createCondGenBlock(compilation, *defBlock, context, constructIndex,
                            isUninstantiated || found, syntax.attributes, results,
-                           GenerateBranchKind::CaseDefault, condExpr, {});
+                           GenerateBranchKind::CaseDefault, condExpr, {}, enclosing);
     }
     else if (!found) {
         auto& diag = context.addDiag(diag::CaseGenerateNoBlock, condExpr->sourceRange);
@@ -702,12 +717,21 @@ void GenerateBlockSymbol::serializeTo(ASTSerializer& serializer) const {
     serializer.write("constructIndex", constructIndex);
     serializer.write("isUninstantiated", isUninstantiated);
     serializer.write("branchKind", toString(branchKind));
-    if (auto cond = getConditionExpression())
-        serializer.write("conditionExpression", *cond);
-    if (!caseItemExpressions.empty()) {
-        serializer.startArray("caseItemExpressions");
-        for (auto expr : caseItemExpressions)
-            serializer.serialize(*expr);
+    if (!selectionPath.empty()) {
+        serializer.startArray("selectionPath");
+        for (auto& level : selectionPath) {
+            serializer.startObject();
+            serializer.write("kind", toString(level.kind));
+            if (level.condition)
+                serializer.write("condition", *level.condition);
+            if (!level.caseItems.empty()) {
+                serializer.startArray("caseItems");
+                for (auto expr : level.caseItems)
+                    serializer.serialize(*expr);
+                serializer.endArray();
+            }
+            serializer.endObject();
+        }
         serializer.endArray();
     }
 }

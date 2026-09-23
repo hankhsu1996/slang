@@ -290,8 +290,11 @@ endmodule
     CHECK(ifFalse.isUninstantiated);
     REQUIRE(ifTrue.getConditionExpression() != nullptr);
     CHECK(ifTrue.getConditionExpression() == ifFalse.getConditionExpression());
-    CHECK(ifTrue.caseItemExpressions.empty());
+    CHECK(ifTrue.getCaseItemExpressions().empty());
     CHECK(ifTrue.getArrayIndex() == nullptr);
+    REQUIRE(ifTrue.selectionPath.size() == 1);
+    CHECK(ifTrue.selectionPath.back().kind == GenerateBranchKind::IfTrue);
+    CHECK(ifFalse.selectionPath.back().kind == GenerateBranchKind::IfFalse);
     REQUIRE(constructOf(ifTrue) != nullptr);
     CHECK(constructOf(ifTrue)->kind == SyntaxKind::IfGenerate);
     CHECK(constructOf(ifTrue) == constructOf(ifFalse));
@@ -303,8 +306,8 @@ endmodule
     CHECK(caseDefault.branchKind == GenerateBranchKind::CaseDefault);
     REQUIRE(caseItem.getConditionExpression() != nullptr);
     CHECK(caseItem.getConditionExpression() == caseDefault.getConditionExpression());
-    CHECK(caseItem.caseItemExpressions.size() == 2);
-    CHECK(caseDefault.caseItemExpressions.empty());
+    CHECK(caseItem.getCaseItemExpressions().size() == 2);
+    CHECK(caseDefault.getCaseItemExpressions().empty());
     CHECK(caseItem.getArrayIndex() == nullptr);
     REQUIRE(constructOf(caseItem) != nullptr);
     CHECK(constructOf(caseItem)->kind == SyntaxKind::CaseGenerate);
@@ -367,6 +370,11 @@ endmodule
     REQUIRE(outer.getConditionExpression() != nullptr);
     REQUIRE(inner.getConditionExpression() != nullptr);
     CHECK(outer.getConditionExpression() != inner.getConditionExpression());
+
+    // begin-end makes each block its own scope, so neither conditional is
+    // nested in the other's construct and one level is all that selects either.
+    CHECK(outer.selectionPath.size() == 1);
+    CHECK(inner.selectionPath.size() == 1);
 }
 
 TEST_CASE("Generate provenance for directly-nested if-in-if") {
@@ -406,6 +414,17 @@ endmodule
         outerIf = outerIf->parent;
     REQUIRE(outerIf != nullptr);
     CHECK(outerIf != innerIf);
+
+    // Both blocks stand only where the outer condition held as well, and the
+    // condition they name themselves is the inner one. The path states both
+    // levels, so what selects either block is read without walking the syntax.
+    REQUIRE(t.selectionPath.size() == 2);
+    REQUIRE(f.selectionPath.size() == 2);
+    CHECK(t.selectionPath.front().kind == GenerateBranchKind::IfTrue);
+    CHECK(t.selectionPath.front().condition == f.selectionPath.front().condition);
+    CHECK(t.selectionPath.front().condition != t.selectionPath.back().condition);
+    CHECK(t.selectionPath.back().kind == GenerateBranchKind::IfTrue);
+    CHECK(f.selectionPath.back().kind == GenerateBranchKind::IfFalse);
 }
 
 TEST_CASE("Generate provenance for case inside if") {
@@ -441,12 +460,107 @@ endmodule
     CHECK(m1Construct->kind == SyntaxKind::CaseGenerate);
     CHECK(m1Construct == constructOf(md));
 
+    // The begin-end around the case makes it a scope of its own, so the case is
+    // not nested in the if's construct and one level selects each block.
+    CHECK(wrapper.selectionPath.size() == 1);
+    CHECK(m1.selectionPath.size() == 1);
+    CHECK(md.selectionPath.size() == 1);
+
     // Walk up from the inner case-generate to the enclosing if-generate.
     const SyntaxNode* cur = m1Construct->parent;
     while (cur && cur->kind != SyntaxKind::IfGenerate)
         cur = cur->parent;
     REQUIRE(cur != nullptr);
     CHECK(cur == wrapperConstruct);
+}
+
+TEST_CASE("Generate provenance for directly-nested case in if") {
+    auto tree = SyntaxTree::fromText(R"(
+module Top #(parameter int A = 2)();
+    if (A == 1)
+        case (A)
+            1: begin : m1 int x; end
+            default: begin : md int y; end
+        endcase
+    else begin : other
+        int z;
+    end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& root = compilation.getRoot();
+    auto& other = root.lookupName<GenerateBlockSymbol>("Top.other");
+
+    // Without begin-end the case belongs to the if's construct, so all four
+    // blocks share it. The else block is selected by the if's condition alone;
+    // the two the case produced are selected by that condition holding and
+    // their own label matching, and the path says so for each.
+    CHECK(other.branchKind == GenerateBranchKind::IfFalse);
+    REQUIRE(other.selectionPath.size() == 1);
+
+    auto& scope = *other.getParentScope();
+    int caseBlocks = 0;
+    for (auto& member : scope.members()) {
+        auto* block = member.as_if<GenerateBlockSymbol>();
+        if (!block || block->branchKind == GenerateBranchKind::IfFalse)
+            continue;
+        CHECK(block->constructIndex == other.constructIndex);
+        REQUIRE(block->selectionPath.size() == 2);
+        CHECK(block->selectionPath.front().kind == GenerateBranchKind::IfTrue);
+        CHECK(block->selectionPath.front().condition == other.selectionPath.front().condition);
+        caseBlocks++;
+    }
+    CHECK(caseBlocks == 2);
+}
+
+TEST_CASE("Generate provenance shares one span per case item") {
+    auto tree = SyntaxTree::fromText(R"(
+module Top #(parameter int A = 1)();
+    case (A)
+        1: if (A == 1) begin : d1 int x; end else begin : d2 int y; end
+        default: begin : dd int z; end
+    endcase
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& root = compilation.getRoot();
+    auto& d1 = root.lookupName<GenerateBlockSymbol>("Top.d1");
+    auto& dd = root.lookupName<GenerateBlockSymbol>("Top.dd");
+
+    // The if is directly nested in the item, so both of its blocks sit under that
+    // one item and carry its span, while the default carries none. What identifies
+    // an item is therefore the span itself: two blocks under one item and two
+    // blocks under two items are told apart without reading the labels.
+    auto& scope = *d1.getParentScope();
+    const Expression* const* itemSpan = nullptr;
+    int underTheItem = 0;
+    for (auto& member : scope.members()) {
+        auto* block = member.as_if<GenerateBlockSymbol>();
+        if (!block || block->branchKind == GenerateBranchKind::CaseDefault)
+            continue;
+        REQUIRE(block->selectionPath.size() == 2);
+        CHECK(block->selectionPath.front().kind == GenerateBranchKind::CaseItem);
+        REQUIRE(block->selectionPath.front().caseItems.size() == 1);
+        if (itemSpan == nullptr)
+            itemSpan = block->selectionPath.front().caseItems.data();
+        else
+            CHECK(block->selectionPath.front().caseItems.data() == itemSpan);
+        underTheItem++;
+    }
+    CHECK(underTheItem == 2);
+
+    REQUIRE(dd.selectionPath.size() == 1);
+    CHECK(dd.selectionPath.front().kind == GenerateBranchKind::CaseDefault);
+    CHECK(dd.selectionPath.front().caseItems.empty());
+    CHECK(dd.selectionPath.front().condition == d1.selectionPath.front().condition);
 }
 
 TEST_CASE("Generate provenance with inline genvar") {

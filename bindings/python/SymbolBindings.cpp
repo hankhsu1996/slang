@@ -463,7 +463,7 @@ void registerSymbols(py::module_& m) {
         .def_readonly("constructIndex", &GenerateBlockSymbol::constructIndex)
         .def_readonly("isUninstantiated", &GenerateBlockSymbol::isUninstantiated)
         .def_readonly("branchKind", &GenerateBlockSymbol::branchKind)
-        .def_readonly("caseItemExpressions", &GenerateBlockSymbol::caseItemExpressions)
+        .def_property_readonly("caseItemExpressions", &GenerateBlockSymbol::getCaseItemExpressions)
         .def_property_readonly("arrayIndex", &GenerateBlockSymbol::getArrayIndex)
         .def_property_readonly("conditionExpression", &GenerateBlockSymbol::getConditionExpression)
         .def_property_readonly("externalName", &GenerateBlockSymbol::getExternalName);
