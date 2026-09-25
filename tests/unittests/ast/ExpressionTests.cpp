@@ -3772,6 +3772,78 @@ $static_assert(foo() == 8'h7f);
     NO_COMPILATION_ERRORS;
 }
 
+TEST_CASE("Size cast records the expression its width was bound from") {
+    auto tree = SyntaxTree::fromText(R"(
+module m #(parameter int W = 4);
+    int x = 1000;
+    logic signed [3:0] a = W'(x);
+    int b = int'(W'(x));
+    logic signed [3:0] c = W'(shortint'(x));
+    shortint d = shortint'(x);
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    // The first width any conversion on the way down to the operand records.
+    auto widthIn = [&](std::string_view name) -> const Expression* {
+        auto* sym = compilation.getRoot().lookupName(name);
+        REQUIRE(sym);
+        const Expression* cur = sym->as<VariableSymbol>().getInitializer();
+        while (cur && cur->kind == ExpressionKind::Conversion) {
+            auto& conv = cur->as<ConversionExpression>();
+            if (conv.widthExpr)
+                return conv.widthExpr;
+            cur = &conv.operand();
+        }
+        return nullptr;
+    };
+    auto namesW = [](const Expression* expr) {
+        return expr && expr->kind == ExpressionKind::NamedValue &&
+               expr->as<NamedValueExpression>().symbol.name == "W";
+    };
+
+    CHECK(namesW(widthIn("m.a")));
+    CHECK(namesW(widthIn("m.b")));
+    CHECK(namesW(widthIn("m.c")));
+    CHECK(!widthIn("m.d"));
+}
+
+TEST_CASE("Streaming concatenation records the expression its slice size was bound from") {
+    auto tree = SyntaxTree::fromText(R"(
+module m #(parameter int W = 4);
+    localparam logic [15:0] bits = 16'h1234;
+    logic [15:0] a = {<< W {bits}};
+    logic [15:0] b = {<< byte {bits}};
+    logic [15:0] c = {<< {bits}};
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto streamIn = [&](std::string_view name) -> const StreamingConcatenationExpression& {
+        auto* sym = compilation.getRoot().lookupName(name);
+        REQUIRE(sym);
+        const Expression* cur = sym->as<VariableSymbol>().getInitializer();
+        while (cur->kind == ExpressionKind::Conversion)
+            cur = &cur->as<ConversionExpression>().operand();
+        return cur->as<StreamingConcatenationExpression>();
+    };
+
+    auto& a = streamIn("m.a");
+    REQUIRE(a.sliceSizeExpr);
+    CHECK(a.sliceSizeExpr->kind == ExpressionKind::NamedValue);
+    CHECK(a.sliceSizeExpr->as<NamedValueExpression>().symbol.name == "W");
+    CHECK(a.getSliceSize() == 4);
+
+    CHECK(!streamIn("m.b").sliceSizeExpr);
+    CHECK(!streamIn("m.c").sliceSizeExpr);
+}
+
 TEST_CASE("Test ternary operation sizing regression") {
     auto tree = SyntaxTree::fromText(R"(
 module m;

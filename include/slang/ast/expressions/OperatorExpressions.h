@@ -336,6 +336,11 @@ public:
         }
     };
 
+    /// For a right-to-left stream whose slice size is written as an expression,
+    /// the original slice size expression as it appeared in the source (e.g. the
+    /// expression for `W` in `{<< W {x}}`), or nullptr otherwise.
+    const Expression* sliceSizeExpr = nullptr;
+
     StreamingConcatenationExpression(const Type& type, uint64_t sliceSize, uint64_t bitstreamWidth,
                                      std::span<const StreamExpression> streams,
                                      SourceRange sourceRange) :

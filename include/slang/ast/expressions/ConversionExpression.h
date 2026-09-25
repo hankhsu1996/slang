@@ -19,6 +19,10 @@ public:
 
     bool isConstCast = false;
 
+    /// For a size cast, the original width expression as it appeared in the
+    /// source (e.g. the expression for `W` in `W'(x)`), or nullptr otherwise.
+    const Expression* widthExpr = nullptr;
+
     ConversionExpression(const Type& type, ConversionKind conversionKind, Expression& operand,
                          SourceRange sourceRange) :
         Expression(ExpressionKind::Conversion, type, sourceRange), conversionKind(conversionKind),

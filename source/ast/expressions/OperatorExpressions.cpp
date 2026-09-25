@@ -2267,6 +2267,7 @@ Expression& StreamingConcatenationExpression::fromSyntax(
     const bool isDestination = context.flags.has(ASTFlags::LValue);
     const bool isRightToLeft = syntax.operatorToken.kind == TokenKind::LeftShift;
     uint64_t sliceSize = 0;
+    const Expression* sliceSizeExpr = nullptr;
 
     auto badResult = [&]() -> Expression& {
         return badExpr(comp, comp.emplace<StreamingConcatenationExpression>(
@@ -2302,12 +2303,14 @@ Expression& StreamingConcatenationExpression::fromSyntax(
             if (!context.requireGtZero(count, sliceExpr.sourceRange))
                 return badResult();
             sliceSize = static_cast<uint32_t>(*count);
+            sliceSizeExpr = &sliceExpr;
         }
 
         if (!isRightToLeft) {
             // Left-to-right streaming using >> shall cause the slice_size to be ignored and no
             // re-ordering performed.
             sliceSize = 0;
+            sliceSizeExpr = nullptr;
             context.addDiag(diag::IgnoredSlice, syntax.sliceSize->sourceRange());
         }
     }
@@ -2399,6 +2402,7 @@ Expression& StreamingConcatenationExpression::fromSyntax(
 
     auto& result = *comp.emplace<StreamingConcatenationExpression>(
         comp.getVoidType(), sliceSize, bitstreamWidth, buffer.ccopy(comp), syntax.sourceRange());
+    result.sliceSizeExpr = sliceSizeExpr;
 
     // In VCS compat mode the error about requiring an assignment context can be silenced,
     // so we need a real target type. Use a packed bit vector of the bitstream width.
