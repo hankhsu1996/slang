@@ -5,6 +5,7 @@
 
 #include "slang/ast/Expression.h"
 #include "slang/ast/ScriptSession.h"
+#include "slang/ast/symbols/ClassSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
@@ -2756,5 +2757,65 @@ endmodule
     REQUIRE(unbounded.size() == 1);
     CHECK(unbounded[0].kind == DimensionKind::Queue);
     CHECK(unbounded[0].queueMaxSizeExpr == nullptr);
+    NO_COMPILATION_ERRORS;
+}
+
+TEST_CASE("getResolvedDimensions - several dimensions keep declaration order") {
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    logic [3:0][1:0] v [5:0][2:0];
+    struct packed { bit a; } [7:0][4:0] s;
+endmodule
+)");
+    Compilation compilation;
+    const auto& instance = evalModule(tree, compilation).body;
+
+    auto leftsOf = [&](std::string_view name) {
+        std::vector<int32_t> lefts;
+        for (auto& dim :
+             instance.find<VariableSymbol>(name).getDeclaredType()->getResolvedDimensions())
+            lefts.push_back(dim.range.left);
+        return lefts;
+    };
+    CHECK(leftsOf("v") == std::vector<int32_t>{3, 1, 5, 2});
+    CHECK(leftsOf("s") == std::vector<int32_t>{7, 4});
+    NO_COMPILATION_ERRORS;
+}
+
+TEST_CASE("getResolvedDimensions - overridden type parameter") {
+    // An overriding type is written where the instance or the specialization
+    // is, so its dimensions are evaluated there -- for a module instance and a
+    // class specialization alike.
+    auto tree = SyntaxTree::fromText(R"(
+module child #(parameter type T = int);
+endmodule
+
+module m #(parameter int N = 4);
+    class Box #(type T = int);
+        T value;
+    endclass
+
+    Box #(logic [N-1:0]) b;
+    child #(.T(logic [N:0])) c();
+endmodule
+)");
+    Compilation compilation;
+    const auto& instance = evalModule(tree, compilation).body;
+
+    const auto& box = instance.find<VariableSymbol>("b").getType().as<ClassType>();
+    REQUIRE(box.genericParameters.size() == 1);
+    auto boxDims =
+        box.genericParameters[0]->as<TypeParameterSymbol>().targetType.getResolvedDimensions();
+    REQUIRE(boxDims.size() == 1);
+    CHECK(boxDims[0].range.left == 3);
+    REQUIRE(boxDims[0].leftExpr != nullptr);
+    CHECK(boxDims[0].leftExpr->kind == ExpressionKind::BinaryOp);
+
+    const auto& child = instance.find<InstanceSymbol>("c");
+    auto childDims = child.body.find<TypeParameterSymbol>("T").targetType.getResolvedDimensions();
+    REQUIRE(childDims.size() == 1);
+    CHECK(childDims[0].range.left == 4);
+    REQUIRE(childDims[0].leftExpr != nullptr);
+    CHECK(childDims[0].leftExpr->kind == ExpressionKind::NamedValue);
     NO_COMPILATION_ERRORS;
 }

@@ -16,6 +16,7 @@ namespace slang::ast {
 
 class Compilation;
 class TypeProvider;
+struct EvaluatedDimension;
 struct LookupResult;
 enum class RandMode;
 
@@ -348,13 +349,18 @@ public:
     /// in their inheritance chain, return that common type. Otherwise, returns nullptr.
     static const Type* getCommonBase(const Type& left, const Type& right);
 
+    /// If @a evaluated is given, the dimensions written directly on @a syntax are
+    /// appended to it in declaration order, as they were evaluated to build the type.
     static const Type& fromSyntax(Compilation& compilation, const syntax::DataTypeSyntax& syntax,
-                                  const ASTContext& context, const Type* typedefTarget);
+                                  const ASTContext& context, const Type* typedefTarget,
+                                  SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
 
+    /// If @a evaluated is given, @a dimensions are appended to it in declaration
+    /// order, as they were evaluated to build the type.
     static const Type& fromSyntax(
         Compilation& compilation, const Type& elementType,
         const syntax::SyntaxList<syntax::VariableDimensionSyntax>& dimensions,
-        const ASTContext& context);
+        const ASTContext& context, SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
 
     /// Constructs a type from the results of a lookup operation. Note that this will
     /// not issue any diagnostics from the result object; the caller must do that

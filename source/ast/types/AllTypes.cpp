@@ -102,14 +102,22 @@ std::string_view getName(FloatingType::Kind kind) {
 // clang-format on
 
 const Type& createPackedDims(const ASTContext& context, const Type* type,
-                             const SyntaxList<VariableDimensionSyntax>& dimensions) {
+                             const SyntaxList<VariableDimensionSyntax>& dimensions,
+                             SmallVectorBase<EvaluatedDimension>* evaluated) {
+    // The dimensions are evaluated innermost first, so what they record is put
+    // back in declaration order afterward.
+    const size_t firstEvaluated = evaluated ? evaluated->size() : 0;
     size_t count = dimensions.size();
     for (size_t i = 0; i < count; i++) {
         auto& dimSyntax = *dimensions[count - i - 1];
         auto dim = context.evalPackedDimension(dimSyntax);
+        if (evaluated)
+            evaluated->push_back(dim);
         type = &PackedArrayType::fromSyntax(context, *type, dim, dimSyntax);
     }
 
+    if (evaluated)
+        std::ranges::reverse(evaluated->begin() + ptrdiff_t(firstEvaluated), evaluated->end());
     return *type;
 }
 
@@ -161,11 +169,14 @@ bool IntegralType::isDeclaredReg() const {
 
 const Type& IntegralType::fromSyntax(Compilation& compilation, SyntaxKind integerKind,
                                      std::span<const VariableDimensionSyntax* const> dimensions,
-                                     bool isSigned, const ASTContext& context) {
+                                     bool isSigned, const ASTContext& context,
+                                     SmallVectorBase<EvaluatedDimension>* evaluated) {
     // This is a simple integral vector (possibly of just one element).
     SmallVector<std::pair<EvaluatedDimension, const SyntaxNode*>, 4> dims;
     for (auto dimSyntax : dimensions) {
         auto dim = context.evalPackedDimension(*dimSyntax);
+        if (evaluated)
+            evaluated->push_back(dim);
         dims.emplace_back(dim, dimSyntax);
     }
 
@@ -200,9 +211,10 @@ const Type& IntegralType::fromSyntax(Compilation& compilation, SyntaxKind intege
 }
 
 const Type& IntegralType::fromSyntax(Compilation& compilation, const IntegerTypeSyntax& syntax,
-                                     const ASTContext& context) {
+                                     const ASTContext& context,
+                                     SmallVectorBase<EvaluatedDimension>* evaluated) {
     return fromSyntax(compilation, syntax.kind, syntax.dimensions,
-                      syntax.signing.kind == TokenKind::SignedKeyword, context);
+                      syntax.signing.kind == TokenKind::SignedKeyword, context, evaluated);
 }
 
 ConstantValue IntegralType::getDefaultValueImpl() const {
@@ -572,7 +584,8 @@ static std::string_view getEnumValueName(Compilation& comp, std::string_view nam
 }
 
 const Type& EnumType::findDefinition(Compilation& comp, const EnumTypeSyntax& syntax,
-                                     const ASTContext& context) {
+                                     const ASTContext& context,
+                                     SmallVectorBase<EvaluatedDimension>* evaluated) {
     // The enum type and all of its values should have already been created and
     // added to the parent scope. We just need to find it so we can hook up our caller.
     // To do that we're going to try to look up our first member, which should have
@@ -600,7 +613,7 @@ const Type& EnumType::findDefinition(Compilation& comp, const EnumTypeSyntax& sy
     if (symbol && symbol->kind == SymbolKind::EnumValue) {
         auto& type = symbol->as<EnumValueSymbol>().getType().getCanonicalType();
         if (type.getSyntax() == &syntax)
-            return createPackedDims(context, &type, syntax.dimensions);
+            return createPackedDims(context, &type, syntax.dimensions, evaluated);
     }
 
     return comp.getErrorType();
@@ -856,7 +869,8 @@ PackedStructType::PackedStructType(Compilation& compilation, bool isSigned, Sour
 }
 
 const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTypeSyntax& syntax,
-                                         const ASTContext& parentContext) {
+                                         const ASTContext& parentContext,
+                                         SmallVectorBase<EvaluatedDimension>* evaluated) {
     SLANG_ASSERT(syntax.packed);
     const bool isSigned = syntax.signing.kind == TokenKind::SignedKeyword;
     bool issuedError = false;
@@ -929,7 +943,7 @@ const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTyp
         offset += member->getType().getBitWidth();
     }
 
-    return createPackedDims(parentContext, structType, syntax.dimensions);
+    return createPackedDims(parentContext, structType, syntax.dimensions, evaluated);
 }
 
 UnpackedStructType::UnpackedStructType(Compilation& compilation, SourceLocation loc,
@@ -1026,7 +1040,8 @@ PackedUnionType::PackedUnionType(Compilation& compilation, bool isSigned, bool i
 }
 
 const Type& PackedUnionType::fromSyntax(Compilation& comp, const StructUnionTypeSyntax& syntax,
-                                        const ASTContext& parentContext) {
+                                        const ASTContext& parentContext,
+                                        SmallVectorBase<EvaluatedDimension>* evaluated) {
     const bool isSigned = syntax.signing.kind == TokenKind::SignedKeyword;
     const bool isTagged = syntax.taggedOrSoft.kind == TokenKind::TaggedKeyword;
     const bool isSoft = syntax.taggedOrSoft.kind == TokenKind::SoftKeyword;
@@ -1105,7 +1120,7 @@ const Type& PackedUnionType::fromSyntax(Compilation& comp, const StructUnionType
     if (!unionType->bitWidth || issuedError)
         return comp.getErrorType();
 
-    return createPackedDims(context, unionType, syntax.dimensions);
+    return createPackedDims(context, unionType, syntax.dimensions, evaluated);
 }
 
 void PackedUnionType::serializeTo(ASTSerializer& serializer) const {
