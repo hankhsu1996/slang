@@ -15,6 +15,7 @@
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
+#include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/SubroutineSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/Type.h"
@@ -2962,4 +2963,73 @@ endclass
     CHECK(viaSuper.lookupInfo.viaSuper);
     CHECK(viaThisSuper.lookupInfo.viaSuper);
     CHECK(!unqualified.lookupInfo.viaSuper);
+}
+
+TEST_CASE("Hierarchical path records the expressions its selectors were bound from") {
+    auto tree = SyntaxTree::fromText(R"(
+interface I;
+endinterface
+
+module m(I i[2]);
+endmodule
+
+module n #(parameter int W = 1);
+    I i[8] ();
+    for (genvar k = 0; k < 4; k++) begin : g
+        int v;
+    end
+    int x;
+    initial x = g[W].v;
+    m m1(n.i[W:W+1]);
+endmodule
+
+module top;
+    n #(.W(2)) u();
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto* uSym = compilation.getRoot().lookupName("top.u");
+    REQUIRE(uSym);
+    auto& body = uSym->as<InstanceSymbol>().body;
+
+    auto namesW = [](const Expression* expr) {
+        return expr && expr->kind == ExpressionKind::NamedValue &&
+               expr->as<NamedValueExpression>().symbol.name == "W";
+    };
+
+    // `g[W].v`: the element reached through the generate array holds the index
+    // it was resolved at and the expression the source wrote for it.
+    auto& assign = body.membersOfType<ProceduralBlockSymbol>()
+                       .begin()
+                       ->getBody()
+                       .as<ExpressionStatement>()
+                       .expr.as<AssignmentExpression>();
+    auto& hier = assign.right().as<HierarchicalValueExpression>();
+    const HierarchicalReference::Element* indexed = nullptr;
+    for (auto& elem : hier.ref.path) {
+        if (std::holds_alternative<int32_t>(elem.selector))
+            indexed = &elem;
+    }
+    REQUIRE(indexed);
+    CHECK(std::get<int32_t>(indexed->selector) == 2);
+    CHECK(namesW(indexed->leftExpr));
+    CHECK(!indexed->rightExpr);
+
+    // `n.i[W:W+1]`: a range selector holds both bounds.
+    auto* m1Sym = body.find("m1");
+    REQUIRE(m1Sym);
+    auto conns = m1Sym->as<InstanceSymbol>().getPortConnections();
+    REQUIRE(conns.size() == 1);
+    auto* connExpr = conns[0]->getExpression();
+    REQUIRE(connExpr);
+    auto& conn = connExpr->as<ArbitrarySymbolExpression>();
+    REQUIRE(!conn.hierRef.path.empty());
+    auto& ranged = conn.hierRef.path.back();
+    REQUIRE(std::holds_alternative<std::pair<int32_t, int32_t>>(ranged.selector));
+    CHECK(namesW(ranged.leftExpr));
+    REQUIRE(ranged.rightExpr);
+    CHECK(ranged.rightExpr->kind == ExpressionKind::BinaryOp);
 }
