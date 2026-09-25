@@ -94,6 +94,16 @@ struct SequenceRange {
     /// The maximum length of the range. If unset, the maximum is unbounded.
     std::optional<uint32_t> max;
 
+    /// The original expression for the minimum as it appeared in the source (e.g.
+    /// the expression for `W` in `##W` or `##[W:M]`), or nullptr if the range was
+    /// not written with one.
+    const Expression* minExpr = nullptr;
+
+    /// The original expression for a bounded maximum as it appeared in the source
+    /// (the same expression as @a minExpr where one value gives both), or nullptr
+    /// if the maximum is unbounded or was not written with one.
+    const Expression* maxExpr = nullptr;
+
     static SequenceRange fromSyntax(const syntax::SelectorSyntax& syntax, const ASTContext& context,
                                     bool allowUnbounded);
     static SequenceRange fromSyntax(const syntax::RangeSelectSyntax& syntax,

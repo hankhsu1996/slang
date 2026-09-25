@@ -4,6 +4,9 @@
 #include "Test.h"
 #include <fmt/format.h>
 
+#include "slang/ast/ASTVisitor.h"
+#include "slang/ast/expressions/AssertionExpr.h"
+#include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/diagnostics/StatementsDiags.h"
 
 TEST_CASE("Named sequences") {
@@ -1842,4 +1845,63 @@ endmodule
     auto& diags = compilation.getAllDiagnostics();
     REQUIRE(diags.size() == 1);
     CHECK(diags[0].code == diag::AssertionExprType);
+}
+
+TEST_CASE("Sequence ranges record the expressions their bounds were bound from") {
+    auto tree = SyntaxTree::fromText(R"(
+module m #(parameter int W = 2) (input logic clk);
+    logic a, b;
+    assert property (@(posedge clk) a |-> ##W b);
+    assert property (@(posedge clk) a |-> ##[W:$] b);
+    assert property (@(posedge clk) a |-> b[*W]);
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    // Every range the assertions wrote with an expression, in source order.
+    struct Ranges : public ASTVisitor<Ranges, VisitFlags::AllGood> {
+        std::vector<const SequenceRange*> written;
+
+        void add(const SequenceRange& range) {
+            if (range.minExpr)
+                written.push_back(&range);
+        }
+        void handle(const SequenceConcatExpr& e) {
+            for (auto& elem : e.elements)
+                add(elem.delay);
+            visitDefault(e);
+        }
+        void handle(const SimpleAssertionExpr& e) {
+            if (e.repetition)
+                add(e.repetition->range);
+            visitDefault(e);
+        }
+    };
+
+    auto* m = compilation.getRoot().lookupName("m");
+    REQUIRE(m);
+    Ranges ranges;
+    m->visit(ranges);
+    REQUIRE(ranges.written.size() == 3);
+
+    auto namesW = [](const Expression* expr) {
+        return expr && expr->kind == ExpressionKind::NamedValue &&
+               expr->as<NamedValueExpression>().symbol.name == "W";
+    };
+
+    // `##W` fixes both ends with one expression.
+    CHECK(namesW(ranges.written[0]->minExpr));
+    CHECK(ranges.written[0]->maxExpr == ranges.written[0]->minExpr);
+
+    // `##[W:$]` has an unbounded maximum and no expression for it.
+    CHECK(namesW(ranges.written[1]->minExpr));
+    CHECK(!ranges.written[1]->max);
+    CHECK(!ranges.written[1]->maxExpr);
+
+    // `[*W]` repeats a fixed number of times.
+    CHECK(namesW(ranges.written[2]->minExpr));
+    CHECK(ranges.written[2]->maxExpr == ranges.written[2]->minExpr);
 }

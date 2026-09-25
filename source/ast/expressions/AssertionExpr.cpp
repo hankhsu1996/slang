@@ -454,12 +454,14 @@ void InvalidAssertionExpr::serializeTo(ASTSerializer& serializer) const {
 SequenceRange SequenceRange::fromSyntax(const SelectorSyntax& syntax, const ASTContext& context,
                                         bool allowUnbounded) {
     if (syntax.kind == SyntaxKind::BitSelect) {
-        auto val = context.evalInteger(*syntax.as<BitSelectSyntax>().expr,
-                                       ASTFlags::AssertionDelayOrRepetition);
+        auto& expr = Expression::bind(*syntax.as<BitSelectSyntax>().expr, context,
+                                      ASTFlags::AssertionDelayOrRepetition);
+        auto val = context.evalInteger(expr);
 
         SequenceRange range;
         if (context.requirePositive(val, syntax.sourceRange()))
             range.max = range.min = uint32_t(*val);
+        range.minExpr = range.maxExpr = &expr;
 
         return range;
     }
@@ -472,9 +474,11 @@ SequenceRange SequenceRange::fromSyntax(const SelectorSyntax& syntax, const ASTC
 SequenceRange SequenceRange::fromSyntax(const RangeSelectSyntax& syntax, const ASTContext& context,
                                         bool allowUnbounded) {
     SequenceRange range;
-    auto l = context.evalInteger(*syntax.left, ASTFlags::AssertionDelayOrRepetition);
+    auto& le = Expression::bind(*syntax.left, context, ASTFlags::AssertionDelayOrRepetition);
+    auto l = context.evalInteger(le);
     if (context.requirePositive(l, syntax.left->sourceRange()))
         range.min = uint32_t(*l);
+    range.minExpr = &le;
 
     // The rhs can be an unbounded '$' so we need extra AST flags.
     bitmask<ASTFlags> flags = ASTFlags::AssertionExpr | ASTFlags::AssertionDelayOrRepetition;
@@ -485,6 +489,7 @@ SequenceRange SequenceRange::fromSyntax(const RangeSelectSyntax& syntax, const A
     if (re.type->isUnbounded())
         return range;
 
+    range.maxExpr = &re;
     auto r = context.evalInteger(re);
     if (context.requirePositive(r, syntax.right->sourceRange())) {
         range.max = uint32_t(*r);
@@ -721,11 +726,14 @@ AssertionExpr& SequenceConcatExpr::fromSyntax(const DelayedSequenceExprSyntax& s
         SourceRange delayRange;
         if (es->delayVal) {
             delayRange = es->delayVal->sourceRange();
-            auto val = context.evalInteger(*es->delayVal, ASTFlags::AssertionDelayOrRepetition);
+            auto& delayExpr = Expression::bind(*es->delayVal, context,
+                                               ASTFlags::AssertionDelayOrRepetition);
+            auto val = context.evalInteger(delayExpr);
             if (!context.requirePositive(val, es->delayVal->sourceRange()))
                 ok = false;
             else
                 delay.max = delay.min = uint32_t(*val);
+            delay.minExpr = delay.maxExpr = &delayExpr;
         }
         else if (es->range) {
             delayRange = es->range->sourceRange();
