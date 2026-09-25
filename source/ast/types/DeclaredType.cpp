@@ -561,10 +561,14 @@ std::vector<EvaluatedDimension> DeclaredType::getResolvedDimensions() const {
             result = typeOrLink.link->getResolvedDimensions();
 
         // Then append any additional unpacked dims applied on top of the link.
+        // They are evaluated the way the unpacked array type evaluated them, so a
+        // dimension that is not a range (a queue, a dynamic or associative array)
+        // adds no diagnostic the type did not.
         if (dimensions) {
             auto ctx = getASTContext<false>();
             for (auto dim : *dimensions)
-                result.push_back(ctx.evalUnpackedDimension(*dim));
+                result.push_back(
+                    ctx.evalDimension(*dim, /* requireRange */ false, /* isPacked */ false));
         }
         return result;
     }
@@ -591,7 +595,8 @@ std::vector<EvaluatedDimension> DeclaredType::getResolvedDimensions() const {
 
     if (dimensions) {
         for (auto dim : *dimensions)
-            result.push_back(ctx.evalUnpackedDimension(*dim));
+            result.push_back(
+                ctx.evalDimension(*dim, /* requireRange */ false, /* isPacked */ false));
     }
 
     return result;

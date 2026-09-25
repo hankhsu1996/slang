@@ -44,6 +44,11 @@ struct SLANG_EXPORT EvaluatedDimension {
     /// max queue size.
     uint32_t queueMaxSize = 0;
 
+    /// For Queue kind with a max size, the original max size expression as it
+    /// appeared in the source (e.g. the expression for `W` in `[$:W]`), or nullptr
+    /// if not applicable.
+    const Expression* queueMaxSizeExpr = nullptr;
+
     /// For Range and AbbreviatedRange kinds, the original left-bound expression
     /// as it appeared in the source (e.g. the expression for `W-1` in `[W-1:0]`),
     /// or nullptr if not applicable.

@@ -2709,3 +2709,52 @@ endmodule
     CHECK(tdDims[0].leftExpr->kind == ExpressionKind::BinaryOp);
     CHECK(compilation.getAllDiagnostics().empty());
 }
+
+TEST_CASE("getResolvedDimensions - unpacked dims that are not ranges add no errors") {
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    int q[$];
+    int d[];
+    int a[string];
+endmodule
+)");
+    Compilation compilation;
+    const auto& instance = evalModule(tree, compilation).body;
+
+    auto kindOf = [&](std::string_view name) {
+        auto dims = instance.find<VariableSymbol>(name).getDeclaredType()->getResolvedDimensions();
+        REQUIRE(dims.size() == 1);
+        return dims[0].kind;
+    };
+    CHECK(kindOf("q") == DimensionKind::Queue);
+    CHECK(kindOf("d") == DimensionKind::Dynamic);
+    CHECK(kindOf("a") == DimensionKind::Associative);
+    NO_COMPILATION_ERRORS;
+}
+
+TEST_CASE("getResolvedDimensions - bounded queue") {
+    auto tree = SyntaxTree::fromText(R"(
+module m #(parameter int N = 4);
+    int bounded[$:N];
+    int unbounded[$];
+endmodule
+)");
+    Compilation compilation;
+    const auto& instance = evalModule(tree, compilation).body;
+
+    auto bounded =
+        instance.find<VariableSymbol>("bounded").getDeclaredType()->getResolvedDimensions();
+    REQUIRE(bounded.size() == 1);
+    CHECK(bounded[0].kind == DimensionKind::Queue);
+    CHECK(bounded[0].queueMaxSize == 4);
+    // The original expression for the bound names the parameter, not a literal
+    REQUIRE(bounded[0].queueMaxSizeExpr != nullptr);
+    CHECK(bounded[0].queueMaxSizeExpr->kind == ExpressionKind::NamedValue);
+
+    auto unbounded =
+        instance.find<VariableSymbol>("unbounded").getDeclaredType()->getResolvedDimensions();
+    REQUIRE(unbounded.size() == 1);
+    CHECK(unbounded[0].kind == DimensionKind::Queue);
+    CHECK(unbounded[0].queueMaxSizeExpr == nullptr);
+    NO_COMPILATION_ERRORS;
+}

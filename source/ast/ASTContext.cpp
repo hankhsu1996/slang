@@ -338,9 +338,11 @@ EvaluatedDimension ASTContext::evalDimension(const VariableDimensionSyntax& synt
                 auto maxSizeClause =
                     syntax.specifier->as<QueueDimensionSpecifierSyntax>().maxSizeClause;
                 if (maxSizeClause) {
-                    auto value = evalInteger(*maxSizeClause->expr);
+                    auto& expr = Expression::bind(*maxSizeClause->expr, *this);
+                    auto value = evalInteger(expr);
                     if (requireGtZero(value, maxSizeClause->expr->sourceRange()))
                         result.queueMaxSize = uint32_t(*value);
+                    result.queueMaxSizeExpr = &expr;
                 }
                 break;
             }
