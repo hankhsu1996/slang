@@ -112,6 +112,13 @@ public:
     /// resolved previously.
     void setType(const Type& newType) { type = &newType; }
 
+    /// Manually sets the resolved type along with the dimensions evaluated to build
+    /// it, for an owner that builds the type itself rather than resolving it here.
+    void setType(const Type& newType, std::span<const EvaluatedDimension> dims) {
+        type = &newType;
+        resolvedDimensions = dims;
+    }
+
     /// Sets the source syntax for the type, which will later be used when
     /// resolution is requested.
     void setTypeSyntax(const syntax::DataTypeSyntax& newType) {
@@ -146,6 +153,12 @@ public:
     /// Packed dimensions from the base type syntax come first, followed by any unpacked
     /// dimensions set via @a setDimensionSyntax.
     std::span<const EvaluatedDimension> getResolvedDimensions() const;
+
+    /// Returns the parameters of each class specialization the type names, as this
+    /// declaration wrote them and resolved in its context. The specialization itself
+    /// is shared by every site handing it the same values, so its own parameters hold
+    /// whichever site created it.
+    std::span<const Symbol* const> getResolvedSpecializationParameters() const;
 
     /// Resolves and returns the initializer expression, if present. Otherwise returns nullptr.
     const Expression* getInitializer() const;
@@ -235,6 +248,7 @@ private:
     const syntax::ExpressionSyntax* initializerSyntax = nullptr;
     SourceLocation initializerLocation;
     mutable std::span<const EvaluatedDimension> resolvedDimensions;
+    mutable std::span<const Symbol* const> resolvedSpecializationParameters;
 
     bitmask<DeclaredTypeFlags> flags;
     uint32_t overrideIndex : 30;

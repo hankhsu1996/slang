@@ -1674,6 +1674,7 @@ std::optional<std::span<const ConstantRange>> InterfacePortSymbol::getDeclaredRa
 
     if (isInvalid()) {
         range.emplace();
+        dimensions.emplace();
         return range;
     }
 
@@ -1686,16 +1687,26 @@ std::optional<std::span<const ConstantRange>> InterfacePortSymbol::getDeclaredRa
     ASTContext context(*scope, LookupLocation::before(*this), ASTFlags::NonProcedural);
 
     SmallVector<ConstantRange, 4> buffer;
+    SmallVector<EvaluatedDimension, 4> evaluated;
     for (auto dimSyntax : syntax->as<DeclaratorSyntax>().dimensions) {
         auto dim = context.evalDimension(*dimSyntax, /* requireRange */ true, /* isPacked */ false);
         if (!dim.isRange())
             return std::nullopt;
 
         buffer.push_back(dim.range);
+        evaluated.push_back(dim);
     }
 
     range = buffer.copy(scope->getCompilation());
+    dimensions = evaluated.ccopy(scope->getCompilation());
     return range;
+}
+
+std::optional<std::span<const EvaluatedDimension>> InterfacePortSymbol::getDeclaredDimensions()
+    const {
+    if (!getDeclaredRange())
+        return std::nullopt;
+    return dimensions;
 }
 
 InterfacePortSymbol::IfaceConn InterfacePortSymbol::getConnection() const {

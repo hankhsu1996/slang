@@ -705,10 +705,13 @@ public:
 
     /// Gets the type represented by the given data type syntax node. If @a evaluated
     /// is given, the dimensions written directly on @a node are appended to it in
-    /// declaration order, as they were evaluated to build the type.
+    /// declaration order, as they were evaluated to build the type. If
+    /// @a specializationParameters is given, the parameters of each class
+    /// specialization a named type chose are appended to it, as this site wrote them.
     const Type& getType(const syntax::DataTypeSyntax& node, const ASTContext& context,
                         const Type* typedefTarget = nullptr,
-                        SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+                        SmallVectorBase<EvaluatedDimension>* evaluated = nullptr,
+                        SmallVectorBase<const Symbol*>* specializationParameters = nullptr);
 
     /// Gets an array type created from the given element type and dimensions. If
     /// @a evaluated is given, @a dimensions are appended to it in declaration order,

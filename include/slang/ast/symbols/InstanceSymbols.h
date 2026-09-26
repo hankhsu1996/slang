@@ -149,9 +149,14 @@ public:
         SourceLocation locationOverride = {});
 
     /// Creates a placeholder instance for a virtual interface type declaration.
+    /// The result is shared by every declaration handing it the same values, so its
+    /// parameters hold whichever declaration created it; if @a specializationParameters
+    /// is given, the interface's parameters as this declaration wrote them, resolved in
+    /// @a context, are appended to it in declaration order.
     static const InstanceSymbol& createVirtual(
         const ASTContext& context, SourceLocation loc, const DefinitionSymbol& definition,
-        const syntax::ParameterValueAssignmentSyntax* paramAssignments);
+        const syntax::ParameterValueAssignmentSyntax* paramAssignments,
+        SmallVectorBase<const Symbol*>* specializationParameters = nullptr);
 
     /// Creates a default-instantiated instance of a nested definition in the provided scope.
     static Symbol& createDefaultNested(const Scope& scope,
@@ -240,6 +245,11 @@ class SLANG_EXPORT InstanceArraySymbol final : public Symbol, public Scope {
 public:
     std::span<const Symbol* const> elements;
     ConstantRange range;
+
+    /// The expressions the range was evaluated from as they appeared in the source
+    /// (the expression for `N` in `u[N]`), or nullptr where there is none.
+    const Expression* leftExpr = nullptr;
+    const Expression* rightExpr = nullptr;
 
     InstanceArraySymbol(Compilation& compilation, std::string_view name, SourceLocation loc,
                         std::span<const Symbol* const> elements, ConstantRange range) :

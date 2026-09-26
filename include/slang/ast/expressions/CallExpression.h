@@ -66,6 +66,10 @@ public:
         /// Set to true if the name was qualified with `super`, which selects
         /// the base class's implementation regardless of the dynamic type.
         bool viaSuper = false;
+
+        /// The parameters of each class specialization the name was scoped
+        /// through, as the call wrote them.
+        std::span<const Symbol* const> specializationParameters;
     };
 
     /// The subroutine that is being called.

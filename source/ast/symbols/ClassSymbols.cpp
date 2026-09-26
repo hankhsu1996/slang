@@ -312,20 +312,26 @@ void ClassType::inheritMembers(function_ref<void(const Symbol&)> insertCB) const
     ASTContext context(*this, LookupLocation(this, uint32_t(headerIndex)));
 
     auto& classSyntax = syntax->as<ClassDeclarationSyntax>();
+    SmallVector<const Symbol*> specializationParameters;
     if (classSyntax.extendsClause)
-        handleExtends(*classSyntax.extendsClause, context, insertCB);
+        handleExtends(*classSyntax.extendsClause, context, insertCB, specializationParameters);
 
     if (classSyntax.implementsClause)
-        handleImplements(*classSyntax.implementsClause, context, insertCB);
+        handleImplements(*classSyntax.implementsClause, context, insertCB,
+                         specializationParameters);
+
+    headerSpecializationParameters = specializationParameters.copy(context.getCompilation());
 }
 
 void ClassType::handleExtends(const ExtendsClauseSyntax& extendsClause, const ASTContext& context,
-                              function_ref<void(const Symbol&)> insertCB) const {
+                              function_ref<void(const Symbol&)> insertCB,
+                              SmallVectorBase<const Symbol*>& specializationParameters) const {
     // Set a sentinel value immediately to handle re-entrant elaboration.
     auto& comp = context.getCompilation();
     baseClass = &comp.getErrorType();
 
-    auto baseType = Lookup::findClass(*extendsClause.baseName, context);
+    auto baseType = Lookup::findClass(*extendsClause.baseName, context, {},
+                                      &specializationParameters);
     if (!baseType)
         return;
 
@@ -726,7 +732,8 @@ static void findIfaces(const ClassType& type, SmallVectorBase<const Type*>& ifac
 
 void ClassType::handleImplements(const ImplementsClauseSyntax& implementsClause,
                                  const ASTContext& context,
-                                 function_ref<void(const Symbol&)> insertCB) const {
+                                 function_ref<void(const Symbol&)> insertCB,
+                                 SmallVectorBase<const Symbol*>& specializationParameters) const {
     auto& comp = context.getCompilation();
     SmallVector<const Type*> declaredIfacesBuf;
     SmallVector<const Type*> implementsIfacesBuf;
@@ -736,7 +743,8 @@ void ClassType::handleImplements(const ImplementsClauseSyntax& implementsClause,
         // For an interface class, the implements clause actually uses the "extends"
         // keyword and acts to inherit all of the members from the specified parent interfaces.
         for (auto nameSyntax : implementsClause.interfaces) {
-            const auto iface = Lookup::findClass(*nameSyntax, context, diag::ExtendClassFromIface);
+            const auto iface = Lookup::findClass(*nameSyntax, context, diag::ExtendClassFromIface,
+                                                 &specializationParameters);
             if (!iface)
                 continue;
 
@@ -822,7 +830,8 @@ void ClassType::handleImplements(const ImplementsClauseSyntax& implementsClause,
     }
     else {
         for (auto nameSyntax : implementsClause.interfaces) {
-            const auto iface = Lookup::findClass(*nameSyntax, context, diag::ImplementNonIface);
+            const auto iface = Lookup::findClass(*nameSyntax, context, diag::ImplementNonIface,
+                                                 &specializationParameters);
             if (!iface)
                 continue;
 
@@ -994,10 +1003,12 @@ const Type* GenericClassDefSymbol::getDefaultSpecialization(const Scope& scope) 
 }
 
 const Type& GenericClassDefSymbol::getSpecialization(
-    const ASTContext& context, const ParameterValueAssignmentSyntax& syntax) const {
+    const ASTContext& context, const ParameterValueAssignmentSyntax& syntax,
+    SmallVectorBase<const Symbol*>* specializationParameters) const {
 
     auto result = getSpecializationImpl(context, syntax.getFirstToken().location(),
-                                        /* forceInvalidParams */ false, &syntax);
+                                        /* forceInvalidParams */ false, &syntax,
+                                        specializationParameters);
     if (!result)
         return context.getCompilation().getErrorType();
 
@@ -1018,7 +1029,8 @@ const Type& GenericClassDefSymbol::getInvalidSpecialization() const {
 
 const Type* GenericClassDefSymbol::getSpecializationImpl(
     const ASTContext& context, SourceLocation instanceLoc, bool forceInvalidParams,
-    const ParameterValueAssignmentSyntax* syntax) const {
+    const ParameterValueAssignmentSyntax* syntax,
+    SmallVectorBase<const Symbol*>* specializationParameters) const {
 
     auto& comp = context.getCompilation();
     auto scope = getParentScope();
@@ -1080,6 +1092,9 @@ const Type* GenericClassDefSymbol::getSpecializationImpl(
     }
 
     classType->genericParameters = paramSymbols.copy(comp);
+    if (specializationParameters)
+        specializationParameters->append_range(classType->genericParameters);
+
     if (!forceInvalidParams) {
         detail::ClassSpecializationKey key(paramValues.copy(comp), typeParams.copy(comp));
         if (classType->isUninstantiated) {

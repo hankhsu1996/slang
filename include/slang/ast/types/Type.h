@@ -351,9 +351,12 @@ public:
 
     /// If @a evaluated is given, the dimensions written directly on @a syntax are
     /// appended to it in declaration order, as they were evaluated to build the type.
-    static const Type& fromSyntax(Compilation& compilation, const syntax::DataTypeSyntax& syntax,
-                                  const ASTContext& context, const Type* typedefTarget,
-                                  SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+    /// If @a specializationParameters is given, the parameters of each class
+    /// specialization a named type chose are appended to it, as this site wrote them.
+    static const Type& fromSyntax(
+        Compilation& compilation, const syntax::DataTypeSyntax& syntax, const ASTContext& context,
+        const Type* typedefTarget, SmallVectorBase<EvaluatedDimension>* evaluated = nullptr,
+        SmallVectorBase<const Symbol*>* specializationParameters = nullptr);
 
     /// If @a evaluated is given, @a dimensions are appended to it in declaration
     /// order, as they were evaluated to build the type.
@@ -364,9 +367,13 @@ public:
 
     /// Constructs a type from the results of a lookup operation. Note that this will
     /// not issue any diagnostics from the result object; the caller must do that
-    /// themselves if they wish.
-    static const Type& fromLookupResult(Compilation& compilation, const LookupResult& result,
-                                        SourceRange sourceRange, const ASTContext& context);
+    /// themselves if they wish. If @a evaluated is given, the packed dimensions the
+    /// name is selected with are appended to it in declaration order. If
+    /// @a specializationParameters is given, the result's are appended to it.
+    static const Type& fromLookupResult(
+        Compilation& compilation, const LookupResult& result, SourceRange sourceRange,
+        const ASTContext& context, SmallVectorBase<EvaluatedDimension>* evaluated = nullptr,
+        SmallVectorBase<const Symbol*>* specializationParameters = nullptr);
 
     static bool isKind(SymbolKind kind);
 
@@ -383,7 +390,9 @@ private:
     void resolveCanonical() const;
 
     static const Type& lookupNamedType(Compilation& compilation, const syntax::NameSyntax& syntax,
-                                       const ASTContext& context, bool isTypedefTarget);
+                                       const ASTContext& context, bool isTypedefTarget,
+                                       SmallVectorBase<EvaluatedDimension>* evaluated,
+                                       SmallVectorBase<const Symbol*>* specializationParameters);
 };
 
 Diagnostic& operator<<(Diagnostic& diag, const Type& arg);

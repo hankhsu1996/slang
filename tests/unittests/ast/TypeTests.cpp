@@ -5,11 +5,15 @@
 
 #include "slang/ast/Expression.h"
 #include "slang/ast/ScriptSession.h"
+#include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/CallExpression.h"
+#include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/symbols/ClassSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
+#include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/SubroutineSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
@@ -2817,5 +2821,164 @@ endmodule
     CHECK(childDims[0].range.left == 4);
     REQUIRE(childDims[0].leftExpr != nullptr);
     CHECK(childDims[0].leftExpr->kind == ExpressionKind::NamedValue);
+    NO_COMPILATION_ERRORS;
+}
+
+TEST_CASE("Evaluated dimensions keep their expressions wherever they are evaluated") {
+    // One parameter, written into every place a dimension is evaluated to build
+    // something other than a declaration's own type syntax.
+    auto tree = SyntaxTree::fromText(R"(
+package p;
+    typedef logic [3:0] nib_t;
+endpackage
+
+interface bus_if;
+endinterface
+
+module child;
+endmodule
+
+module m #(parameter int N = 4) (bus_if b[N]);
+    p::nib_t [N-1:0] named;
+    typedef struct packed { logic [N-1:0] a; } s_t;
+    typedef enum logic [N-1:0] { A, B } e_t;
+    child u[N] ();
+    localparam int W = $bits(logic [N-1:0]);
+    int assoc [logic [N-1:0]];
+endmodule
+
+module top;
+    bus_if ifs[4] ();
+    m #(.N(4)) inst (.b(ifs));
+endmodule
+)");
+    Compilation compilation;
+    const auto& top = evalModule(tree, compilation).body;
+    const auto& body = top.find<InstanceSymbol>("inst").body;
+
+    auto leftOf = [](std::span<const EvaluatedDimension> dims) {
+        REQUIRE(dims.size() == 1);
+        REQUIRE(dims[0].leftExpr != nullptr);
+        return dims[0].leftExpr->kind;
+    };
+
+    // Packed dims written on a named type.
+    CHECK(leftOf(body.find<VariableSymbol>("named").getDeclaredType()->getResolvedDimensions()) ==
+          ExpressionKind::BinaryOp);
+
+    // A packed struct member's range.
+    const auto& structType = body.find<TypeAliasType>("s_t").targetType.getType();
+    const auto& field = structType.as<PackedStructType>().find<FieldSymbol>("a");
+    CHECK(leftOf(field.getDeclaredType()->getResolvedDimensions()) == ExpressionKind::BinaryOp);
+
+    // An enum's base range.
+    const auto& enumType = body.find<TypeAliasType>("e_t").targetType.getType();
+    CHECK(leftOf(enumType.as<EnumType>().baseDimensions) == ExpressionKind::BinaryOp);
+
+    // An instance array's range.
+    const auto& array = body.find<InstanceArraySymbol>("u");
+    REQUIRE(array.leftExpr != nullptr);
+    CHECK(array.leftExpr->kind == ExpressionKind::NamedValue);
+
+    // An interface-port array's range.
+    const auto& port = body.find<InterfacePortSymbol>("b");
+    auto portDims = port.getDeclaredDimensions();
+    REQUIRE(portDims.has_value());
+    CHECK(leftOf(*portDims) == ExpressionKind::NamedValue);
+
+    // A type written as an expression's operand.
+    const auto& call = body.find<ParameterSymbol>("W")
+                           .getInitializer()
+                           ->unwrapImplicitConversions()
+                           .as<CallExpression>();
+    REQUIRE(call.arguments().size() == 1);
+    CHECK(leftOf(call.arguments()[0]->as<DataTypeExpression>().dimensions) ==
+          ExpressionKind::BinaryOp);
+
+    // An associative array's index type.
+    auto assocDims = body.find<VariableSymbol>("assoc").getDeclaredType()->getResolvedDimensions();
+    REQUIRE(assocDims.size() == 1);
+    REQUIRE(assocDims[0].associativeTypeExpr != nullptr);
+    CHECK(leftOf(assocDims[0].associativeTypeExpr->as<DataTypeExpression>().dimensions) ==
+          ExpressionKind::BinaryOp);
+    NO_COMPILATION_ERRORS;
+}
+
+TEST_CASE("A use site of a shared specialization keeps the parameters it wrote") {
+    // Two instances hand the same value, so every specialization below is created by
+    // the first and reused by the second; the second must still see its own writing.
+    auto tree = SyntaxTree::fromText(R"(
+package p;
+    class C #(parameter int W = 1);
+        static int X = W;
+        static function int f(); return W; endfunction
+    endclass
+endpackage
+
+interface pif #(parameter int W = 1);
+endinterface
+
+module m #(parameter int N = 1);
+    import p::*;
+    C #(N) unqualified;
+    p::C #(N) scoped;
+    typedef C #(N) alias_t;
+    int value = C #(N)::X;
+    int called = C #(N)::f();
+    C #(N) made = C #(N)::new;
+    class D extends C #(N);
+    endclass
+    virtual pif #(N) vif;
+endmodule
+
+module top;
+    m #(.N(4)) first ();
+    m #(.N(4)) second ();
+endmodule
+)");
+    Compilation compilation;
+    const auto& top = evalModule(tree, compilation).body;
+
+    // Elaborate everything, in order, so the first instance creates each one.
+    compilation.getAllDiagnostics();
+    const auto& body = top.find<InstanceSymbol>("second").body;
+    const auto& n = body.find<ParameterSymbol>("N");
+
+    auto wroteOwnN = [&](std::span<const Symbol* const> parameters) {
+        REQUIRE(parameters.size() == 1);
+        auto init = parameters[0]->as<ParameterSymbol>().getInitializer();
+        REQUIRE(init != nullptr);
+        auto& written = init->unwrapImplicitConversions();
+        REQUIRE(written.kind == ExpressionKind::NamedValue);
+        return &written.as<NamedValueExpression>().symbol == &n;
+    };
+    auto declared = [&](std::string_view name) {
+        return body.find<VariableSymbol>(name)
+            .getDeclaredType()
+            ->getResolvedSpecializationParameters();
+    };
+    auto initializer = [&](std::string_view name) -> const Expression& {
+        return body.find<VariableSymbol>(name).getInitializer()->unwrapImplicitConversions();
+    };
+
+    CHECK(wroteOwnN(declared("unqualified")));
+    CHECK(wroteOwnN(declared("scoped")));
+    CHECK(wroteOwnN(
+        body.find<TypeAliasType>("alias_t").targetType.getResolvedSpecializationParameters()));
+    CHECK(wroteOwnN(initializer("value").as<NamedValueExpression>().specializationParameters));
+    CHECK(
+        wroteOwnN(initializer("called").as<CallExpression>().lookupInfo.specializationParameters));
+    CHECK(wroteOwnN(initializer("made").as<NewClassExpression>().specializationParameters));
+    CHECK(wroteOwnN(body.find<ClassType>("D").getHeaderSpecializationParameters()));
+    CHECK(wroteOwnN(body.find<VariableSymbol>("vif")
+                        .getType()
+                        .as<VirtualInterfaceType>()
+                        .specializationParameters));
+
+    // And the specialization itself is the one the first instance created.
+    const auto& shared = body.find<VariableSymbol>("unqualified").getType().as<ClassType>();
+    auto sharedInit = shared.genericParameters[0]->as<ParameterSymbol>().getInitializer();
+    REQUIRE(sharedInit != nullptr);
+    CHECK(&sharedInit->unwrapImplicitConversions().as<NamedValueExpression>().symbol != &n);
     NO_COMPILATION_ERRORS;
 }

@@ -131,6 +131,10 @@ public:
     /// Set to true if this is invoking a super class's constructor.
     bool isSuperClass = false;
 
+    /// For a class-scoped `new`, the parameters of each class specialization the
+    /// scope names, as this expression wrote them.
+    std::span<const Symbol* const> specializationParameters;
+
     NewClassExpression(const Type& type, const Expression* constructorCall, bool isSuperClass,
                        SourceRange sourceRange) :
         Expression(ExpressionKind::NewClass, type, sourceRange), isSuperClass(isSuperClass),

@@ -162,6 +162,8 @@ Symbol* recurseCheckerArray(Compilation& comp, const CheckerSymbol& checker,
     auto result = comp.emplace<InstanceArraySymbol>(comp, nameToken.valueText(),
                                                     nameToken.location(), elements.copy(comp),
                                                     range);
+    result->leftExpr = dim.leftExpr;
+    result->rightExpr = dim.rightExpr;
     for (auto element : elements)
         result->addMember(*element);
 

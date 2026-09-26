@@ -178,6 +178,8 @@ private:
         auto result = comp.emplace<InstanceArraySymbol>(comp, nameToken.valueText(),
                                                         nameToken.location(), elements.copy(comp),
                                                         range);
+        result->leftExpr = dim.leftExpr;
+        result->rightExpr = dim.rightExpr;
         result->setSyntax(syntax);
 
         for (auto element : elements)
@@ -397,7 +399,8 @@ InstanceSymbol& InstanceSymbol::createDefault(Compilation& comp, const Definitio
 
 const InstanceSymbol& InstanceSymbol::createVirtual(
     const ASTContext& context, SourceLocation loc, const DefinitionSymbol& definition,
-    const ParameterValueAssignmentSyntax* paramAssignments) {
+    const ParameterValueAssignmentSyntax* paramAssignments,
+    SmallVectorBase<const Symbol*>* specializationParameters) {
 
     ParameterBuilder paramBuilder(*context.scope, definition.name, definition.parameters);
     paramBuilder.setInstanceContext(context);
@@ -412,6 +415,13 @@ const InstanceSymbol& InstanceSymbol::createVirtual(
     // the instantiation scope. This "virtual" instance never actually gets
     // added to the scope the proper way as a member.
     result.setParent(*context.scope);
+
+    if (specializationParameters) {
+        for (auto param : result.body.getParameters()) {
+            if (!param->isLocalParam())
+                specializationParameters->push_back(&param->symbol);
+        }
+    }
 
     // Allow the compilation to cache this virtual interface instance.
     return comp.getOrAddVirtualIface(result);
@@ -1501,6 +1511,8 @@ Symbol* recursePrimArray(Compilation& comp, const PrimitiveSymbol& primitive,
     auto result = comp.emplace<InstanceArraySymbol>(comp, nameToken.valueText(),
                                                     nameToken.location(), elements.copy(comp),
                                                     range);
+    result->leftExpr = dim.leftExpr;
+    result->rightExpr = dim.rightExpr;
     result->setSyntax(instance);
     for (auto element : elements)
         result->addMember(*element);

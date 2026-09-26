@@ -111,6 +111,10 @@ public:
     /// The base type of the enum.
     const Type& baseType;
 
+    /// The dimensions written on the base type, in declaration order, as they were
+    /// evaluated to build it.
+    std::span<const EvaluatedDimension> baseDimensions;
+
     /// The system-generated ID.
     int systemId;
 
@@ -524,6 +528,11 @@ public:
     /// True if this is a wrapper for a real interface instance, and false
     /// if it's declared as an actual virtual interface type.
     bool isRealIface;
+
+    /// For a declared virtual interface type, the interface's parameters as this
+    /// declaration wrote them. The interface instance is shared by every declaration
+    /// handing it the same values, so its own parameters hold whichever created it.
+    std::span<const Symbol* const> specializationParameters;
 
     VirtualInterfaceType(const InstanceSymbol& iface, const ModportSymbol* modport,
                          bool isRealIface, SourceLocation loc) :

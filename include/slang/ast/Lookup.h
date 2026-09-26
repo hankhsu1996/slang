@@ -210,6 +210,12 @@ struct SLANG_EXPORT LookupResult {
     /// information about how the path was resolved.
     SmallVector<HierarchicalReference::Element, 2> path;
 
+    /// The parameters of every class specialization the name chose, as this lookup's
+    /// site wrote them, in the order the name wrote them. A specialization is shared
+    /// by every site handing it the same values, so its own parameters hold whichever
+    /// site created it.
+    SmallVector<const Symbol*, 2> specializationParameters;
+
     /// Reports a diagnostic that occurred during lookup. The stored diagnostics
     /// are not automatically emitted to the compilation, letting them be suppressed
     /// if desired.
@@ -280,8 +286,12 @@ public:
     /// found, or if the found symbol is not a class type, appropriate diagnostics are issued.
     /// If @a requireInterfaceClass is given the resulting class will be required to be
     /// an interface class; nullptr will be returned and a diagnostic issued if it's not.
-    static const ClassType* findClass(const syntax::NameSyntax& name, const ASTContext& context,
-                                      std::optional<DiagCode> requireInterfaceClass = {});
+    /// If @a specializationParameters is given, the parameters of each class
+    /// specialization the name chose are appended to it, as @a name wrote them.
+    static const ClassType* findClass(
+        const syntax::NameSyntax& name, const ASTContext& context,
+        std::optional<DiagCode> requireInterfaceClass = {},
+        SmallVectorBase<const Symbol*>* specializationParameters = nullptr);
 
     /// Gets the containing class for the given scope. The return value is a pair, with
     /// the first element being the found class or nullptr if the scope is not within a

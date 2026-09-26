@@ -68,8 +68,9 @@ void DeclaredType::mergeImplicitPort(
 
 void DeclaredType::resolveType(const ASTContext& typeContext,
                                const ASTContext& initializerContext) const {
-    // The dimensions are kept as this resolution evaluates them, because the
-    // context it evaluates them in is not one that can be recovered afterward.
+    // The dimensions and specialization parameters are kept as this resolution
+    // evaluates them, because the context it evaluates them in is not one that can
+    // be recovered afterward.
     auto& comp = typeContext.getCompilation();
     SmallVector<EvaluatedDimension> evaluated;
     if (hasLink) {
@@ -79,6 +80,7 @@ void DeclaredType::resolveType(const ASTContext& typeContext,
         if (dimensions)
             type = &comp.getType(*type, *dimensions, typeContext, &evaluated);
         resolvedDimensions = evaluated.ccopy(comp);
+        resolvedSpecializationParameters = typeOrLink.link->getResolvedSpecializationParameters();
         return;
     }
 
@@ -152,9 +154,12 @@ void DeclaredType::resolveType(const ASTContext& typeContext,
                 typedefTarget = &parent.as<Type>();
         }
 
-        type = &comp.getType(*syntax, typeContext, typedefTarget, &evaluated);
+        SmallVector<const Symbol*> specializationParameters;
+        type = &comp.getType(*syntax, typeContext, typedefTarget, &evaluated,
+                             &specializationParameters);
         if (dimensions)
             type = &comp.getType(*type, *dimensions, typeContext, &evaluated);
+        resolvedSpecializationParameters = specializationParameters.ccopy(comp);
 
         if (typedefTarget) {
             // When resolving a typedef target we need to check resolution of aliases
@@ -568,6 +573,11 @@ T DeclaredType::getASTContext() const {
 std::span<const EvaluatedDimension> DeclaredType::getResolvedDimensions() const {
     getType();
     return resolvedDimensions;
+}
+
+std::span<const Symbol* const> DeclaredType::getResolvedSpecializationParameters() const {
+    getType();
+    return resolvedSpecializationParameters;
 }
 
 } // namespace slang::ast

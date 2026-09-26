@@ -76,6 +76,7 @@ void LookupResult::clear() {
     nameRange = {};
     selectors.clear();
     path.clear();
+    specializationParameters.clear();
     diagnostics.clear();
 }
 
@@ -777,7 +778,7 @@ bool resolveColonNames(SmallVectorBase<NamePlusLoc>& nameParts, int colonParts,
             if (name.paramAssignments) {
                 // We have param assignments, so use that to get the specialization.
                 auto& type = symbol->as<GenericClassDefSymbol>().getSpecialization(
-                    context, *name.paramAssignments);
+                    context, *name.paramAssignments, &result.specializationParameters);
                 if (type.isError())
                     return false;
 
@@ -1210,7 +1211,8 @@ void Lookup::name(const NameSyntax& syntax, const ASTContext& context, bitmask<L
         }
         else {
             auto& classDef = result.found->as<GenericClassDefSymbol>();
-            result.found = &classDef.getSpecialization(context, *name.paramAssignments);
+            result.found = &classDef.getSpecialization(context, *name.paramAssignments,
+                                                       &result.specializationParameters);
         }
     }
 
@@ -1488,12 +1490,16 @@ void Lookup::selectChild(const Type& virtualInterface, SourceRange range,
 }
 
 const ClassType* Lookup::findClass(const NameSyntax& className, const ASTContext& context,
-                                   std::optional<DiagCode> requireInterfaceClass) {
+                                   std::optional<DiagCode> requireInterfaceClass,
+                                   SmallVectorBase<const Symbol*>* specializationParameters) {
     LookupResult result;
     Lookup::name(className, context, LookupFlags::Type | LookupFlags::NoSelectors, result);
     result.reportDiags(context);
     if (!result.found)
         return nullptr;
+
+    if (specializationParameters)
+        specializationParameters->append_range(result.specializationParameters);
 
     if (requireInterfaceClass) {
         if (result.flags.has(LookupResultFlags::FromTypeParam)) {

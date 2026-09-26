@@ -40,6 +40,10 @@ struct SLANG_EXPORT EvaluatedDimension {
     /// Otherwise nullptr.
     const Type* associativeType = nullptr;
 
+    /// For an associative dimension naming its index type, the data type expression
+    /// that type was bound from, or nullptr if not applicable.
+    const Expression* associativeTypeExpr = nullptr;
+
     /// If the dimension is for a queue type, this is the optionally specified
     /// max queue size.
     uint32_t queueMaxSize = 0;

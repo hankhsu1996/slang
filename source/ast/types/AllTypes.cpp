@@ -304,6 +304,7 @@ const Type& EnumType::fromSyntax(Compilation& comp, const EnumTypeSyntax& syntax
     const Type* base;
     const Type* cb;
     bitwidth_t bitWidth = 32;
+    SmallVector<EvaluatedDimension> baseEvaluated;
 
     if (!syntax.baseType) {
         // If no explicit base type is specified we default to an int.
@@ -313,7 +314,7 @@ const Type& EnumType::fromSyntax(Compilation& comp, const EnumTypeSyntax& syntax
     }
     else {
         auto& bts = *syntax.baseType;
-        base = &comp.getType(bts, context);
+        base = &comp.getType(bts, context, nullptr, &baseEvaluated);
         cb = &base->getCanonicalType();
         if (!cb->isError()) {
             // Error if the named type is invalid for an enum base type. Other invalid types
@@ -361,6 +362,7 @@ const Type& EnumType::fromSyntax(Compilation& comp, const EnumTypeSyntax& syntax
 
     auto enumType = comp.emplace<EnumType>(comp, syntax.keyword.location(), *base, context);
     enumType->setSyntax(syntax);
+    enumType->baseDimensions = baseEvaluated.ccopy(comp);
 
     // If this enum is inside a typedef we want to save the name here so that
     // when printing the types of our enum values we can refer back to this.
@@ -886,7 +888,9 @@ const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTyp
         if (auto preview = member->previewNode())
             structType->addMembers(*preview);
 
-        const Type& type = comp.getType(*member->type, context);
+        SmallVector<EvaluatedDimension> evaluated;
+        const Type& type = comp.getType(*member->type, context, nullptr, &evaluated);
+        const auto memberDims = evaluated.ccopy(comp);
         structType->isFourState |= type.isFourState();
         issuedError |= type.isError();
 
@@ -901,7 +905,7 @@ const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTyp
         for (auto decl : member->declarators) {
             auto field = comp.emplace<FieldSymbol>(decl->name.valueText(), decl->name.location(),
                                                    0u, (uint32_t)members.size());
-            field->setType(type);
+            field->getDeclaredType()->setType(type, memberDims);
             field->setSyntax(*decl);
             field->setAttributes(*context.scope, member->attributes);
             structType->addMember(*field);
@@ -1058,7 +1062,9 @@ const Type& PackedUnionType::fromSyntax(Compilation& comp, const StructUnionType
         if (auto preview = member->previewNode())
             unionType->addMembers(*preview);
 
-        const Type& type = comp.getType(*member->type, context);
+        SmallVector<EvaluatedDimension> evaluated;
+        const Type& type = comp.getType(*member->type, context, nullptr, &evaluated);
+        const auto memberDims = evaluated.ccopy(comp);
         unionType->isFourState |= type.isFourState();
         issuedError |= type.isError();
 
@@ -1074,7 +1080,7 @@ const Type& PackedUnionType::fromSyntax(Compilation& comp, const StructUnionType
             auto name = decl->name;
             auto field = comp.emplace<FieldSymbol>(name.valueText(), name.location(), 0u,
                                                    fieldIndex++);
-            field->setType(type);
+            field->getDeclaredType()->setType(type, memberDims);
             field->setSyntax(*decl);
             field->setAttributes(*context.scope, member->attributes);
             unionType->addMember(*field);
@@ -1248,8 +1254,9 @@ const Type& VirtualInterfaceType::fromSyntax(const ASTContext& context,
     }
 
     auto loc = syntax.name.location();
+    SmallVector<const Symbol*> specializationParameters;
     auto& iface = InstanceSymbol::createVirtual(context, loc, def->as<DefinitionSymbol>(),
-                                                syntax.parameters);
+                                                syntax.parameters, &specializationParameters);
 
     const ModportSymbol* modport = nullptr;
     std::string_view modportName = syntax.modport ? syntax.modport->member.valueText() : ""sv;
@@ -1266,7 +1273,9 @@ const Type& VirtualInterfaceType::fromSyntax(const ASTContext& context,
         }
     }
 
-    return *comp.emplace<VirtualInterfaceType>(iface, modport, /* isRealIface */ false, loc);
+    auto result = comp.emplace<VirtualInterfaceType>(iface, modport, /* isRealIface */ false, loc);
+    result->specializationParameters = specializationParameters.copy(comp);
+    return *result;
 }
 
 ConstantValue VirtualInterfaceType::getDefaultValueImpl() const {

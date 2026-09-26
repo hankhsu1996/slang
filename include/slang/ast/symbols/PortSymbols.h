@@ -153,6 +153,10 @@ public:
     /// Returns nullopt if an error occurs evaluating the dimensions.
     std::optional<std::span<const ConstantRange>> getDeclaredRange() const;
 
+    /// Gets the same dimensions as they were evaluated, each with the expressions
+    /// its range came from. Returns nullopt where @a getDeclaredRange does.
+    std::optional<std::span<const EvaluatedDimension>> getDeclaredDimensions() const;
+
     /// Gets the interface instance that this port connects to.
     IfaceConn getConnection() const;
 
@@ -168,6 +172,7 @@ public:
 
 private:
     mutable std::optional<std::span<const ConstantRange>> range;
+    mutable std::optional<std::span<const EvaluatedDimension>> dimensions;
 };
 
 /// Represents a connection to a port on an instance.

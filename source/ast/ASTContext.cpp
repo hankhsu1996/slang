@@ -498,6 +498,7 @@ void ASTContext::evalRangeDimension(const SelectorSyntax& syntax, bool isPacked,
             if (expr.kind == ExpressionKind::DataType) {
                 result.kind = DimensionKind::Associative;
                 result.associativeType = expr.as<DataTypeExpression>().type;
+                result.associativeTypeExpr = &expr;
                 switch (result.associativeType->kind) {
                     case SymbolKind::PackedStructType:
                     case SymbolKind::PackedUnionType:

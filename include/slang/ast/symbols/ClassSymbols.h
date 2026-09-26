@@ -100,6 +100,15 @@ public:
         return declaredIfaces;
     }
 
+    /// Gets the parameters of each class specialization named by this class's
+    /// extends and implements clauses, as those clauses wrote them. A specialization
+    /// is shared by every site handing it the same values, so its own parameters
+    /// hold whichever site created it.
+    std::span<const Symbol* const> getHeaderSpecializationParameters() const {
+        ensureElaborated();
+        return headerSpecializationParameters;
+    }
+
     /// If this class has a base class with a constructor, gets the expression used to
     /// invoke that method. Otherwise returns nullptr.
     const Expression* getBaseConstructorCall() const;
@@ -185,10 +194,11 @@ private:
     void populate(const Scope& scope, const syntax::ClassDeclarationSyntax& syntax);
     void inheritMembers(function_ref<void(const Symbol&)> insertCB) const;
     void handleExtends(const syntax::ExtendsClauseSyntax& extendsClause, const ASTContext& context,
-                       function_ref<void(const Symbol&)> insertCB) const;
+                       function_ref<void(const Symbol&)> insertCB,
+                       SmallVectorBase<const Symbol*>& specializationParameters) const;
     void handleImplements(const syntax::ImplementsClauseSyntax& implementsClause,
-                          const ASTContext& context,
-                          function_ref<void(const Symbol&)> insertCB) const;
+                          const ASTContext& context, function_ref<void(const Symbol&)> insertCB,
+                          SmallVectorBase<const Symbol*>& specializationParameters) const;
     void computeSize() const;
     void computeCycles() const;
 
@@ -197,6 +207,7 @@ private:
     mutable const ForwardingTypedefSymbol* firstForward = nullptr;
     mutable std::span<const Type* const> implementsIfaces;
     mutable std::span<const Type* const> declaredIfaces;
+    mutable std::span<const Symbol* const> headerSpecializationParameters;
     mutable std::optional<const Expression*> baseConstructorCall;
     mutable std::optional<uint64_t> cachedBitstreamWidth;
     mutable std::optional<bool> cachedHasCycles;
@@ -251,8 +262,12 @@ public:
 
     /// Gets the specialization for the class given the specified parameter value
     /// assignments. The result is cached and reused if requested more than once.
-    const Type& getSpecialization(const ASTContext& context,
-                                  const syntax::ParameterValueAssignmentSyntax& syntax) const;
+    /// Since a cached result holds the parameters of whichever site first created it,
+    /// if @a specializationParameters is given the parameters as this site wrote them,
+    /// resolved in @a context, are appended to it in declaration order.
+    const Type& getSpecialization(
+        const ASTContext& context, const syntax::ParameterValueAssignmentSyntax& syntax,
+        SmallVectorBase<const Symbol*>* specializationParameters = nullptr) const;
 
     /// Forces a specialization with all parameters set to invalid values. This allows
     /// determining members that aren't dependent on parameters.
@@ -286,9 +301,10 @@ public:
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::GenericClassDef; }
 
 private:
-    const Type* getSpecializationImpl(const ASTContext& context, SourceLocation instanceLoc,
-                                      bool forceInvalidParams,
-                                      const syntax::ParameterValueAssignmentSyntax* syntax) const;
+    const Type* getSpecializationImpl(
+        const ASTContext& context, SourceLocation instanceLoc, bool forceInvalidParams,
+        const syntax::ParameterValueAssignmentSyntax* syntax,
+        SmallVectorBase<const Symbol*>* specializationParameters = nullptr) const;
 
     SmallVector<DefinitionSymbol::ParameterDecl, 8> paramDecls;
 
