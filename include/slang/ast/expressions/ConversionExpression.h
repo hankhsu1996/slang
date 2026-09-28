@@ -19,9 +19,11 @@ public:
 
     bool isConstCast = false;
 
-    /// For a size cast, the original width expression as it appeared in the
-    /// source (e.g. the expression for `W` in `W'(x)`), or nullptr otherwise.
-    const Expression* widthExpr = nullptr;
+    /// The target a size or type cast was written with, as it was bound: the width
+    /// of a size cast (the expression for `W` in `W'(x)`) or the type of a type
+    /// cast (`T` in `T'(x)`). Null for any other conversion, a signing cast
+    /// included.
+    const Expression* targetExpr = nullptr;
 
     ConversionExpression(const Type& type, ConversionKind conversionKind, Expression& operand,
                          SourceRange sourceRange) :

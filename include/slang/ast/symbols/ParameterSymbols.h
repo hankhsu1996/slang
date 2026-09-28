@@ -7,6 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
+#include "slang/ast/HierarchicalReference.h"
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/symbols/ValueSymbol.h"
 #include "slang/syntax/SyntaxFwd.h"
@@ -113,6 +114,10 @@ public:
     const Expression& getInitializer() const;
     const ConstantValue& getValue() const;
 
+    /// The path the target was named through, as this defparam wrote it, with the
+    /// expression each index or range selector was bound from.
+    std::span<const HierarchicalReference::Element> getTargetPath() const;
+
     static void fromSyntax(const Scope& scope, const syntax::DefParamSyntax& syntax,
                            SmallVectorBase<const DefParamSymbol*>& results);
 
@@ -125,6 +130,7 @@ private:
 
     mutable const Expression* initializer = nullptr;
     mutable const Symbol* target = nullptr;
+    mutable std::span<const HierarchicalReference::Element> targetPath;
 };
 
 /// Represents a specify parameter.

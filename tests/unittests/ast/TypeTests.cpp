@@ -3,11 +3,14 @@
 
 #include "Test.h"
 
+#include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/ScriptSession.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/CallExpression.h"
+#include "slang/ast/expressions/ConversionExpression.h"
 #include "slang/ast/expressions/MiscExpressions.h"
+#include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/symbols/ClassSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -2980,5 +2983,116 @@ endmodule
     auto sharedInit = shared.genericParameters[0]->as<ParameterSymbol>().getInitializer();
     REQUIRE(sharedInit != nullptr);
     CHECK(&sharedInit->unwrapImplicitConversions().as<NamedValueExpression>().symbol != &n);
+    NO_COMPILATION_ERRORS;
+}
+
+TEST_CASE("A type a site writes keeps what it was settled from") {
+    // Each site below names a parameter only inside a type it writes, so the type
+    // it produces holds the parameter's value with no reference left beside it.
+    auto tree = SyntaxTree::fromText(R"(
+package p;
+    class C #(parameter int W = 1);
+        typedef logic [W-1:0] T;
+    endclass
+endpackage
+
+module k #(parameter int V = 0);
+endmodule
+
+module m #(parameter int P = 4, parameter int Q = 2);
+    import p::*;
+    logic [7:0] a;
+    var type(a[P-1:0]) declared;
+    typedef struct packed { type(a[Q:0]) f; } packed_t;
+    C#(P)::T cast_scoped = C#(P)::T'(8'hFF);
+    var type(a[P-1:0]) cast_referenced = type(a[P-1:0])'(8'hFF);
+    C#(Q)::T prefixed = C#(Q)::T'{default: 1'b0};
+    C#(P)::T keyed [2] = '{C#(P)::T: '1};
+    localparam bit compared = type(a[P-1:0]) == type(logic [3:0]);
+    for (genvar i = 0; i < 2; i++) begin : g
+        k inner ();
+    end
+    defparam g[Q-1].inner.V = 7;
+endmodule
+
+module top;
+    m u ();
+endmodule
+)");
+    Compilation compilation;
+    const auto& top = evalModule(tree, compilation).body;
+    compilation.getAllDiagnostics();
+    const auto& body = top.find<InstanceSymbol>("u").body;
+    const auto& pSym = body.find<ParameterSymbol>("P");
+    const auto& qSym = body.find<ParameterSymbol>("Q");
+
+    auto mentions = [](const Expression* expr, const Symbol& param) {
+        bool found = false;
+        if (expr) {
+            expr->visit(makeVisitor([&](auto&, const NamedValueExpression& named) {
+                found |= &named.symbol == &param;
+            }));
+        }
+        return found;
+    };
+    auto wrote = [&](std::span<const Symbol* const> parameters, const Symbol& param) {
+        return std::ranges::any_of(parameters, [&](const Symbol* written) {
+            return mentions(written->as<ParameterSymbol>().getInitializer(), param);
+        });
+    };
+    auto referenced = [&](std::span<const Expression* const> operands, const Symbol& param) {
+        return std::ranges::any_of(operands, [&](const Expression* operand) {
+            return mentions(operand, param);
+        });
+    };
+    auto initializer = [&](std::string_view name) -> const Expression& {
+        return *body.find<VariableSymbol>(name).getInitializer();
+    };
+    // The first conversion on the way down that a cast wrote.
+    auto castTarget = [&](const Expression& expr) -> const DataTypeExpression& {
+        const Expression* cur = &expr;
+        while (cur->kind == ExpressionKind::Conversion) {
+            auto& conv = cur->as<ConversionExpression>();
+            if (conv.targetExpr)
+                return conv.targetExpr->as<DataTypeExpression>();
+            cur = &conv.operand();
+        }
+        FAIL("no cast was written");
+        SLANG_UNREACHABLE;
+    };
+
+    CHECK(referenced(
+        body.find<VariableSymbol>("declared").getDeclaredType()->getResolvedTypeReferences(),
+        pSym));
+
+    const auto& packedType = body.find<TypeAliasType>("packed_t").targetType.getType();
+    const auto& member = packedType.getCanonicalType().as<PackedStructType>().find<FieldSymbol>(
+        "f");
+    CHECK(referenced(member.getDeclaredType()->getResolvedTypeReferences(), qSym));
+
+    CHECK(wrote(castTarget(initializer("cast_scoped")).specializationParameters, pSym));
+    CHECK(referenced(castTarget(initializer("cast_referenced")).typeReferences, pSym));
+
+    auto& prefixed = initializer("prefixed").unwrapImplicitConversions();
+    auto prefix = prefixed.as<SimpleAssignmentPatternExpression>().typeExpr;
+    REQUIRE(prefix);
+    CHECK(wrote(prefix->as<DataTypeExpression>().specializationParameters, qSym));
+
+    auto& keyed = initializer("keyed").as<StructuredAssignmentPatternExpression>();
+    REQUIRE(keyed.typeSetters.size() == 1);
+    REQUIRE(keyed.typeSetters[0].key);
+    CHECK(wrote(keyed.typeSetters[0].key->as<DataTypeExpression>().specializationParameters, pSym));
+
+    auto compared = body.find<ParameterSymbol>("compared").getInitializer();
+    REQUIRE(compared);
+    auto& comparison = compared->unwrapImplicitConversions().as<BinaryExpression>();
+    CHECK(mentions(&comparison.left().as<TypeReferenceExpression>().operand, pSym));
+
+    const DefParamSymbol* defparam = nullptr;
+    for (auto& member : body.membersOfType<DefParamSymbol>())
+        defparam = &member;
+    REQUIRE(defparam);
+    CHECK(std::ranges::any_of(defparam->getTargetPath(),
+                              [&](auto& element) { return mentions(element.leftExpr, qSym); }));
     NO_COMPILATION_ERRORS;
 }

@@ -889,8 +889,13 @@ const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTyp
             structType->addMembers(*preview);
 
         SmallVector<EvaluatedDimension> evaluated;
-        const Type& type = comp.getType(*member->type, context, nullptr, &evaluated);
+        SmallVector<const Symbol*> specializationParameters;
+        SmallVector<const Expression*> typeReferences;
+        const Type& type = comp.getType(*member->type, context, nullptr, &evaluated,
+                                        &specializationParameters, &typeReferences);
         const auto memberDims = evaluated.ccopy(comp);
+        const auto memberParameters = specializationParameters.ccopy(comp);
+        const auto memberReferences = typeReferences.ccopy(comp);
         structType->isFourState |= type.isFourState();
         issuedError |= type.isError();
 
@@ -905,7 +910,7 @@ const Type& PackedStructType::fromSyntax(Compilation& comp, const StructUnionTyp
         for (auto decl : member->declarators) {
             auto field = comp.emplace<FieldSymbol>(decl->name.valueText(), decl->name.location(),
                                                    0u, (uint32_t)members.size());
-            field->getDeclaredType()->setType(type, memberDims);
+            field->getDeclaredType()->setType(type, memberDims, memberParameters, memberReferences);
             field->setSyntax(*decl);
             field->setAttributes(*context.scope, member->attributes);
             structType->addMember(*field);
@@ -1063,8 +1068,13 @@ const Type& PackedUnionType::fromSyntax(Compilation& comp, const StructUnionType
             unionType->addMembers(*preview);
 
         SmallVector<EvaluatedDimension> evaluated;
-        const Type& type = comp.getType(*member->type, context, nullptr, &evaluated);
+        SmallVector<const Symbol*> specializationParameters;
+        SmallVector<const Expression*> typeReferences;
+        const Type& type = comp.getType(*member->type, context, nullptr, &evaluated,
+                                        &specializationParameters, &typeReferences);
         const auto memberDims = evaluated.ccopy(comp);
+        const auto memberParameters = specializationParameters.ccopy(comp);
+        const auto memberReferences = typeReferences.ccopy(comp);
         unionType->isFourState |= type.isFourState();
         issuedError |= type.isError();
 
@@ -1080,7 +1090,7 @@ const Type& PackedUnionType::fromSyntax(Compilation& comp, const StructUnionType
             auto name = decl->name;
             auto field = comp.emplace<FieldSymbol>(name.valueText(), name.location(), 0u,
                                                    fieldIndex++);
-            field->getDeclaredType()->setType(type, memberDims);
+            field->getDeclaredType()->setType(type, memberDims, memberParameters, memberReferences);
             field->setSyntax(*decl);
             field->setAttributes(*context.scope, member->attributes);
             unionType->addMember(*field);

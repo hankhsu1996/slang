@@ -273,7 +273,6 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
         return badExpr(comp, nullptr);
 
     auto type = &comp.getErrorType();
-    const Expression* widthExpr = nullptr;
     Expression* operand;
     if (targetExpr.kind == ExpressionKind::DataType) {
         type = targetExpr.type;
@@ -316,12 +315,11 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
         }
 
         type = &comp.getType(width, operand->type->getIntegralFlags());
-        widthExpr = &targetExpr;
     }
 
     auto result = [&](ConversionKind cast = ConversionKind::Explicit) {
         auto conv = comp.emplace<ConversionExpression>(*type, cast, *operand, syntax.sourceRange());
-        conv->widthExpr = widthExpr;
+        conv->targetExpr = &targetExpr;
         return conv;
     };
 
@@ -389,12 +387,14 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
         contextDetermined(context, operand, nullptr, *propagatedType, syntax.apostrophe.range(),
                           ConversionKind::Explicit);
 
+        // The explicit conversion the operand now carries takes this cast's place,
+        // unless it holds a target of its own, which folding would overwrite.
         if (operand->kind == ExpressionKind::Conversion &&
-            !operand->as<ConversionExpression>().isImplicit()) {
+            !operand->as<ConversionExpression>().isImplicit() &&
+            !operand->as<ConversionExpression>().targetExpr) {
             operand->sourceRange = syntax.sourceRange();
             operand->type = type;
-            if (widthExpr)
-                operand->as<ConversionExpression>().widthExpr = widthExpr;
+            operand->as<ConversionExpression>().targetExpr = &targetExpr;
             return *operand;
         }
     }

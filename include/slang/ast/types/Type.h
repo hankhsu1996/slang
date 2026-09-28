@@ -15,6 +15,7 @@
 namespace slang::ast {
 
 class Compilation;
+class Expression;
 class TypeProvider;
 struct EvaluatedDimension;
 struct LookupResult;
@@ -353,10 +354,13 @@ public:
     /// appended to it in declaration order, as they were evaluated to build the type.
     /// If @a specializationParameters is given, the parameters of each class
     /// specialization a named type chose are appended to it, as this site wrote them.
+    /// If @a typeReferences is given, the operand of a type reference (`type(expr)`)
+    /// the type was taken from is appended to it, as this site bound it.
     static const Type& fromSyntax(
         Compilation& compilation, const syntax::DataTypeSyntax& syntax, const ASTContext& context,
         const Type* typedefTarget, SmallVectorBase<EvaluatedDimension>* evaluated = nullptr,
-        SmallVectorBase<const Symbol*>* specializationParameters = nullptr);
+        SmallVectorBase<const Symbol*>* specializationParameters = nullptr,
+        SmallVectorBase<const Expression*>* typeReferences = nullptr);
 
     /// If @a evaluated is given, @a dimensions are appended to it in declaration
     /// order, as they were evaluated to build the type.

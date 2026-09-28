@@ -404,6 +404,9 @@ protected:
     static Expression& bindAssignmentPattern(
         Compilation& compilation, const syntax::AssignmentPatternExpressionSyntax& syntax,
         const ASTContext& context, const Type* assignmentTarget);
+    static Expression& bindAssignmentPatternOfType(
+        Compilation& compilation, const syntax::AssignmentPatternExpressionSyntax& syntax,
+        const ASTContext& context, const Type* assignmentTarget);
 
     static Expression* tryConnectPortArray(const ASTContext& context, const Type& type,
                                            Expression& expr, const InstanceSymbolBase& instance);

@@ -708,10 +708,13 @@ public:
     /// declaration order, as they were evaluated to build the type. If
     /// @a specializationParameters is given, the parameters of each class
     /// specialization a named type chose are appended to it, as this site wrote them.
+    /// If @a typeReferences is given, the operand of a type reference (`type(expr)`)
+    /// the type was taken from is appended to it, as this site bound it.
     const Type& getType(const syntax::DataTypeSyntax& node, const ASTContext& context,
                         const Type* typedefTarget = nullptr,
                         SmallVectorBase<EvaluatedDimension>* evaluated = nullptr,
-                        SmallVectorBase<const Symbol*>* specializationParameters = nullptr);
+                        SmallVectorBase<const Symbol*>* specializationParameters = nullptr,
+                        SmallVectorBase<const Expression*>* typeReferences = nullptr);
 
     /// Gets an array type created from the given element type and dimensions. If
     /// @a evaluated is given, @a dimensions are appended to it in declaration order,

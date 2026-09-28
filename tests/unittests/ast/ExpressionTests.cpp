@@ -3794,8 +3794,8 @@ endmodule
         const Expression* cur = sym->as<VariableSymbol>().getInitializer();
         while (cur && cur->kind == ExpressionKind::Conversion) {
             auto& conv = cur->as<ConversionExpression>();
-            if (conv.widthExpr)
-                return conv.widthExpr;
+            if (conv.targetExpr && conv.targetExpr->kind != ExpressionKind::DataType)
+                return conv.targetExpr;
             cur = &conv.operand();
         }
         return nullptr;

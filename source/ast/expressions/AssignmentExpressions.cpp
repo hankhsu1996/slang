@@ -788,14 +788,30 @@ Expression& Expression::bindAssignmentPattern(Compilation& comp,
     auto range = syntax.sourceRange();
     auto& p = *syntax.pattern;
 
+    const DataTypeExpression* typeExpr = nullptr;
     if (syntax.type) {
-        assignmentTarget = &comp.getType(*syntax.type, context);
+        typeExpr = &DataTypeExpression::forSyntax(comp, *syntax.type, context);
+        assignmentTarget = typeExpr->type;
         if (!assignmentTarget->isSimpleType() && syntax.type->kind != SyntaxKind::TypeReference) {
             if (!assignmentTarget->isError())
                 context.addDiag(diag::BadAssignmentPatternType, range) << *assignmentTarget;
             return badExpr(comp, &bindInvalidAssignmentPattern(context, p));
         }
     }
+
+    // The type the source wrote is kept on whichever pattern the rest binds.
+    auto& result = bindAssignmentPatternOfType(comp, syntax, context, assignmentTarget);
+    if (typeExpr && AssignmentPatternExpressionBase::isKind(result.kind))
+        result.as<AssignmentPatternExpressionBase>().typeExpr = typeExpr;
+    return result;
+}
+
+Expression& Expression::bindAssignmentPatternOfType(Compilation& comp,
+                                                    const AssignmentPatternExpressionSyntax& syntax,
+                                                    const ASTContext& context,
+                                                    const Type* assignmentTarget) {
+    auto range = syntax.sourceRange();
+    auto& p = *syntax.pattern;
 
     if (!assignmentTarget || assignmentTarget->isError()) {
         if (!assignmentTarget)
@@ -1351,7 +1367,7 @@ Expression& StructuredAssignmentPatternExpression::forStruct(
                                             context);
                     bad |= expr.bad();
 
-                    typeSetters.emplace_back(TypeSetter{&found->as<Type>(), &expr});
+                    typeSetters.emplace_back(TypeSetter{&found->as<Type>(), &expr, nullptr});
                 }
                 else {
                     auto& diag = context.addDiag(diag::UnknownMember, item->key->sourceRange());
@@ -1362,10 +1378,12 @@ Expression& StructuredAssignmentPatternExpression::forStruct(
             }
         }
         else if (DataTypeSyntax::isKind(item->key->kind)) {
-            const Type& typeKey = comp.getType(item->key->as<DataTypeSyntax>(), context);
+            auto& keyExpr = DataTypeExpression::forSyntax(comp, item->key->as<DataTypeSyntax>(),
+                                                          context);
+            const Type& typeKey = *keyExpr.type;
             if (typeKey.isSimpleType()) {
                 auto& expr = bindRValue(typeKey, *item->expr, {}, context);
-                typeSetters.emplace_back(TypeSetter{&typeKey, &expr});
+                typeSetters.emplace_back(TypeSetter{&typeKey, &expr, &keyExpr});
                 bad |= expr.bad();
             }
             else {
@@ -1465,7 +1483,7 @@ Expression& StructuredAssignmentPatternExpression::forFixedArray(
             const Type& typeKey = *keyExpr.type;
             if (typeKey.isSimpleType()) {
                 auto& expr = bindRValue(typeKey, *item->expr, {}, context);
-                typeSetters.emplace_back(TypeSetter{&typeKey, &expr});
+                typeSetters.emplace_back(TypeSetter{&typeKey, &expr, &keyExpr});
                 bad |= expr.bad();
             }
             else {

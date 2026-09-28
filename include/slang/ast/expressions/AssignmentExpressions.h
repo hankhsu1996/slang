@@ -199,6 +199,10 @@ public:
 /// Base class for assignment pattern expressions.
 class SLANG_EXPORT AssignmentPatternExpressionBase : public Expression {
 public:
+    /// The type the pattern was written with (`T` in `T'{...}`), as it was bound,
+    /// or nullptr where the pattern takes its type from its context.
+    const Expression* typeExpr = nullptr;
+
     /// @returns the list of elements in the assignment pattern
     std::span<const Expression* const> elements() const { return elements_; }
 
@@ -211,6 +215,12 @@ public:
     void visitExprs(TVisitor&& visitor) const {
         for (auto elem : elements())
             elem->visit(visitor);
+    }
+
+    static bool isKind(ExpressionKind kind) {
+        return kind == ExpressionKind::SimpleAssignmentPattern ||
+               kind == ExpressionKind::StructuredAssignmentPattern ||
+               kind == ExpressionKind::ReplicatedAssignmentPattern;
     }
 
 protected:
@@ -282,6 +292,10 @@ public:
 
         /// An expression for the value to set.
         not_null<const Expression*> expr;
+
+        /// The key the type was written as, as it was bound, or nullptr where a
+        /// structure pattern names the type by its simple name alone.
+        const Expression* key = nullptr;
     };
 
     /// A setter for a specific array index.

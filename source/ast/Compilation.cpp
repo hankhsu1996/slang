@@ -1765,10 +1765,11 @@ const Type& Compilation::getType(SyntaxKind typeKind) const {
 const Type& Compilation::getType(const DataTypeSyntax& node, const ASTContext& context,
                                  const Type* typedefTarget,
                                  SmallVectorBase<EvaluatedDimension>* evaluated,
-                                 SmallVectorBase<const Symbol*>* specializationParameters) {
+                                 SmallVectorBase<const Symbol*>* specializationParameters,
+                                 SmallVectorBase<const Expression*>* typeReferences) {
     SLANG_ASSERT(!isFrozen());
     return Type::fromSyntax(*this, node, context, typedefTarget, evaluated,
-                            specializationParameters);
+                            specializationParameters, typeReferences);
 }
 
 const Type& Compilation::getType(const Type& elementType,

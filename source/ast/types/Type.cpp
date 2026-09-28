@@ -1145,7 +1145,8 @@ const Type* Type::getCommonBase(const Type& left, const Type& right) {
 const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& node,
                              const ASTContext& context, const Type* typedefTarget,
                              SmallVectorBase<EvaluatedDimension>* evaluated,
-                             SmallVectorBase<const Symbol*>* specializationParameters) {
+                             SmallVectorBase<const Symbol*>* specializationParameters,
+                             SmallVectorBase<const Expression*>* typeReferences) {
     switch (node.kind) {
         case SyntaxKind::BitType:
         case SyntaxKind::LogicType:
@@ -1222,6 +1223,8 @@ const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& nod
                     context.addDiag(diag::TypeRefVoid, exprSyntax.sourceRange());
             }
 
+            if (typeReferences)
+                typeReferences->push_back(&expr);
             return *expr.type;
         }
         case SyntaxKind::VirtualInterfaceType:
