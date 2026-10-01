@@ -41,6 +41,8 @@ protected:
 
     ConstantValue tryEvalBool(const Expression& expr) const;
 
+    std::pair<const Statement*, bool> tryGetKnownBranch(const CaseStatement& stmt) const;
+
     enum class WillExecute { Yes, No, Maybe };
 
     using ForLoopVars = SmallVector<std::pair<ConstantValue*, const VariableSymbol*>>;
@@ -344,7 +346,7 @@ protected:
 
         // If the branch is known we can visit it explicitly,
         // otherwise we need to merge states for all case items.
-        auto [knownBranch, isKnown] = stmt.getKnownBranch(evalContext);
+        auto [knownBranch, isKnown] = tryGetKnownBranch(stmt);
 
         auto initialState = std::move(state);
         auto finalState = (DERIVED).unreachableState();
