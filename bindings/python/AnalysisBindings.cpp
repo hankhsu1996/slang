@@ -199,6 +199,7 @@ void registerAnalysis(py::module_& m, py::module_& ast) {
         .value("InlineContAssignFunctionReads", AnalysisFlags::InlineContAssignFunctionReads)
         .value("AlwaysStarUsesLSPs", AnalysisFlags::AlwaysStarUsesLSPs)
         .value("ContAssignUsesLSPs", AnalysisFlags::ContAssignUsesLSPs)
+        .value("IgnoreConstantConditions", AnalysisFlags::IgnoreConstantConditions)
         .finalize();
 
     py::classh<AnalysisOptions>(m, "AnalysisOptions")

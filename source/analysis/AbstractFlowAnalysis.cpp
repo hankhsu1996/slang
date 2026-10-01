@@ -23,11 +23,23 @@ FlowAnalysisBase::FlowAnalysisBase(const Symbol& symbol, AnalysisOptions options
 }
 
 ConstantValue FlowAnalysisBase::tryEvalBool(const Expression& expr) const {
+    if (options.flags.has(AnalysisFlags::IgnoreConstantConditions))
+        return nullptr;
     return expr.eval(evalContext);
+}
+
+std::pair<const Statement*, bool> FlowAnalysisBase::tryGetKnownBranch(
+    const CaseStatement& stmt) const {
+    if (options.flags.has(AnalysisFlags::IgnoreConstantConditions))
+        return {nullptr, false};
+    return stmt.getKnownBranch(evalContext);
 }
 
 FlowAnalysisBase::WillExecute FlowAnalysisBase::tryGetLoopIterValues(
     const ForLoopStatement& stmt, SmallVector<ConstantValue>& values, ForLoopVars& iterVars) {
+
+    if (options.flags.has(AnalysisFlags::IgnoreConstantConditions))
+        return WillExecute::Maybe;
 
     if (!stmt.stopExpr || (stmt.loopVars.empty() && stmt.initializers.empty()))
         return WillExecute::Maybe;

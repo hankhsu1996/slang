@@ -884,3 +884,157 @@ endmodule
     CHECK(sensit.reads[0].bitRange.first == 4);
     CHECK(sensit.reads[0].bitRange.second == 7);
 }
+
+// ---------------------------------------------------------------------------
+// Constant conditions
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Sensitivity list - always_comb constant if condition default") {
+    SensitivityHarness h(R"(
+module m;
+    localparam int P = 0;
+    logic a, b, y;
+    always_comb begin
+        if (P == 1) y = a;
+        else y = b;
+    end
+endmodule
+)");
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"P", "b"});
+}
+
+TEST_CASE("Sensitivity list - always_comb constant if condition with flag") {
+    AnalysisOptions opts;
+    opts.flags = AnalysisFlags::IgnoreConstantConditions;
+
+    SensitivityHarness h(R"(
+module m;
+    localparam int P = 0;
+    logic a, b, y;
+    always_comb begin
+        if (P == 1) y = a;
+        else y = b;
+    end
+endmodule
+)",
+                         opts);
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"P", "a", "b"});
+}
+
+TEST_CASE("Sensitivity list - always_comb constant case selector default") {
+    SensitivityHarness h(R"(
+module m;
+    localparam int P = 0;
+    logic a, b, y;
+    always_comb begin
+        case (P)
+            1: y = a;
+            default: y = b;
+        endcase
+    end
+endmodule
+)");
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"P", "b"});
+}
+
+TEST_CASE("Sensitivity list - always_comb constant case selector with flag") {
+    AnalysisOptions opts;
+    opts.flags = AnalysisFlags::IgnoreConstantConditions;
+
+    SensitivityHarness h(R"(
+module m;
+    localparam int P = 0;
+    logic a, b, y;
+    always_comb begin
+        case (P)
+            1: y = a;
+            default: y = b;
+        endcase
+    end
+endmodule
+)",
+                         opts);
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"P", "a", "b"});
+}
+
+TEST_CASE("Sensitivity list - always_comb constant conditional and logical operands default") {
+    SensitivityHarness h(R"(
+module m;
+    localparam int P = 0;
+    logic a, b, c, y;
+    always_comb y = (P == 1) ? a : ((P == 0) || b) && c;
+endmodule
+)");
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"P", "c"});
+}
+
+TEST_CASE("Sensitivity list - always_comb constant conditional and logical operands with flag") {
+    AnalysisOptions opts;
+    opts.flags = AnalysisFlags::IgnoreConstantConditions;
+
+    SensitivityHarness h(R"(
+module m;
+    localparam int P = 0;
+    logic a, b, c, y;
+    always_comb y = (P == 1) ? a : ((P == 0) || b) && c;
+endmodule
+)",
+                         opts);
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"P", "a", "b", "c"});
+}
+
+TEST_CASE("Sensitivity list - always_comb for loop with constant bounds default") {
+    SensitivityHarness h(R"(
+module m;
+    logic [7:0] vec;
+    logic y;
+    always_comb begin
+        y = 1'b0;
+        for (int i = 0; i < 4; i++)
+            y ^= vec[i];
+    end
+endmodule
+)");
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"vec"});
+    REQUIRE(sensit.reads.size() == 1);
+    CHECK(sensit.reads[0].bitRange.first == 0);
+    CHECK(sensit.reads[0].bitRange.second == 3);
+}
+
+TEST_CASE("Sensitivity list - always_comb for loop with constant bounds with flag") {
+    AnalysisOptions opts;
+    opts.flags = AnalysisFlags::IgnoreConstantConditions;
+
+    SensitivityHarness h(R"(
+module m;
+    logic [7:0] vec;
+    logic y;
+    always_comb begin
+        y = 1'b0;
+        for (int i = 0; i < 4; i++)
+            y ^= vec[i];
+    end
+endmodule
+)",
+                         opts);
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityNames(sensit, {"vec"});
+    REQUIRE(sensit.reads.size() == 1);
+    CHECK(sensit.reads[0].bitRange.first == 0);
+    CHECK(sensit.reads[0].bitRange.second == 7);
+}

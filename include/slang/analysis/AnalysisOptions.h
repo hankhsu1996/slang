@@ -68,8 +68,19 @@ enum class SLANG_EXPORT AnalysisFlags {
     /// variable for any partial select -- i.e. the sensitivity is derived from
     /// identifiers only, not from LSPs.
     ContAssignUsesLSPs = 1 << 8,
+
+    /// When set, flow analysis does not use constant conditions to decide which
+    /// paths are reachable: both branches of a conditional, every item of a case
+    /// statement, and both operands of a short-circuiting operator are visited
+    /// even if the condition is constant, and for loops are not unrolled.
+    ///
+    /// Per LRM 9.2.2.2.1 and 9.4.2.2 implicit sensitivity covers everything read
+    /// within the block or statement, with no exception for unreachable branches.
+    /// The default (flag not set) is to exclude reads that are only reachable
+    /// through a path ruled out by a constant.
+    IgnoreConstantConditions = 1 << 9,
 };
-SLANG_BITMASK(AnalysisFlags, ContAssignUsesLSPs)
+SLANG_BITMASK(AnalysisFlags, IgnoreConstantConditions)
 
 /// Contains various options that can control analysis behavior.
 struct SLANG_EXPORT AnalysisOptions {
