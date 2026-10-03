@@ -115,7 +115,40 @@ public:
     /// Gets lvalue state for the given symbol, or a nullptr if no state is tracked.
     const LValueSymbol* getLValue(const ast::ValueSymbol& symbol) const;
 
-    using ReadSet = SmallMap<const ast::ValueSymbol*, SymbolBitMap, 2>;
+    /// A set of symbols along with the bit ranges of each that were read.
+    /// Iteration visits the symbols in the order in which they were first added.
+    class ReadSet {
+    public:
+        using value_type = std::pair<const ast::ValueSymbol*, SymbolBitMap>;
+        using const_iterator = const value_type*;
+
+        /// Gets the bit ranges for the given symbol, adding
+        /// the symbol to the set if it's not already there.
+        SymbolBitMap& operator[](const ast::ValueSymbol* symbol) {
+            auto [it, inserted] = symbolToSlot.try_emplace(symbol, (uint32_t)entries.size());
+            if (inserted)
+                entries.emplace_back(symbol, SymbolBitMap());
+            return entries[it->second].second;
+        }
+
+        /// Finds the entry for the given symbol, or returns end() if there is none.
+        const_iterator find(const ast::ValueSymbol* symbol) const {
+            auto it = symbolToSlot.find(symbol);
+            return it == symbolToSlot.end() ? end() : begin() + it->second;
+        }
+
+        /// Returns true if the given symbol is in the set.
+        bool contains(const ast::ValueSymbol* symbol) const {
+            return symbolToSlot.contains(symbol);
+        }
+
+        const_iterator begin() const { return entries.begin(); }
+        const_iterator end() const { return entries.end(); }
+
+    private:
+        SmallMap<const ast::ValueSymbol*, uint32_t, 2> symbolToSlot;
+        SmallVector<value_type, 2> entries;
+    };
 
     /// Gets all of the nets and variables that were read in the procedure,
     /// along with their accessed bit ranges.
@@ -153,7 +186,7 @@ protected:
     ReadSet localLValStates;
 
     /// Per-@*-region read sets, accumulated during DFA. This is a std::map because
-    /// the ReadSet is a SmallMap which is not relocatable.
+    /// the ReadSet holds a SmallMap which is not relocatable.
     std::map<const ast::Statement*, ReadSet> implicitEventRVals;
 
     /// All statements that have timing controls associated with them.

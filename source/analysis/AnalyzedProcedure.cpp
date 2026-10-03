@@ -417,7 +417,7 @@ void AnalyzedProcedure::buildSensitivityList(AnalysisContext& context, DFAResult
         sensitivityList.kind = SensitivityList::Kind::Explicit;
         sensitivityList.timingControl = &timing;
 
-        SmallMap<const ValueSymbol*, SymbolBitMap, 2> signals;
+        DFAResults::ReadSet signals;
         auto handleEvent = [&](const SignalEventControl& sec) {
             ValuePath::visitPaths(sec.expr, evalContext, [&](const ValuePath& path) {
                 if (path.lsp) {
