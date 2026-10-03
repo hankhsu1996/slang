@@ -36,6 +36,16 @@ static void checkSensitivityNames(const SensitivityList& sensit,
     CHECK(names == std::set<std::string_view>(expected));
 }
 
+// Checks that the read-set of a sensitivity list names exactly the supplied
+// signals, in the supplied order.
+static void checkSensitivityOrder(const SensitivityList& sensit,
+                                  std::initializer_list<std::string_view> expected) {
+    std::vector<std::string_view> names;
+    for (auto& rr : sensit.reads)
+        names.push_back(rr.symbol->name);
+    CHECK(names == std::vector<std::string_view>(expected));
+}
+
 using SLK = SensitivityList::Kind;
 
 TEST_CASE("Sensitivity list - always_comb") {
@@ -1037,4 +1047,63 @@ endmodule
     REQUIRE(sensit.reads.size() == 1);
     CHECK(sensit.reads[0].bitRange.first == 0);
     CHECK(sensit.reads[0].bitRange.second == 7);
+}
+
+TEST_CASE("Sensitivity list - always_comb reads listed in order of first read") {
+    SensitivityHarness h(R"(
+module m;
+    logic a, b, c, d, e, f, g, h;
+    logic [7:0] y;
+    always_comb begin
+        y[0] = f;
+        y[1] = c;
+        y[2] = h;
+        y[3] = a;
+        y[4] = e;
+        y[5] = c;
+        y[6] = g;
+        y[7] = b & d;
+    end
+endmodule
+)");
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityOrder(sensit, {"f", "c", "h", "a", "e", "g", "b", "d"});
+}
+
+TEST_CASE("Sensitivity list - always @* reads listed in order of first read") {
+    SensitivityHarness h(R"(
+module m;
+    logic a, b, c, d, e, f, g, h;
+    logic [7:0] y;
+    always @(*) begin
+        y[0] = f;
+        y[1] = c;
+        y[2] = h;
+        y[3] = a;
+        y[4] = e;
+        y[5] = c;
+        y[6] = g;
+        y[7] = b & d;
+    end
+endmodule
+)");
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Implicit);
+    checkSensitivityOrder(sensit, {"f", "c", "h", "a", "e", "g", "b", "d"});
+}
+
+TEST_CASE("Sensitivity list - explicit event list signals listed in order written") {
+    SensitivityHarness h(R"(
+module m;
+    logic a, b, c, d, e, f, g, h;
+    logic y;
+    always @(f or c or h or a or e or g or b or d) begin
+        y = a;
+    end
+endmodule
+)");
+    auto sensit = h.sensitivity();
+    CHECK(sensit.kind == SLK::Explicit);
+    checkSensitivityOrder(sensit, {"f", "c", "h", "a", "e", "g", "b", "d"});
 }
