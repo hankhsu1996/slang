@@ -61,6 +61,10 @@ public:
     /// and that path does not exist or is not a directory.
     std::error_code addUserDirectories(std::string_view pattern);
 
+    /// Gets the list of user include directories, in the order
+    /// in which they are searched.
+    std::vector<std::filesystem::path> getUserDirectories() const;
+
     /// Gets the source line number for a given source location.
     size_t getLineNumber(SourceLocation location) const;
 
