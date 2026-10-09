@@ -131,15 +131,16 @@ public:
     void setOverride(const SubroutineSymbol& parentMethod) const;
     const SubroutineSymbol* getOverride() const { return overrides; }
 
-    /// Records the C identifier this DPI import links against, as resolved while
-    /// DPI methods are checked.
+    /// Records the C identifier a DPI export directive in this subroutine's
+    /// scope exports it under, as resolved while that scope is elaborated.
     void setDPICIdentifier(std::string_view id) const { dpiCIdentifier = id; }
 
-    /// @returns the C identifier this DPI import links against: the explicit
-    /// c_identifier if the declaration gave one, and otherwise the subroutine's
-    /// own name. Empty for a subroutine that is not a DPI import, and for one
-    /// whose identifier is not a valid C identifier, which is diagnosed while
-    /// the compilation is elaborated.
+    /// @returns the C identifier foreign code knows this subroutine by: what a
+    /// DPI import links against, or what a DPI export directive in its scope
+    /// exports it under. Either is the explicit c_identifier if the declaration
+    /// gave one, and otherwise the subroutine's own name. Empty for a subroutine
+    /// that is neither imported nor exported, and for one whose identifier is
+    /// not a valid C identifier, which is diagnosed where it is declared.
     std::string_view getDPICIdentifier() const { return dpiCIdentifier; }
 
     const MethodPrototypeSymbol* getPrototype() const { return prototype; }
