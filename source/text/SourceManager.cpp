@@ -49,6 +49,12 @@ std::error_code SourceManager::addUserDirectories(std::string_view pattern) {
     return ec;
 }
 
+std::vector<fs::path> SourceManager::getUserDirectories() const {
+    // Note: locking the separate mutex for include dirs here.
+    std::shared_lock<std::shared_mutex> lock(includeDirMutex);
+    return userDirectories;
+}
+
 size_t SourceManager::getLineNumber(SourceLocation location) const {
     std::shared_lock<std::shared_mutex> lock(mutex);
     SourceLocation fileLocation = getFullyExpandedLocImpl(location, lock);
