@@ -211,7 +211,8 @@ void registerCompilation(nb::module_& m, nb::module_& ast, nb::module_& driver) 
         .def_rw("defaultTimeScale", &CompilationOptions::defaultTimeScale)
         .def_rw("topModules", &CompilationOptions::topModules)
         .def_rw("paramOverrides", &CompilationOptions::paramOverrides)
-        .def_rw("defaultLiblist", &CompilationOptions::defaultLiblist);
+        .def_rw("defaultLiblist", &CompilationOptions::defaultLiblist)
+        .def_rw("libraryLiblists", &CompilationOptions::libraryLiblists);
 
     nb::class_<Compilation> comp(ast, "Compilation", nb::dynamic_attr());
     comp.def(nb::init<>())

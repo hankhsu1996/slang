@@ -413,6 +413,16 @@ ones later in the list.
 If no explicit ordering is given the default order is
 the order in which the libraries are specified to the tool.
 
+`--liblist <library>=<library>[,...]`
+
+A list of library names in the order in which they should be used to resolve
+module names that are instantiated from within the given library. Only the
+libraries in the list are searched, so the given library itself needs to be
+in the list for its own modules to be found. This takes the place of the
+default order and of any order given via `-L`, for that library alone.
+
+If a config applies to an instance its rules are used instead.
+
 `--defaultLibName <name>`
 
 Sets the name of the default library. If not set, defaults to "work".

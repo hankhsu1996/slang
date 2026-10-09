@@ -43,6 +43,64 @@ endmodule
     CHECK(&lib == lib1.get());
 }
 
+TEST_CASE("Duplicate modules resolved by the instantiating library's list") {
+    auto lib1 = std::make_unique<SourceLibrary>("lib1", 1);
+    auto lib2 = std::make_unique<SourceLibrary>("lib2", 2);
+    auto lib3 = std::make_unique<SourceLibrary>("lib3", 3);
+
+    auto tree1 = SyntaxTree::fromText(R"(
+module mod;
+endmodule
+
+module only1;
+endmodule
+)",
+                                      SyntaxTree::getDefaultSourceManager(), "source", "", {},
+                                      lib1.get());
+    auto tree2 = SyntaxTree::fromText(R"(
+module mod;
+endmodule
+
+module user;
+    mod m();
+endmodule
+)",
+                                      SyntaxTree::getDefaultSourceManager(), "source", "", {},
+                                      lib2.get());
+    auto tree3 = SyntaxTree::fromText(R"(
+module stray;
+    only1 o();
+endmodule
+)",
+                                      SyntaxTree::getDefaultSourceManager(), "source", "", {},
+                                      lib3.get());
+    auto tree4 = SyntaxTree::fromText(R"(
+module top;
+    mod m();
+    user u();
+    stray s();
+endmodule
+)");
+
+    CompilationOptions options;
+    options.libraryLiblists["lib2"] = {"lib2", "lib1"};
+    options.libraryLiblists["lib3"] = {"lib3"};
+
+    Compilation compilation(options);
+    compilation.addSyntaxTree(tree1);
+    compilation.addSyntaxTree(tree2);
+    compilation.addSyntaxTree(tree3);
+    compilation.addSyntaxTree(tree4);
+
+    auto& root = compilation.getRoot();
+    CHECK(&root.lookupName<InstanceSymbol>("top.m").getDefinition().sourceLibrary == lib1.get());
+    CHECK(&root.lookupName<InstanceSymbol>("top.u.m").getDefinition().sourceLibrary == lib2.get());
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 1);
+    CHECK(diags[0].code == diag::UnknownModule);
+}
+
 TEST_CASE("Driver library default ordering") {
     auto guard = OS::captureOutput();
 
