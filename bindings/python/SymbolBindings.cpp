@@ -332,7 +332,9 @@ void registerSymbols(py::module_& m) {
         .def_property_readonly("returnType", &SubroutineSymbol::getReturnType)
         .def_property_readonly("override", &SubroutineSymbol::getOverride)
         .def_property_readonly("prototype", &SubroutineSymbol::getPrototype)
-        .def_property_readonly("isVirtual", &SubroutineSymbol::isVirtual);
+        .def_property_readonly("isVirtual", &SubroutineSymbol::isVirtual)
+        .def_property_readonly("dpiCIdentifier", &SubroutineSymbol::getDPICIdentifier)
+        .def_property_readonly("isDPIExport", &SubroutineSymbol::isDPIExport);
 
     py::classh<MethodPrototypeSymbol, Symbol, Scope> methodProto(m, "MethodPrototypeSymbol");
     methodProto.def_readonly("subroutineKind", &MethodPrototypeSymbol::subroutineKind)
