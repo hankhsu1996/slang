@@ -564,8 +564,9 @@ public:
     /// These are later checked for correctness.
     void noteInstanceWithDefBind(const Symbol& instance);
 
-    /// Notes the presence of a DPI export directive. These will be checked for correctness
-    /// but are otherwise unused by SystemVerilog code.
+    /// Notes the presence of a DPI export directive, recording on the subroutine it names
+    /// the C identifier it is exported under. Exports are later checked against each other
+    /// for correctness but are otherwise unused by SystemVerilog code.
     void noteDPIExportDirective(const syntax::DPIExportSyntax& syntax, const Scope& scope);
 
     /// A DPI export entry.
@@ -1038,9 +1039,6 @@ private:
     // Note that instances store pointers into this tree so it must not be
     // modified after elaboration begins.
     HierarchyOverrideNode hierarchyOverrides;
-
-    // A list of raw DPI export directives collected during elaboration.
-    std::vector<std::pair<const syntax::DPIExportSyntax*, const Scope*>> dpiExportDirectives;
 
     // Resolved DPI exports collected during elaboration.
     std::vector<DPIExport> dpiExports;

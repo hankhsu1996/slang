@@ -18,10 +18,12 @@
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/Type.h"
+#include "slang/diagnostics/CompilationDiags.h"
 #include "slang/diagnostics/DeclarationsDiags.h"
 #include "slang/diagnostics/LookupDiags.h"
 #include "slang/syntax/AllSyntax.h"
 #include "slang/syntax/SyntaxFacts.h"
+#include "slang/text/CharInfo.h"
 
 namespace slang::ast {
 
@@ -279,6 +281,12 @@ SubroutineSymbol& SubroutineSymbol::fromSyntax(Compilation& compilation,
     result->setSyntax(syntax);
     result->setAttributes(parent, syntax.attributes);
     result->flags = MethodFlags::DPIImport;
+
+    Token cId = syntax.c_identifier ? syntax.c_identifier : nameToken;
+    if (isValidCIdentifier(cId.valueText()))
+        result->dpiCIdentifier = cId.valueText();
+    else if (!cId.valueText().empty())
+        parent.addDiag(diag::InvalidDPICIdentifier, cId.range()) << cId.valueText();
 
     result->declaredReturnType.addFlags(DeclaredTypeFlags::DPIReturnType);
     if (subroutineKind == SubroutineKind::Function)

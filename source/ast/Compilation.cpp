@@ -1135,7 +1135,74 @@ void Compilation::noteInstanceWithDefBind(const Symbol& instance) {
 void Compilation::noteDPIExportDirective(const DPIExportSyntax& syntax, const Scope& scope) {
     SLANG_ASSERT(!isFrozen());
 
-    dpiExportDirectives.emplace_back(&syntax, &scope);
+    if (syntax.specString.valueText() == "DPI")
+        scope.addDiag(diag::DPISpecDisallowed, syntax.specString.range());
+
+    auto name = syntax.name.valueText();
+    auto symbol = Lookup::unqualifiedAt(scope, name, LookupLocation::max, syntax.name.range());
+    if (!symbol)
+        return;
+
+    if (symbol->kind != SymbolKind::Subroutine) {
+        auto& diag = scope.addDiag(diag::NotASubroutine, syntax.name.range()) << name;
+        diag.addNote(diag::NoteDeclarationHere, symbol->location);
+        return;
+    }
+
+    // This check is a little verbose because we're avoiding issuing an error if the
+    // functionOrTask keyword is invalid, i.e. not 'function' or 'task'.
+    auto& sub = symbol->as<SubroutineSymbol>();
+    if ((sub.subroutineKind == SubroutineKind::Function &&
+         syntax.functionOrTask.kind == TokenKind::TaskKeyword) ||
+        (sub.subroutineKind == SubroutineKind::Task &&
+         syntax.functionOrTask.kind == TokenKind::FunctionKeyword)) {
+        auto& diag = scope.addDiag(diag::DPIExportKindMismatch, syntax.functionOrTask.range());
+        diag.addNote(diag::NoteDeclarationHere, symbol->location);
+        return;
+    }
+
+    if (sub.getParentScope() != &scope) {
+        auto& diag = scope.addDiag(diag::DPIExportDifferentScope, syntax.name.range());
+        diag.addNote(diag::NoteDeclarationHere, sub.location);
+        return;
+    }
+
+    if (sub.flags.has(MethodFlags::DPIImport)) {
+        auto& diag = scope.addDiag(diag::DPIExportImportedFunc, syntax.name.range());
+        diag.addNote(diag::NoteDeclarationHere, sub.location);
+        return;
+    }
+
+    auto& retType = sub.getReturnType();
+    if (!retType.isValidForDPIReturn() && !retType.isError()) {
+        auto& diag = scope.addDiag(diag::InvalidDPIReturnType, sub.location);
+        diag << retType;
+        diag.addNote(diag::NoteDeclarationHere, syntax.name.location());
+        return;
+    }
+
+    for (auto arg : sub.getArguments()) {
+        if (arg->direction == ArgumentDirection::Ref)
+            scope.addDiag(diag::DPIRefArg, arg->location);
+
+        auto& type = arg->getType();
+        if (!type.isValidForDPIArg() && !type.isError()) {
+            auto& diag = scope.addDiag(diag::InvalidDPIArgType, arg->location);
+            diag << type;
+            diag.addNote(diag::NoteDeclarationHere, syntax.name.location());
+            continue;
+        }
+    }
+
+    Token cId = syntax.c_identifier ? syntax.c_identifier : syntax.name;
+    if (!isValidCIdentifier(cId.valueText())) {
+        if (!cId.valueText().empty())
+            scope.addDiag(diag::InvalidDPICIdentifier, cId.range()) << cId.valueText();
+        return;
+    }
+
+    sub.setDPICIdentifier(cId.valueText());
+    dpiExports.push_back(DPIExport{&sub, std::string(cId.valueText()), &syntax});
 }
 
 void Compilation::addOutOfBlockDecl(const Scope& scope, const ScopedNameSyntax& name,
@@ -1515,7 +1582,7 @@ void Compilation::elaborate() {
     // causing undefined behavior.
 
     // Check all DPI methods for correctness.
-    if (!dpiExportDirectives.empty() || !elabVisitor.dpiImports.empty())
+    if (!dpiExports.empty() || !elabVisitor.dpiImports.empty())
         checkDPIMethods(elabVisitor.dpiImports);
 
     // Check extern interface methods for correctness.
@@ -1903,31 +1970,12 @@ static bool checkSignaturesMatch(const SubroutineSymbol& a, const SubroutineSymb
 }
 
 void Compilation::checkDPIMethods(std::span<const SubroutineSymbol* const> dpiImports) {
-    auto getCId = [&](const Scope& scope, Token cid, Token name) {
-        std::string_view text = cid ? cid.valueText() : name.valueText();
-        if (!text.empty()) {
-            auto tail = text.substr(1);
-            if (!isValidCIdChar(text[0]) || isDecimalDigit(text[0]) ||
-                std::ranges::any_of(tail, [](char c) { return !isValidCIdChar(c); })) {
-                scope.addDiag(diag::InvalidDPICIdentifier, cid ? cid.range() : name.range())
-                    << text;
-                return std::string_view();
-            }
-        }
-        return text;
-    };
-
     flat_hash_map<std::string_view, const SubroutineSymbol*> nameMap;
     for (auto sub : dpiImports) {
-        auto syntax = sub->getSyntax();
-        SLANG_ASSERT(syntax);
-
         auto scope = sub->getParentScope();
         SLANG_ASSERT(scope);
 
-        auto& dis = syntax->as<DPIImportSyntax>();
-        std::string_view cId = getCId(*scope, dis.c_identifier, dis.method->name->getLastToken());
-        sub->setDPICIdentifier(cId);
+        std::string_view cId = sub->getDPICIdentifier();
         if (cId.empty())
             continue;
 
@@ -1944,68 +1992,12 @@ void Compilation::checkDPIMethods(std::span<const SubroutineSymbol* const> dpiIm
     flat_hash_map<std::tuple<std::string_view, const Scope*>, const DPIExportSyntax*>
         exportsByScope;
     flat_hash_map<const SubroutineSymbol*, const DPIExportSyntax*> previousExports;
-    auto exports = dpiExportDirectives;
-    for (auto [syntax, scope] : exports) {
-        if (syntax->specString.valueText() == "DPI")
-            scope->addDiag(diag::DPISpecDisallowed, syntax->specString.range());
-
-        auto name = syntax->name.valueText();
-        auto symbol = Lookup::unqualifiedAt(*scope, name, LookupLocation::max,
-                                            syntax->name.range());
-        if (!symbol)
-            continue;
-
-        if (symbol->kind != SymbolKind::Subroutine) {
-            auto& diag = scope->addDiag(diag::NotASubroutine, syntax->name.range()) << name;
-            diag.addNote(diag::NoteDeclarationHere, symbol->location);
-            continue;
-        }
-
-        // This check is a little verbose because we're avoiding issuing an error if the
-        // functionOrTask keyword is invalid, i.e. not 'function' or 'task'.
-        auto& sub = symbol->as<SubroutineSymbol>();
-        if ((sub.subroutineKind == SubroutineKind::Function &&
-             syntax->functionOrTask.kind == TokenKind::TaskKeyword) ||
-            (sub.subroutineKind == SubroutineKind::Task &&
-             syntax->functionOrTask.kind == TokenKind::FunctionKeyword)) {
-            auto& diag = scope->addDiag(diag::DPIExportKindMismatch,
-                                        syntax->functionOrTask.range());
-            diag.addNote(diag::NoteDeclarationHere, symbol->location);
-            continue;
-        }
-
-        if (sub.getParentScope() != scope) {
-            auto& diag = scope->addDiag(diag::DPIExportDifferentScope, syntax->name.range());
-            diag.addNote(diag::NoteDeclarationHere, sub.location);
-            continue;
-        }
-
-        if (sub.flags.has(MethodFlags::DPIImport)) {
-            auto& diag = scope->addDiag(diag::DPIExportImportedFunc, syntax->name.range());
-            diag.addNote(diag::NoteDeclarationHere, sub.location);
-            continue;
-        }
-
-        auto& retType = sub.getReturnType();
-        if (!retType.isValidForDPIReturn() && !retType.isError()) {
-            auto& diag = scope->addDiag(diag::InvalidDPIReturnType, sub.location);
-            diag << retType;
-            diag.addNote(diag::NoteDeclarationHere, syntax->name.location());
-            continue;
-        }
-
-        for (auto arg : sub.getArguments()) {
-            if (arg->direction == ArgumentDirection::Ref)
-                scope->addDiag(diag::DPIRefArg, arg->location);
-
-            auto& type = arg->getType();
-            if (!type.isValidForDPIArg() && !type.isError()) {
-                auto& diag = scope->addDiag(diag::InvalidDPIArgType, arg->location);
-                diag << type;
-                diag.addNote(diag::NoteDeclarationHere, syntax->name.location());
-                continue;
-            }
-        }
+    auto exports = dpiExports;
+    for (auto& [subroutine, cIdentifier, syntax] : exports) {
+        auto& sub = *subroutine;
+        std::string_view cId = cIdentifier;
+        auto scope = sub.getParentScope();
+        SLANG_ASSERT(scope);
 
         {
             auto [it, inserted] = previousExports.emplace(&sub, syntax);
@@ -2017,30 +2009,20 @@ void Compilation::checkDPIMethods(std::span<const SubroutineSymbol* const> dpiIm
             }
         }
 
-        std::string_view cId = getCId(*scope, syntax->c_identifier, syntax->name);
-        if (!cId.empty()) {
-            bool shouldRecordResolved = true;
-
-            auto [nameIt, nameInserted] = nameMap.emplace(cId, &sub);
-            if (!nameInserted) {
-                if (!checkSignaturesMatch(sub, *nameIt->second)) {
-                    auto& diag = scope->addDiag(diag::DPISignatureMismatch, syntax->name.range());
-                    diag << cId;
-                    diag.addNote(diag::NotePreviousDefinition, nameIt->second->location);
-                }
-            }
-
-            auto [scopeIt, scopeInserted] = exportsByScope.emplace(std::make_tuple(cId, scope),
-                                                                   syntax);
-            if (!scopeInserted) {
-                shouldRecordResolved = false;
-                auto& diag = scope->addDiag(diag::DPIExportDuplicateCId, syntax->name.range());
+        auto [nameIt, nameInserted] = nameMap.emplace(cId, &sub);
+        if (!nameInserted) {
+            if (!checkSignaturesMatch(sub, *nameIt->second)) {
+                auto& diag = scope->addDiag(diag::DPISignatureMismatch, syntax->name.range());
                 diag << cId;
-                diag.addNote(diag::NotePreviousDefinition, scopeIt->second->name.location());
+                diag.addNote(diag::NotePreviousDefinition, nameIt->second->location);
             }
+        }
 
-            if (shouldRecordResolved)
-                dpiExports.push_back(DPIExport{&sub, std::string(cId), syntax});
+        auto [scopeIt, scopeInserted] = exportsByScope.emplace(std::make_tuple(cId, scope), syntax);
+        if (!scopeInserted) {
+            auto& diag = scope->addDiag(diag::DPIExportDuplicateCId, syntax->name.range());
+            diag << cId;
+            diag.addNote(diag::NotePreviousDefinition, scopeIt->second->name.location());
         }
     }
 }

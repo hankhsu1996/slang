@@ -466,7 +466,7 @@ void Scope::addMembers(const SyntaxNode& syntax) {
                 SubroutineSymbol::fromSyntax(compilation, syntax.as<DPIImportSyntax>(), *this));
             break;
         case SyntaxKind::DPIExport:
-            compilation.noteDPIExportDirective(syntax.as<DPIExportSyntax>(), *this);
+            addDeferredMembers(syntax);
             break;
         case SyntaxKind::ConstraintDeclaration:
             if (auto sym = ConstraintBlockSymbol::fromSyntax(
@@ -1168,6 +1168,11 @@ void Scope::elaborate() const {
             case SyntaxKind::BindDirective:
                 compilation.noteBindDirective(member.node.as<BindDirectiveSyntax>(), *this);
                 break;
+            case SyntaxKind::DPIExport:
+                // No symbol to create here; instead, look up the subroutine
+                // and record the export on it.
+                compilation.noteDPIExportDirective(member.node.as<DPIExportSyntax>(), *this);
+                break;
             case SyntaxKind::ClockingDeclaration:
                 insertMember(&ClockingBlockSymbol::fromSyntax(
                                  *this, member.node.as<ClockingDeclarationSyntax>()),
@@ -1523,6 +1528,7 @@ static size_t countMembers(const SyntaxNode& syntax) {
         case SyntaxKind::GenerateBlock:
         case SyntaxKind::DefaultClockingReference:
         case SyntaxKind::DefaultDisableDeclaration:
+        case SyntaxKind::DPIExport:
         case SyntaxKind::ModuleDeclaration:
         case SyntaxKind::ProgramDeclaration:
         case SyntaxKind::ClassMethodDeclaration:

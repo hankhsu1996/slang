@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 namespace slang {
 
@@ -96,6 +97,18 @@ constexpr bool isAlphaNumeric(char c) {
 /// That includes all alphanumeric characters and the underscore.
 constexpr bool isValidCIdChar(char c) {
     return isAlphaNumeric(c) || c == '_';
+}
+
+/// Returns whether the given text is a valid C language identifier.
+constexpr bool isValidCIdentifier(std::string_view text) {
+    if (text.empty() || isDecimalDigit(text[0]))
+        return false;
+
+    for (char c : text) {
+        if (!isValidCIdChar(c))
+            return false;
+    }
+    return true;
 }
 
 /// Returns whether the given characrer is a valid in base64 encoding.

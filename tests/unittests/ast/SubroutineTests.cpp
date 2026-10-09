@@ -375,6 +375,44 @@ endmodule
     CHECK(exports[1].cIdentifier == "read_id");
 }
 
+TEST_CASE("A subroutine states its DPI identifiers in an instance elaborated late") {
+    auto tree = SyntaxTree::fromText(R"(
+module Held(input int seed);
+    import "DPI-C" twice_c = function int twice(input int v);
+    export "DPI-C" read_c = function read_seed;
+    function int read_seed(); return seed; endfunction
+    function int plain(); return 0; endfunction
+endmodule
+
+module Pair(input int seed);
+    for (genvar i = 0; i < 1; i++) begin : slot
+        Held held(.seed);
+    end
+endmodule
+
+module Top;
+    Pair p0(.seed(30));
+    Pair p1(.seed(31));
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    // The second pair duplicates the first, so the compilation's own pass does
+    // not visit it and its body is elaborated by the lookups below.
+    auto& root = compilation.getRoot();
+    for (auto path : {"Top.p0.slot[0].held", "Top.p1.slot[0].held"}) {
+        auto held = root.lookupName(path);
+        REQUIRE(held);
+        auto& body = held->as<InstanceSymbol>().body;
+        CHECK(body.find<SubroutineSymbol>("twice").getDPICIdentifier() == "twice_c");
+        CHECK(body.find<SubroutineSymbol>("read_seed").getDPICIdentifier() == "read_c");
+        CHECK(body.find<SubroutineSymbol>("plain").getDPICIdentifier().empty());
+    }
+}
+
 TEST_CASE("DPI signature checking") {
     auto tree = SyntaxTree::fromText(R"(
 import "DPI-C" function int foo(int a, output b);
