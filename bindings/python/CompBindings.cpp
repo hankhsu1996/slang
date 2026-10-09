@@ -257,8 +257,11 @@ void registerCompilation(py::module_& m, py::module_& ast, py::module_& driver) 
         .def("addSearchExtension", &SourceLoader::addSearchExtension, "extension"_a)
         .def("addLibraryMaps", &SourceLoader::addLibraryMaps, "pattern"_a, "basePath"_a,
              "optionBag"_a)
-        .def("addSeparateUnit", &SourceLoader::addSeparateUnit, "filePatterns"_a, "includePaths"_a,
-             "defines"_a, "libraryName"_a, "warningOptions"_a)
+        .def("addSeparateUnit",
+             py::overload_cast<std::span<const std::string>, const std::vector<std::string>&,
+                               std::vector<std::string>, const std::string&,
+                               std::vector<std::string>>(&SourceLoader::addSeparateUnit),
+             "filePatterns"_a, "includePaths"_a, "defines"_a, "libraryName"_a, "warningOptions"_a)
         .def("loadSources", &SourceLoader::loadSources)
         .def(
             "loadAndParseSources",

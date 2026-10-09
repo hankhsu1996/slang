@@ -53,6 +53,39 @@ struct SLANG_EXPORT SourceOptions {
     bool librariesInheritMacros;
 };
 
+/// Specifies options used when loading a separately compiled compilation unit.
+struct SLANG_EXPORT SeparateUnitOptions {
+    /// Additional include paths to use when parsing the unit.
+    std::vector<std::string> includePaths;
+
+    /// Macros that should be defined when parsing the unit.
+    std::vector<std::string> defines;
+
+    /// Macros that should be undefined when parsing the unit.
+    std::vector<std::string> undefines;
+
+    /// The name of the library to include the unit in. If empty, the unit will
+    /// be included in the default library and be considered a non-library unit.
+    std::string libraryName;
+
+    /// Warning options that apply to the files in the unit.
+    std::vector<std::string> warningOptions;
+
+    /// Directories in which to search for library module files for the unit.
+    /// The search is for modules (or interfaces or programs) that are instantiated
+    /// in the unit's library and not found there. Files that are found are parsed
+    /// with the unit's options and become part of the unit's library.
+    std::vector<std::string> searchDirectories;
+
+    /// Extensions used to search for library module files in @a searchDirectories.
+    std::vector<std::string> searchExtensions;
+
+    /// If true, only the defines, undefines, and include paths specified here are
+    /// used when parsing the unit; the ones that apply to the rest of the sources
+    /// are not, and the unit does not inherit macros from other source files.
+    bool standalone = false;
+};
+
 /// @brief Handles loading and parsing of groups of source files
 ///
 /// This class handles high-level descriptions of how to load and parse source files,
@@ -141,6 +174,12 @@ public:
                          std::vector<std::string> defines, const std::string& libraryName,
                          std::vector<std::string> warningOptions);
 
+    /// @brief Adds a group of files as a separately compiled compilation unit.
+    ///
+    /// Like the other overload of this method, except that everything about
+    /// how the unit should be loaded is specified via the given @a options.
+    void addSeparateUnit(std::span<const std::string> filePatterns, SeparateUnitOptions options);
+
     /// Returns a list of all library map syntax trees that have been loaded and parsed.
     const SyntaxTreeList& getLibraryMaps() const { return libraryMapTrees; }
 
@@ -188,8 +227,12 @@ private:
     struct UnitEntry {
         std::vector<std::filesystem::path> includePaths;
         std::vector<std::string> defines;
+        std::vector<std::string> undefines;
         std::vector<std::string> warningOptions;
+        std::vector<std::filesystem::path> searchDirectories;
+        std::vector<std::filesystem::path> searchExtensions;
         const SourceLibrary* library = nullptr;
+        bool standalone = false;
     };
 
     // One entry per unique file path added to the loader.
@@ -256,6 +299,11 @@ private:
     LoadResult loadAndParse(const FileEntry& fileEntry, const Bag& optionBag,
                             const SourceOptions& srcOptions, uint64_t fileSortKey = UINT64_MAX);
     void addError(const std::filesystem::path& path, std::error_code ec);
+    Bag createUnitOptionBag(const UnitEntry& unit, const Bag& optionBag) const;
+    SourceBuffer findBuffer(std::string_view name,
+                            std::span<const std::filesystem::path> directories,
+                            std::span<const std::filesystem::path> extensions,
+                            const SourceLibrary* library) const;
 
     SourceManager& sourceManager;
 

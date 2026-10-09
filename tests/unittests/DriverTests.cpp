@@ -234,6 +234,71 @@ TEST_CASE("Driver separate unit listing") {
     CHECK(it != defs.end());
 }
 
+TEST_CASE("Driver separate unit search directories") {
+    for (bool searches : {false, true}) {
+        auto guard = OS::captureOutput();
+
+        Driver driver;
+        driver.addStandardArgs();
+
+        auto testDir = findTestDir();
+        auto args = fmt::format("testfoo \"{0}test5.sv\"", testDir);
+        CHECK(driver.parseCommandLine(args));
+
+        // The unit instantiates 'mod1', which is only declared
+        // in a file of that name in the search directory.
+        std::vector<std::string> files = {fmt::format("{0}libtest/top.sv", testDir)};
+        SeparateUnitOptions unitOptions;
+        unitOptions.libraryName = "mylib";
+        if (searches) {
+            unitOptions.searchDirectories = {fmt::format("{0}libtest", testDir)};
+            unitOptions.searchExtensions = {".sv"};
+        }
+        driver.sourceLoader.addSeparateUnit(files, unitOptions);
+
+        CHECK(driver.processOptions());
+        CHECK(driver.parseAllSources());
+
+        auto compilation = driver.createCompilation();
+        auto defs = compilation->getDefinitions();
+        auto it = std::ranges::find_if(defs, [](auto sym) { return sym->name == "mod1"; });
+        REQUIRE((it != defs.end()) == searches);
+        if (searches) {
+            REQUIRE((*it)->getSourceLibrary() != nullptr);
+            CHECK((*it)->getSourceLibrary()->name == "mylib");
+        }
+    }
+}
+
+TEST_CASE("Driver standalone separate unit") {
+    for (bool standalone : {false, true}) {
+        auto guard = OS::captureOutput();
+
+        Driver driver;
+        driver.addStandardArgs();
+
+        auto testDir = findTestDir();
+        auto args = fmt::format("testfoo \"{0}test5.sv\" -DFOOBAR", testDir);
+        CHECK(driver.parseCommandLine(args));
+
+        // The unit declares module 'frob' only if FOOBAR is defined,
+        // and only the command line defines it.
+        std::vector<std::string> files = {fmt::format("{0}test4.sv", testDir)};
+        SeparateUnitOptions unitOptions;
+        unitOptions.libraryName = "mylib";
+        unitOptions.standalone = standalone;
+        driver.sourceLoader.addSeparateUnit(files, unitOptions);
+
+        CHECK(driver.processOptions());
+        CHECK(driver.parseAllSources());
+
+        auto compilation = driver.createCompilation();
+        auto defs = compilation->getDefinitions();
+        auto it = std::ranges::find_if(defs, [](auto sym) { return sym->name == "frob"; });
+        CHECK((it == defs.end()) == standalone);
+    }
+}
+
 TEST_CASE("Driver customize default lib name") {
     auto guard = OS::captureOutput();
 

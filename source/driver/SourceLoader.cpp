@@ -94,18 +94,38 @@ void SourceLoader::addSeparateUnit(std::span<const std::string> filePatterns,
                                    const std::vector<std::string>& includePaths,
                                    std::vector<std::string> defines, const std::string& libraryName,
                                    std::vector<std::string> warningOptions) {
+    SeparateUnitOptions options;
+    options.includePaths = includePaths;
+    options.defines = std::move(defines);
+    options.libraryName = libraryName;
+    options.warningOptions = std::move(warningOptions);
+    addSeparateUnit(filePatterns, std::move(options));
+}
+
+void SourceLoader::addSeparateUnit(std::span<const std::string> filePatterns,
+                                   SeparateUnitOptions options) {
     std::error_code ec;
     SmallVector<fs::path> includeDirs;
-    for (auto& str : includePaths)
+    for (auto& str : options.includePaths)
         svGlob({}, str, GlobMode::Directories, includeDirs, /* expandEnvVars */ false, ec);
 
+    SmallVector<fs::path> searchDirs;
+    for (auto& str : options.searchDirectories)
+        svGlob({}, str, GlobMode::Directories, searchDirs, /* expandEnvVars */ false, ec);
+
     auto& unit = unitEntries.emplace_back();
-    unit.defines = std::move(defines);
-    unit.warningOptions = std::move(warningOptions);
-    unit.library = getOrAddLibrary(libraryName);
+    unit.defines = std::move(options.defines);
+    unit.undefines = std::move(options.undefines);
+    unit.standalone = options.standalone;
+    unit.warningOptions = std::move(options.warningOptions);
+    unit.library = getOrAddLibrary(options.libraryName);
 
     for (auto&& path : includeDirs)
         unit.includePaths.emplace_back(std::move(path));
+    for (auto&& path : searchDirs)
+        unit.searchDirectories.emplace_back(std::move(path));
+    for (auto& ext : options.searchExtensions)
+        unit.searchExtensions.emplace_back(ext);
 
     const bool isLibraryFile = unit.library != nullptr;
     for (auto& pattern : filePatterns) {
@@ -190,16 +210,22 @@ std::vector<SourceBuffer> SourceLoader::loadSources() {
 }
 
 SourceBuffer SourceLoader::findBuffer(std::string_view name) const {
-    for (auto& dir : searchDirectories) {
+    // This file is never part of a library because if
+    // it was we would have already loaded it earlier.
+    return findBuffer(name, searchDirectories, searchExtensions, /* library */ nullptr);
+}
+
+SourceBuffer SourceLoader::findBuffer(std::string_view name, std::span<const fs::path> directories,
+                                      std::span<const fs::path> extensions,
+                                      const SourceLibrary* library) const {
+    for (auto& dir : directories) {
         fs::path path(dir);
         path /= name;
 
-        for (auto& ext : searchExtensions) {
+        for (auto& ext : extensions) {
             path.replace_extension(ext);
             if (!sourceManager.isCached(path)) {
-                // This file is never part of a library because if
-                // it was we would have already loaded it earlier.
-                auto readResult = sourceManager.readSource(path);
+                auto readResult = sourceManager.readSource(path, library);
                 if (readResult) {
                     return *readResult;
                 }
@@ -207,6 +233,24 @@ SourceBuffer SourceLoader::findBuffer(std::string_view name) const {
         }
     }
     return {};
+}
+
+Bag SourceLoader::createUnitOptionBag(const UnitEntry& unit, const Bag& optionBag) const {
+    auto unitOptions = optionBag;
+    auto& ppOptions = unitOptions.insertOrGet<parsing::PreprocessorOptions>();
+    if (unit.standalone) {
+        ppOptions.predefines.clear();
+        ppOptions.undefines.clear();
+        ppOptions.additionalIncludePaths.clear();
+    }
+
+    ppOptions.predefines.insert(ppOptions.predefines.end(), unit.defines.begin(),
+                                unit.defines.end());
+    ppOptions.undefines.insert(ppOptions.undefines.end(), unit.undefines.begin(),
+                               unit.undefines.end());
+    ppOptions.additionalIncludePaths.insert(ppOptions.additionalIncludePaths.end(),
+                                            unit.includePaths.begin(), unit.includePaths.end());
+    return unitOptions;
 }
 
 SourceLoader::SyntaxTreeList SourceLoader::loadAndParseSources(const Bag& optionBag,
@@ -280,14 +324,9 @@ SourceLoader::SyntaxTreeList SourceLoader::loadAndParseSources(const Bag& option
     };
 
     auto parseSeparateUnit = [&](const UnitEntry& unit, const std::vector<SourceBuffer>& buffers) {
-        auto unitOptions = optionBag;
-        auto& ppOptions = unitOptions.insertOrGet<parsing::PreprocessorOptions>();
-        ppOptions.predefines.insert(ppOptions.predefines.end(), unit.defines.begin(),
-                                    unit.defines.end());
-        ppOptions.additionalIncludePaths.insert(ppOptions.additionalIncludePaths.end(),
-                                                unit.includePaths.begin(), unit.includePaths.end());
-
-        auto tree = SyntaxTree::fromBuffers(buffers, sourceManager, unitOptions, inheritedMacros);
+        auto tree = SyntaxTree::fromBuffers(
+            buffers, sourceManager, createUnitOptionBag(unit, optionBag),
+            unit.standalone ? std::span<const DefineDirectiveSyntax* const>() : inheritedMacros);
         tree->isLibraryUnit = srcOptions.onlyLint || unit.library != nullptr;
         return tree;
     };
@@ -314,8 +353,10 @@ SourceLoader::SyntaxTreeList SourceLoader::loadAndParseSources(const Bag& option
         if (!unitToBufferMap.empty()) {
             std::vector<std::pair<const UnitEntry* const, std::vector<SourceBuffer>>*> unitList;
             unitList.reserve(unitToBufferMap.size());
-            for (auto& pair : unitToBufferMap)
-                unitList.push_back(&pair);
+            for (auto& unit : unitEntries) {
+                if (auto it = unitToBufferMap.find(&unit); it != unitToBufferMap.end())
+                    unitList.push_back(&*it);
+            }
 
             const size_t numTrees = syntaxTrees.size();
             syntaxTrees.resize(numTrees + unitList.size());
@@ -351,8 +392,10 @@ SourceLoader::SyntaxTreeList SourceLoader::loadAndParseSources(const Bag& option
 
         // Parse separate unit groups into their own syntax trees.
         if (!unitToBufferMap.empty()) {
-            for (auto& [unit, buffers] : unitToBufferMap)
-                syntaxTrees.emplace_back(parseSeparateUnit(*unit, buffers));
+            for (auto& unit : unitEntries) {
+                if (auto it = unitToBufferMap.find(&unit); it != unitToBufferMap.end())
+                    syntaxTrees.emplace_back(parseSeparateUnit(unit, it->second));
+            }
         }
 
         // If we deferred libraries due to wanting to inherit macros, parse them now.
@@ -370,6 +413,32 @@ SourceLoader::SyntaxTreeList SourceLoader::loadAndParseSources(const Bag& option
         loadTrees(
             syntaxTrees, [this](std::string_view name) { return findBuffer(name); }, sourceManager,
             optionBag, inheritedMacros);
+    }
+
+    // If separate units have their own search directories, do the same for each
+    // of them, looking only at unknown names in the trees of the unit's library.
+    for (auto& unit : unitEntries) {
+        if (unit.searchDirectories.empty())
+            continue;
+
+        SyntaxTreeList libraryTrees;
+        for (auto& tree : syntaxTrees) {
+            if (tree->getSourceLibrary() == unit.library)
+                libraryTrees.push_back(tree);
+        }
+
+        const size_t numTrees = libraryTrees.size();
+        loadTrees(
+            libraryTrees,
+            [&](std::string_view name) {
+                return findBuffer(name, unit.searchDirectories, unit.searchExtensions,
+                                  unit.library);
+            },
+            sourceManager, createUnitOptionBag(unit, optionBag),
+            unit.standalone ? std::span<const DefineDirectiveSyntax* const>() : inheritedMacros);
+
+        syntaxTrees.insert(syntaxTrees.end(), libraryTrees.begin() + ptrdiff_t(numTrees),
+                           libraryTrees.end());
     }
 
     // Collect per-buffer warning options from all separate compilation units.
