@@ -542,7 +542,7 @@ public:
     class overlap_iterator;
 
     /// Default constructor.
-    IntervalMap() {}
+    IntervalMap() : rootLeaf() {}
 
     /// Destructor.
     ~IntervalMap() = default;
@@ -554,7 +554,7 @@ public:
     IntervalMap& operator=(const IntervalMap&) = delete;
 
     /// Move constructor.
-    IntervalMap(IntervalMap&& other) noexcept { *this = std::move(other); }
+    IntervalMap(IntervalMap&& other) noexcept : rootLeaf() { *this = std::move(other); }
 
     /// Move assignment operator.
     IntervalMap& operator=(IntervalMap&& other) noexcept {
