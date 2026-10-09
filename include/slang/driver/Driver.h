@@ -271,6 +271,11 @@ public:
         /// should be resolved between libraries.
         std::vector<std::string> libraryOrder;
 
+        /// A map from a library name to a list of library names specifying the
+        /// order in which module lookup should be resolved between libraries
+        /// for instances within that library.
+        std::map<std::string, std::vector<std::string>> libraryLiblists;
+
         /// The name of the default library; if not set, defaults to "work".
         std::optional<std::string> defaultLibName;
 

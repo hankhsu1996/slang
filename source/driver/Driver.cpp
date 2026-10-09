@@ -265,6 +265,29 @@ void Driver::addStandardArgs() {
     cmdLine.add("-L", options.libraryOrder,
                 "A list of library names that controls the priority order for module lookup",
                 "<library>", CommandLineFlags::CommaList);
+    cmdLine.add(
+        "--liblist",
+        [this](std::string_view value) {
+            // The value is the name of a library followed by an equals sign
+            // and the comma-separated list of libraries it searches.
+            auto index = value.find_first_of('=');
+            if (index == std::string_view::npos || index == 0)
+                return fmt::format("missing '<library>=' in argument '{}'", value);
+
+            auto& liblist = options.libraryLiblists[std::string(value.substr(0, index))];
+            value = value.substr(index + 1);
+            while (!value.empty()) {
+                index = value.find_first_of(',');
+                liblist.emplace_back(value.substr(0, index));
+                if (index == std::string_view::npos)
+                    break;
+                value = value.substr(index + 1);
+            }
+            return ""s;
+        },
+        "A list of library names that controls the priority order for module lookup "
+        "from within the given library, in place of the default order",
+        "<library>=<library>[,...]");
     cmdLine.add("--defaultLibName", options.defaultLibName, "Sets the name of the default library",
                 "<name>");
     cmdLine.add(
@@ -1187,6 +1210,8 @@ void Driver::addCompilationOptions(Bag& bag) const {
         coptions.paramOverrides.emplace_back(opt);
     for (auto& lib : options.libraryOrder)
         coptions.defaultLiblist.emplace_back(lib);
+    for (auto& [owner, liblist] : options.libraryLiblists)
+        coptions.libraryLiblists.emplace(owner, liblist);
 
     if (options.timeScale.has_value())
         coptions.defaultTimeScale = TimeScale::fromString(*options.timeScale);

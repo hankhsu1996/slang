@@ -222,6 +222,12 @@ struct SLANG_EXPORT CompilationOptions {
     /// A list of library names, in the order in which they should be searched
     /// when binding cells to instances.
     std::vector<std::string> defaultLiblist;
+
+    /// A map from a library name to a list of library names, in the order in which
+    /// they should be searched when binding cells to instances that are instantiated
+    /// from within that library. If a library has an entry here only the libraries
+    /// in its list are searched, in place of the default order.
+    flat_hash_map<std::string, std::vector<std::string>> libraryLiblists;
 };
 
 /// Information about how a bind directive applies to some definition
@@ -966,6 +972,10 @@ private:
 
     // A list of libraries that control the order in which we search for cell bindings.
     std::vector<const SourceLibrary*> defaultLiblist;
+
+    // A map from a library to the list of libraries that control the order in which
+    // we search for cell bindings for instances within that library.
+    flat_hash_map<const SourceLibrary*, std::vector<const SourceLibrary*>> libraryLiblists;
 
     std::unique_ptr<RootSymbol> root;
     SourceManager* sourceManager = nullptr;

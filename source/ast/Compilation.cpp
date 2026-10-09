@@ -295,6 +295,18 @@ const RootSymbol& Compilation::getRoot(bool skipDefParamsAndBinds) {
             defaultLiblist.push_back(lib);
     }
 
+    // Same for the lists that apply to lookups from within a specific library.
+    for (auto& [ownerName, libNames] : options.libraryLiblists) {
+        if (auto owner = getSourceLibrary(ownerName)) {
+            auto& liblist = libraryLiblists[owner];
+            liblist.reserve(libNames.size());
+            for (auto& libName : libNames) {
+                if (auto lib = getSourceLibrary(libName))
+                    liblist.push_back(lib);
+            }
+        }
+    }
+
     // If any top-level parameter overrides were provided, parse them now.
     flat_hash_map<std::string_view, HierarchyOverrideNode::ParamOverride> cliOverrides;
     parseParamOverrides(skipDefParamsAndBinds, cliOverrides);
@@ -602,6 +614,22 @@ Compilation::DefinitionLookupResult Compilation::tryGetDefinition(std::string_vi
     auto& defList = it->second.first;
     if (resolvedConfig)
         return resolveConfigRules(lookupName, scope, resolvedConfig, nullptr, defList).first;
+
+    // If the library we're instantiating from has its own list, only that list is searched.
+    if (!libraryLiblists.empty()) {
+        if (auto parentDef = scope.asSymbol().getDeclaringDefinition()) {
+            if (auto listIt = libraryLiblists.find(&parentDef->sourceLibrary);
+                listIt != libraryLiblists.end()) {
+                for (auto lib : listIt->second) {
+                    for (auto def : defList) {
+                        if (def->getSourceLibrary() == lib)
+                            return def;
+                    }
+                }
+                return {};
+            }
+        }
+    }
 
     // If there is a global priority list try to use that.
     for (auto lib : defaultLiblist) {

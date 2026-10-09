@@ -95,7 +95,8 @@ void registerCompilation(py::module_& m, py::module_& ast, py::module_& driver) 
         .def_readwrite("defaultTimeScale", &CompilationOptions::defaultTimeScale)
         .def_readwrite("topModules", &CompilationOptions::topModules)
         .def_readwrite("paramOverrides", &CompilationOptions::paramOverrides)
-        .def_readwrite("defaultLiblist", &CompilationOptions::defaultLiblist);
+        .def_readwrite("defaultLiblist", &CompilationOptions::defaultLiblist)
+        .def_readwrite("libraryLiblists", &CompilationOptions::libraryLiblists);
 
     py::classh<Compilation> comp(ast, "Compilation");
     comp.def(py::init<>())
