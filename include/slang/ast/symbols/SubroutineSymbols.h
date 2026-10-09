@@ -143,6 +143,11 @@ public:
     /// not a valid C identifier, which is diagnosed where it is declared.
     std::string_view getDPICIdentifier() const { return dpiCIdentifier; }
 
+    /// Returns true if a DPI export directive in the subroutine's scope exports it.
+    bool isDPIExport() const {
+        return !flags.has(MethodFlags::DPIImport) && !dpiCIdentifier.empty();
+    }
+
     const MethodPrototypeSymbol* getPrototype() const { return prototype; }
     void connectExternInterfacePrototype() const;
 

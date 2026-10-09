@@ -389,7 +389,9 @@ void registerSymbols(nb::module_& m) {
         .def_prop_ro("returnType", &SubroutineSymbol::getReturnType)
         .def_prop_ro("override", &SubroutineSymbol::getOverride)
         .def_prop_ro("prototype", &SubroutineSymbol::getPrototype)
-        .def_prop_ro("isVirtual", &SubroutineSymbol::isVirtual);
+        .def_prop_ro("isVirtual", &SubroutineSymbol::isVirtual)
+        .def_prop_ro("dpiCIdentifier", &SubroutineSymbol::getDPICIdentifier)
+        .def_prop_ro("isDPIExport", &SubroutineSymbol::isDPIExport);
 
     auto methodProto = nb::class_<MethodPrototypeSymbol, Symbol>(m, "MethodPrototypeSymbol");
     addScopeMethods(methodProto);

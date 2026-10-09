@@ -434,6 +434,9 @@ endmodule
         CHECK(body.find<SubroutineSymbol>("twice").getDPICIdentifier() == "twice_c");
         CHECK(body.find<SubroutineSymbol>("read_seed").getDPICIdentifier() == "read_c");
         CHECK(body.find<SubroutineSymbol>("plain").getDPICIdentifier().empty());
+        CHECK(!body.find<SubroutineSymbol>("twice").isDPIExport());
+        CHECK(body.find<SubroutineSymbol>("read_seed").isDPIExport());
+        CHECK(!body.find<SubroutineSymbol>("plain").isDPIExport());
     }
 }
 
