@@ -1139,6 +1139,21 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
         }
     }
 
+    // An upward name can resolve to a different symbol in each instance, so the
+    // containing instance can't share a cached body. Value expressions note this
+    // themselves; a subroutine can also be found upward by its simple name.
+    auto noteIfUpward = [&](const Expression& target) {
+        if (result.upwardCount == 0)
+            return;
+
+        auto ref = comp.emplace<HierarchicalReference>(
+            HierarchicalReference::fromLookup(comp, result));
+        ref->target = symbol;
+        ref->upwardCount = result.upwardCount;
+        ref->expr = &target;
+        comp.noteUpwardReference(*context.scope, *ref);
+    };
+
     Expression* expr;
     switch (symbol->kind) {
         case SymbolKind::Subroutine: {
@@ -1162,6 +1177,7 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
                 comp.noteHierarchicalAssignment(*ref);
             }
 
+            noteIfUpward(*expr);
             break;
         }
         case SymbolKind::Sequence:
@@ -1180,6 +1196,8 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
                 SourceRange callRange = localInvoke ? localInvoke->sourceRange() : result.nameRange;
                 context.addDiag(diag::LetHierarchical, callRange);
             }
+
+            noteIfUpward(*expr);
             break;
         }
         case SymbolKind::AssertionPort:
