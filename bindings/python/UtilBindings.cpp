@@ -156,6 +156,7 @@ void registerText(py::module_& m) {
         .def("getFullyOriginalLoc", &SourceManager::getFullyOriginalLoc, "location"_a)
         .def("getFullyOriginalRange", &SourceManager::getFullyOriginalRange, "range"_a)
         .def("getFullyExpandedLoc", &SourceManager::getFullyExpandedLoc, "location"_a)
+        .def("getFileLoc", &SourceManager::getFileLoc, "location"_a)
         .def("getSourceText", &SourceManager::getSourceText, "buffer"_a)
         .def("assignText",
              py::overload_cast<std::string_view, SourceLocation, const SourceLibrary*>(

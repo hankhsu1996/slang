@@ -353,6 +353,17 @@ SourceLocation SourceManager::getFullyExpandedLoc(SourceLocation location) const
     return getFullyExpandedLocImpl(location, lock);
 }
 
+SourceLocation SourceManager::getFileLoc(SourceLocation location) const {
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    while (isMacroLocImpl(location, lock)) {
+        if (isMacroArgLocImpl(location, lock))
+            location = getOriginalLocImpl(location, lock);
+        else
+            location = getExpansionRangeImpl(location, lock).start();
+    }
+    return location;
+}
+
 std::string_view SourceManager::getSourceText(BufferID buffer) const {
     std::shared_lock<std::shared_mutex> lock(mutex);
     auto info = getFileInfo(buffer, lock);

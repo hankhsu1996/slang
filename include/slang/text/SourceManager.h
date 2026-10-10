@@ -173,6 +173,12 @@ public:
     /// file expansion location. Otherwise just returns the location itself.
     SourceLocation getFullyExpandedLoc(SourceLocation location) const;
 
+    /// If the given location is a macro location, gets the file location that it
+    /// corresponds to: the expansion location for text that comes from a macro body,
+    /// or the original location for text that comes from a macro argument.
+    /// Otherwise just returns the location itself.
+    SourceLocation getFileLoc(SourceLocation location) const;
+
     /// Gets the actual source text for a given file buffer.
     std::string_view getSourceText(BufferID buffer) const;
 
