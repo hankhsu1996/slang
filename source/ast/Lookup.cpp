@@ -1263,8 +1263,7 @@ const Symbol* Lookup::unqualifiedAt(const Scope& scope, std::string_view name,
 
 static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSyntax& syntax,
                                        const ASTContext& context, LookupResult& result) {
-    auto& indexExpr = Expression::bind(*syntax.expr, context);
-    auto index = context.evalInteger(indexExpr);
+    auto index = context.evalInteger(*syntax.expr);
     if (!index)
         return nullptr;
 
@@ -1283,7 +1282,7 @@ static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSynt
 
         int32_t translated = *index - array.range.lower();
         auto child = array.elements[size_t(translated)];
-        result.path.emplace_back(*child, translated, &indexExpr);
+        result.path.emplace_back(*child, translated);
         return child;
     }
     else {
@@ -1294,7 +1293,7 @@ static const Symbol* selectSingleChild(const Symbol& symbol, const BitSelectSynt
         int32_t idx = 0;
         for (auto entry : array.entries) {
             if (auto entryIdx = entry->getArrayIndex(); entryIdx && *entryIdx == *index) {
-                result.path.emplace_back(*entry, idx, &indexExpr);
+                result.path.emplace_back(*entry, idx);
                 return entry;
             }
             idx++;
@@ -1315,10 +1314,8 @@ static const Symbol* selectChildRange(const InstanceArraySymbol& array,
         return nullptr;
 
     // Evaluate both sides of the range.
-    auto& leftExpr = Expression::bind(*syntax.left, context);
-    auto& rightExpr = Expression::bind(*syntax.right, context);
-    auto left = context.evalInteger(leftExpr);
-    auto right = context.evalInteger(rightExpr);
+    auto left = context.evalInteger(*syntax.left);
+    auto right = context.evalInteger(*syntax.right);
     if (!left || !right)
         return nullptr;
 
@@ -1373,7 +1370,7 @@ static const Symbol* selectChildRange(const InstanceArraySymbol& array,
     auto& comp = context.getCompilation();
     auto children = comp.emplace<InstanceArraySymbol>(comp, ""sv, syntax.getFirstToken().location(),
                                                       elems, newRange);
-    result.path.emplace_back(*children, std::pair(begin, end), &leftExpr, &rightExpr);
+    result.path.emplace_back(*children, std::pair(begin, end));
     return children;
 }
 

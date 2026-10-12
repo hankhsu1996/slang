@@ -445,8 +445,7 @@ struct DiagnosticVisitor : public ASTVisitor<DiagnosticVisitor> {
 
             for (auto hierRef : hierarchicalAssignments) {
                 // Walk the path and visit all instances we find that were previously cached.
-                for (auto& elem : hierRef->path) {
-                    auto sym = elem.symbol;
+                for (auto& [sym, _] : hierRef->path) {
                     if (sym->kind == SymbolKind::Instance) {
                         // If this instance has a canonical pointer it means we previously
                         // determined we could cache it, so we need to visit it here.
