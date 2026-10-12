@@ -112,15 +112,11 @@ public:
     /// resolved previously.
     void setType(const Type& newType) { type = &newType; }
 
-    /// Manually sets the resolved type along with what was evaluated to build it,
-    /// for an owner that builds the type itself rather than resolving it here.
-    void setType(const Type& newType, std::span<const EvaluatedDimension> dims,
-                 std::span<const Symbol* const> specializationParameters = {},
-                 std::span<const Expression* const> typeReferences = {}) {
+    /// Manually sets the resolved type along with the dimensions evaluated to build
+    /// it, for an owner that builds the type itself rather than resolving it here.
+    void setType(const Type& newType, std::span<const EvaluatedDimension> dims) {
         type = &newType;
         resolvedDimensions = dims;
-        resolvedSpecializationParameters = specializationParameters;
-        resolvedTypeReferences = typeReferences;
     }
 
     /// Sets the source syntax for the type, which will later be used when
@@ -163,10 +159,6 @@ public:
     /// is shared by every site handing it the same values, so its own parameters hold
     /// whichever site created it.
     std::span<const Symbol* const> getResolvedSpecializationParameters() const;
-
-    /// Returns the operand of each type reference (`type(expr)`) the type was taken
-    /// from, as this declaration bound it. The type keeps only the operand's type.
-    std::span<const Expression* const> getResolvedTypeReferences() const;
 
     /// Resolves and returns the initializer expression, if present. Otherwise returns nullptr.
     const Expression* getInitializer() const;
@@ -257,7 +249,6 @@ private:
     SourceLocation initializerLocation;
     mutable std::span<const EvaluatedDimension> resolvedDimensions;
     mutable std::span<const Symbol* const> resolvedSpecializationParameters;
-    mutable std::span<const Expression* const> resolvedTypeReferences;
 
     bitmask<DeclaredTypeFlags> flags;
     uint32_t overrideIndex : 30;

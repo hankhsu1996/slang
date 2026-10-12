@@ -104,10 +104,6 @@ public:
     /// expression wrote them.
     std::span<const Symbol* const> specializationParameters;
 
-    /// The operand of each type reference (`type(expr)`) the type was taken from,
-    /// as this expression bound it.
-    std::span<const Expression* const> typeReferences;
-
     DataTypeExpression(const Type& type, SourceRange sourceRange) :
         Expression(ExpressionKind::DataType, type, sourceRange) {}
 
@@ -118,12 +114,6 @@ public:
 
     static Expression& fromSyntax(Compilation& compilation, const syntax::DataTypeSyntax& syntax,
                                   const ASTContext& context);
-
-    /// Resolves @a syntax as the type a site wrote, keeping what the type was
-    /// settled from, for a site that takes a type where no expression may stand.
-    static DataTypeExpression& forSyntax(Compilation& compilation,
-                                         const syntax::DataTypeSyntax& syntax,
-                                         const ASTContext& context);
 
     static bool isKind(ExpressionKind kind) { return kind == ExpressionKind::DataType; }
 };
@@ -137,13 +127,10 @@ public:
     /// The target type of the type reference.
     const Type& targetType;
 
-    /// The operand the target type was taken from, as this reference bound it.
-    const Expression& operand;
-
     TypeReferenceExpression(const Type& typeRefType, const Type& targetType,
-                            const Expression& operand, SourceRange sourceRange) :
-        Expression(ExpressionKind::TypeReference, typeRefType, sourceRange), targetType(targetType),
-        operand(operand) {}
+                            SourceRange sourceRange) :
+        Expression(ExpressionKind::TypeReference, typeRefType, sourceRange),
+        targetType(targetType) {}
 
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
     bool isEquivalentImpl(const TypeReferenceExpression&) const { return true; }

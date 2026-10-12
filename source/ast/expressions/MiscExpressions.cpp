@@ -525,13 +525,11 @@ bool HierarchicalValueExpression::isEquivalentImpl(const HierarchicalValueExpres
 
 Expression& DataTypeExpression::fromSyntax(Compilation& compilation, const DataTypeSyntax& syntax,
                                            const ASTContext& context) {
-    auto& expr = forSyntax(compilation, syntax, context);
+    SmallVector<EvaluatedDimension> evaluated;
+    const Type& type = compilation.getType(syntax, context, nullptr, &evaluated);
     if (syntax.kind == SyntaxKind::TypeReference &&
         context.flags.has(ASTFlags::AllowTypeReferences)) {
-        SLANG_ASSERT(expr.typeReferences.size() == 1);
-        return *compilation.emplace<TypeReferenceExpression>(compilation.getTypeRefType(),
-                                                             *expr.type,
-                                                             *expr.typeReferences.front(),
+        return *compilation.emplace<TypeReferenceExpression>(compilation.getTypeRefType(), type,
                                                              syntax.sourceRange());
     }
 
@@ -540,22 +538,8 @@ Expression& DataTypeExpression::fromSyntax(Compilation& compilation, const DataT
         return badExpr(compilation, nullptr);
     }
 
-    return expr;
-}
-
-DataTypeExpression& DataTypeExpression::forSyntax(Compilation& compilation,
-                                                  const DataTypeSyntax& syntax,
-                                                  const ASTContext& context) {
-    SmallVector<EvaluatedDimension> evaluated;
-    SmallVector<const Symbol*> specializationParameters;
-    SmallVector<const Expression*> typeReferences;
-    const Type& type = compilation.getType(syntax, context, nullptr, &evaluated,
-                                           &specializationParameters, &typeReferences);
     auto expr = compilation.emplace<DataTypeExpression>(type, syntax.sourceRange());
     expr->dimensions = evaluated.ccopy(compilation);
-    expr->specializationParameters = specializationParameters.ccopy(compilation);
-    expr->typeReferences = typeReferences.ccopy(compilation);
-    expr->syntax = &syntax;
     return *expr;
 }
 

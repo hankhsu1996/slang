@@ -300,12 +300,6 @@ const Symbol* DefParamSymbol::getTarget() const {
     return target;
 }
 
-std::span<const HierarchicalReference::Element> DefParamSymbol::getTargetPath() const {
-    if (!initializer)
-        resolve();
-    return targetPath;
-}
-
 const Expression& DefParamSymbol::getInitializer() const {
     if (!initializer)
         resolve();
@@ -402,7 +396,6 @@ void DefParamSymbol::resolve() const {
     result.reportDiags(context);
 
     target = result.found;
-    targetPath = result.path.ccopy(comp);
     if (target && target->kind != SymbolKind::Parameter) {
         auto& diag = context.addDiag(diag::DefParamTarget, assignment.name->sourceRange());
         diag.addNote(diag::NoteDeclarationHere, target->location);
