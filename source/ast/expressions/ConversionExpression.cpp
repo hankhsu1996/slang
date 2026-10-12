@@ -273,7 +273,6 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
         return badExpr(comp, nullptr);
 
     auto type = &comp.getErrorType();
-    const Expression* widthExpr = nullptr;
     Expression* operand;
     if (targetExpr.kind == ExpressionKind::DataType) {
         type = targetExpr.type;
@@ -316,13 +315,10 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
         }
 
         type = &comp.getType(width, operand->type->getIntegralFlags());
-        widthExpr = &targetExpr;
     }
 
     auto result = [&](ConversionKind cast = ConversionKind::Explicit) {
-        auto conv = comp.emplace<ConversionExpression>(*type, cast, *operand, syntax.sourceRange());
-        conv->widthExpr = widthExpr;
-        return conv;
+        return comp.emplace<ConversionExpression>(*type, cast, *operand, syntax.sourceRange());
     };
 
     if (!type->isCastCompatible(*operand->type)) {
@@ -397,8 +393,6 @@ Expression& ConversionExpression::fromSyntax(Compilation& comp, const CastExpres
             !operand->as<ConversionExpression>().isImplicit()) {
             operand->sourceRange = syntax.sourceRange();
             operand->type = type;
-            if (widthExpr)
-                operand->as<ConversionExpression>().widthExpr = widthExpr;
             return *operand;
         }
     }
