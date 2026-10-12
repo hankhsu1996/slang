@@ -87,8 +87,13 @@ void registerSymbols(py::module_& m) {
                     "flags"_a = LookupFlags::None)
         .def_static("unqualifiedAt", &Lookup::unqualifiedAt, byrefint, "scope"_a, "name"_a,
                     "location"_a, "sourceRange"_a, "flags"_a = LookupFlags::None)
-        .def_static("findClass", &Lookup::findClass, byrefint, "name"_a, "context"_a,
-                    "requireInterfaceClass"_a = std::optional<DiagCode>{})
+        .def_static(
+            "findClass",
+            [](const NameSyntax& name, const ASTContext& context,
+               std::optional<DiagCode> requireInterfaceClass) {
+                return Lookup::findClass(name, context, requireInterfaceClass);
+            },
+            byrefint, "name"_a, "context"_a, "requireInterfaceClass"_a = std::optional<DiagCode>{})
         .def_static("getContainingClass", &Lookup::getContainingClass, byrefint, "scope"_a)
         .def_static("getVisibility", &Lookup::getVisibility, "symbol"_a)
         .def_static("isVisibleFrom", &Lookup::isVisibleFrom, "symbol"_a, "scope"_a)
