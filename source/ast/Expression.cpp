@@ -470,8 +470,7 @@ bool Expression::checkConnectionDirection(const Expression& expr, ArgumentDirect
 
 std::tuple<const Expression*, const Type*> Expression::bindImplicitParam(
     const DataTypeSyntax& typeSyntax, const ExpressionSyntax& rhs, SourceRange assignmentRange,
-    const ASTContext& exprContext, const ASTContext& typeContext, bitmask<ASTFlags> extraFlags,
-    SmallVectorBase<EvaluatedDimension>* evaluated) {
+    const ASTContext& exprContext, const ASTContext& typeContext, bitmask<ASTFlags> extraFlags) {
 
     // Rules are described in [6.20.2].
     Compilation& comp = exprContext.getCompilation();
@@ -479,7 +478,7 @@ std::tuple<const Expression*, const Type*> Expression::bindImplicitParam(
     if (!it.dimensions.empty()) {
         // If we have a range provided, the result is always an integral value
         // of the provided width -- getType() will do what we want here.
-        auto lhsType = &comp.getType(typeSyntax, typeContext, nullptr, evaluated);
+        auto lhsType = &comp.getType(typeSyntax, typeContext);
         return {&bindRValue(*lhsType, rhs, assignmentRange, exprContext, extraFlags), lhsType};
     }
 

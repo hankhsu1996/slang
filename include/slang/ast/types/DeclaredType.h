@@ -140,12 +140,13 @@ public:
         return dimensions;
     }
 
-    /// Returns all declared dimensions for this type, in declaration order, as they
-    /// were evaluated when the type was resolved.
+    /// Returns all declared dimensions for this type, in declaration order.
     ///
     /// Packed dimensions from the base type syntax come first, followed by any unpacked
     /// dimensions set via @a setDimensionSyntax.
-    std::span<const EvaluatedDimension> getResolvedDimensions() const;
+    ///
+    /// @note The result is recomputed on each call and is not cached.
+    std::vector<EvaluatedDimension> getResolvedDimensions() const;
 
     /// Resolves and returns the initializer expression, if present. Otherwise returns nullptr.
     const Expression* getInitializer() const;
@@ -234,7 +235,6 @@ private:
     mutable const Expression* initializer = nullptr;
     const syntax::ExpressionSyntax* initializerSyntax = nullptr;
     SourceLocation initializerLocation;
-    mutable std::span<const EvaluatedDimension> resolvedDimensions;
 
     bitmask<DeclaredTypeFlags> flags;
     uint32_t overrideIndex : 30;

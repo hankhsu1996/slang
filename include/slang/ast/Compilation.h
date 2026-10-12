@@ -49,7 +49,6 @@ class Symbol;
 class SystemSubroutine;
 struct AssertionInstanceDetails;
 struct ConfigRule;
-struct EvaluatedDimension;
 struct ResolvedConfig;
 
 enum class IntegralFlags : uint8_t;
@@ -759,20 +758,14 @@ public:
     /// If the syntax kind doesn't represent a type this will return the error type.
     const Type& getType(syntax::SyntaxKind kind) const;
 
-    /// Gets the type represented by the given data type syntax node. If @a evaluated
-    /// is given, the dimensions written directly on @a node are appended to it in
-    /// declaration order, as they were evaluated to build the type.
+    /// Gets the type represented by the given data type syntax node.
     const Type& getType(const syntax::DataTypeSyntax& node, const ASTContext& context,
-                        const Type* typedefTarget = nullptr,
-                        SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+                        const Type* typedefTarget = nullptr);
 
-    /// Gets an array type created from the given element type and dimensions. If
-    /// @a evaluated is given, @a dimensions are appended to it in declaration order,
-    /// as they were evaluated to build the type.
+    /// Gets an array type created from the given element type and dimensions.
     const Type& getType(const Type& elementType,
                         const syntax::SyntaxList<syntax::VariableDimensionSyntax>& dimensions,
-                        const ASTContext& context,
-                        SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+                        const ASTContext& context);
 
     /// Gets an integral vector type with the given size and flags.
     const Type& getType(bitwidth_t width, bitmask<IntegralFlags> flags);

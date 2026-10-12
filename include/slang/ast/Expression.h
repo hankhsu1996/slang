@@ -161,8 +161,6 @@ public:
     /// @param exprContext The AST context to use for binding the initializer
     /// @param typeContext The AST context to use for binding the type
     /// @param extraFlags Extra flags to apply to AST creation
-    /// @param evaluated If given, the dimensions written on @a implicitType are
-    ///                  appended to it in declaration order, as they were evaluated
     /// @returns A tuple, the first element of which is the bound initializer and the
     /// second of which is the original type of that expression prior to any conversions
     /// being performed.
@@ -170,8 +168,7 @@ public:
     static std::tuple<const Expression*, const Type*> bindImplicitParam(
         const syntax::DataTypeSyntax& implicitType, const ExpressionSyntax& rhs,
         SourceRange assignmentRange, const ASTContext& exprContext, const ASTContext& typeContext,
-        bitmask<ASTFlags> extraFlags = ASTFlags::None,
-        SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+        bitmask<ASTFlags> extraFlags = ASTFlags::None);
 
     /// Bind a selector expression given an already existing value expression to select from.
     static const Expression& bindSelector(Expression& value,

@@ -17,7 +17,6 @@
 #include "slang/diagnostics/TypesDiags.h"
 #include "slang/parsing/LexerFacts.h"
 #include "slang/syntax/AllSyntax.h"
-#include "slang/util/ScopeGuard.h"
 
 namespace slang::ast {
 
@@ -1143,14 +1142,12 @@ const Type* Type::getCommonBase(const Type& left, const Type& right) {
 }
 
 const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& node,
-                             const ASTContext& context, const Type* typedefTarget,
-                             SmallVectorBase<EvaluatedDimension>* evaluated) {
+                             const ASTContext& context, const Type* typedefTarget) {
     switch (node.kind) {
         case SyntaxKind::BitType:
         case SyntaxKind::LogicType:
         case SyntaxKind::RegType:
-            return IntegralType::fromSyntax(compilation, node.as<IntegerTypeSyntax>(), context,
-                                            evaluated);
+            return IntegralType::fromSyntax(compilation, node.as<IntegerTypeSyntax>(), context);
         case SyntaxKind::ByteType:
         case SyntaxKind::ShortIntType:
         case SyntaxKind::IntType:
@@ -1183,18 +1180,17 @@ const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& nod
         case SyntaxKind::SequenceType:
             return compilation.getType(node.kind);
         case SyntaxKind::EnumType:
-            return EnumType::findDefinition(compilation, node.as<EnumTypeSyntax>(), context,
-                                            evaluated);
+            return EnumType::findDefinition(compilation, node.as<EnumTypeSyntax>(), context);
         case SyntaxKind::StructType: {
             const auto& structUnion = node.as<StructUnionTypeSyntax>();
             return structUnion.packed
-                       ? PackedStructType::fromSyntax(compilation, structUnion, context, evaluated)
+                       ? PackedStructType::fromSyntax(compilation, structUnion, context)
                        : UnpackedStructType::fromSyntax(context, structUnion);
         }
         case SyntaxKind::UnionType: {
             const auto& structUnion = node.as<StructUnionTypeSyntax>();
             return (structUnion.packed || structUnion.taggedOrSoft.kind == TokenKind::SoftKeyword)
-                       ? PackedUnionType::fromSyntax(compilation, structUnion, context, evaluated)
+                       ? PackedUnionType::fromSyntax(compilation, structUnion, context)
                        : UnpackedUnionType::fromSyntax(context, structUnion);
         }
         case SyntaxKind::NamedType:
@@ -1204,7 +1200,7 @@ const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& nod
             auto& implicit = node.as<ImplicitTypeSyntax>();
             return IntegralType::fromSyntax(compilation, SyntaxKind::LogicType, implicit.dimensions,
                                             implicit.signing.kind == TokenKind::SignedKeyword,
-                                            context, evaluated);
+                                            context);
         }
         case SyntaxKind::TypeReference: {
             auto& exprSyntax = *node.as<TypeReferenceSyntax>().expr;
@@ -1232,18 +1228,9 @@ const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& nod
 
 const Type& Type::fromSyntax(Compilation& comp, const Type& elementType,
                              const SyntaxList<VariableDimensionSyntax>& dimensions,
-                             const ASTContext& context,
-                             SmallVectorBase<EvaluatedDimension>* evaluated) {
+                             const ASTContext& context) {
     if (dimensions.empty())
         return elementType;
-
-    // The dimensions are evaluated innermost first, so what they record is put
-    // back in declaration order on the way out, however the loop ends.
-    const size_t firstEvaluated = evaluated ? evaluated->size() : 0;
-    auto inDeclarationOrder = ScopeGuard([&] {
-        if (evaluated)
-            std::ranges::reverse(evaluated->begin() + ptrdiff_t(firstEvaluated), evaluated->end());
-    });
 
     switch (elementType.getCanonicalType().kind) {
         case SymbolKind::SequenceType:
@@ -1267,8 +1254,6 @@ const Type& Type::fromSyntax(Compilation& comp, const Type& elementType,
 
         auto& syntax = *dimensions[count - i - 1];
         auto dim = context.evalDimension(syntax, /* requireRange */ false, /* isPacked */ false);
-        if (evaluated)
-            evaluated->push_back(dim);
 
         switch (dim.kind) {
             case DimensionKind::Unknown:

@@ -41,13 +41,12 @@ public:
     bool isDeclaredReg() const;
 
     static const Type& fromSyntax(Compilation& compilation, const syntax::IntegerTypeSyntax& syntax,
-                                  const ASTContext& context,
-                                  SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+                                  const ASTContext& context);
 
     static const Type& fromSyntax(
         Compilation& compilation, syntax::SyntaxKind integerKind,
         std::span<const syntax::VariableDimensionSyntax* const> dimensions, bool isSigned,
-        const ASTContext& context, SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+        const ASTContext& context);
 
     ConstantValue getDefaultValueImpl() const;
 
@@ -124,8 +123,7 @@ public:
                                   function_ref<void(const Symbol&)> insertCB);
     static const Type& findDefinition(Compilation& compilation,
                                       const syntax::EnumTypeSyntax& syntax,
-                                      const ASTContext& context,
-                                      SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+                                      const ASTContext& context);
 
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::EnumType; }
 
@@ -301,8 +299,7 @@ public:
 
     static const Type& fromSyntax(Compilation& compilation,
                                   const syntax::StructUnionTypeSyntax& syntax,
-                                  const ASTContext& context,
-                                  SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+                                  const ASTContext& context);
 
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::PackedStructType; }
 };
@@ -357,8 +354,7 @@ public:
 
     static const Type& fromSyntax(Compilation& compilation,
                                   const syntax::StructUnionTypeSyntax& syntax,
-                                  const ASTContext& context,
-                                  SmallVectorBase<EvaluatedDimension>* evaluated = nullptr);
+                                  const ASTContext& context);
 
     static bool isKind(SymbolKind kind) { return kind == SymbolKind::PackedUnionType; }
 };

@@ -1926,18 +1926,16 @@ const Type& Compilation::getType(SyntaxKind typeKind) const {
 }
 
 const Type& Compilation::getType(const DataTypeSyntax& node, const ASTContext& context,
-                                 const Type* typedefTarget,
-                                 SmallVectorBase<EvaluatedDimension>* evaluated) {
+                                 const Type* typedefTarget) {
     SLANG_ASSERT(!isFrozen());
-    return Type::fromSyntax(*this, node, context, typedefTarget, evaluated);
+    return Type::fromSyntax(*this, node, context, typedefTarget);
 }
 
 const Type& Compilation::getType(const Type& elementType,
                                  const SyntaxList<VariableDimensionSyntax>& dimensions,
-                                 const ASTContext& context,
-                                 SmallVectorBase<EvaluatedDimension>* evaluated) {
+                                 const ASTContext& context) {
     SLANG_ASSERT(!isFrozen());
-    return Type::fromSyntax(*this, elementType, dimensions, context, evaluated);
+    return Type::fromSyntax(*this, elementType, dimensions, context);
 }
 
 const Type& Compilation::getType(bitwidth_t width, bitmask<IntegralFlags> flags) {

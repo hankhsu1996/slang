@@ -68,17 +68,12 @@ void DeclaredType::mergeImplicitPort(
 
 void DeclaredType::resolveType(const ASTContext& typeContext,
                                const ASTContext& initializerContext) const {
-    // The dimensions are kept as this resolution evaluates them, because the
-    // context it evaluates them in is not one that can be recovered afterward.
     auto& comp = typeContext.getCompilation();
-    SmallVector<EvaluatedDimension> evaluated;
     if (hasLink) {
         SLANG_ASSERT(typeOrLink.link);
         type = &typeOrLink.link->getType();
-        evaluated.append_range(typeOrLink.link->getResolvedDimensions());
         if (dimensions)
-            type = &comp.getType(*type, *dimensions, typeContext, &evaluated);
-        resolvedDimensions = evaluated.ccopy(comp);
+            type = &comp.getType(*type, *dimensions, typeContext);
         return;
     }
 
@@ -99,8 +94,8 @@ void DeclaredType::resolveType(const ASTContext& typeContext,
         if (dimensions) {
             auto& its = syntax->as<ImplicitTypeSyntax>();
             if (its.signing || !its.dimensions.empty()) {
-                type = &comp.getType(*syntax, typeContext, nullptr, &evaluated);
-                type = &comp.getType(*type, *dimensions, typeContext, &evaluated);
+                type = &comp.getType(*syntax, typeContext, nullptr);
+                type = &comp.getType(*type, *dimensions, typeContext);
             }
             else {
                 typeContext.addDiag(diag::UnpackedArrayParamType, dimensions->sourceRange());
@@ -117,7 +112,7 @@ void DeclaredType::resolveType(const ASTContext& typeContext,
 
             std::tie(initializer, type) = Expression::bindImplicitParam(
                 *syntax, *initializerSyntax, {initializerLocation, initializerLocation + 1},
-                initializerContext, typeContext, extraFlags, &evaluated);
+                initializerContext, typeContext, extraFlags);
             SLANG_ASSERT(initializer);
         }
     }
@@ -130,17 +125,15 @@ void DeclaredType::resolveType(const ASTContext& typeContext,
             auto& its = syntax->as<ImplicitTypeSyntax>();
             if (!its.dimensions.empty())
                 type = &comp.getType(*type, its.dimensions,
-                                     typeContext.resetFlags(ASTFlags::AllowInterconnect),
-                                     &evaluated);
+                                     typeContext.resetFlags(ASTFlags::AllowInterconnect));
         }
 
         if (dimensions) {
             type = &comp.getType(*type, *dimensions,
-                                 typeContext.resetFlags(ASTFlags::AllowInterconnect), &evaluated);
+                                 typeContext.resetFlags(ASTFlags::AllowInterconnect));
         }
 
         // Return early to skip additional checks for net types.
-        resolvedDimensions = evaluated.ccopy(comp);
         return;
     }
     else {
@@ -152,9 +145,9 @@ void DeclaredType::resolveType(const ASTContext& typeContext,
                 typedefTarget = &parent.as<Type>();
         }
 
-        type = &comp.getType(*syntax, typeContext, typedefTarget, &evaluated);
+        type = &comp.getType(*syntax, typeContext, typedefTarget);
         if (dimensions)
-            type = &comp.getType(*type, *dimensions, typeContext, &evaluated);
+            type = &comp.getType(*type, *dimensions, typeContext);
 
         if (typedefTarget) {
             // When resolving a typedef target we need to check resolution of aliases
@@ -176,7 +169,6 @@ void DeclaredType::resolveType(const ASTContext& typeContext,
         }
     }
 
-    resolvedDimensions = evaluated.ccopy(comp);
     if (flags.has(DeclaredTypeFlags::NeedsTypeCheck) && !type->isError())
         checkType(initializerContext);
 }
@@ -407,8 +399,7 @@ void DeclaredType::mergePortTypes(
         diag.addNote(diag::NoteDeclarationHere, sourceSymbol.location);
     };
 
-    auto checkDims = [&](auto& dims, SymbolKind arrayKind, bool isPacked,
-                         SmallVectorBase<EvaluatedDimension>& evaluated) {
+    auto checkDims = [&](auto& dims, SymbolKind arrayKind, bool isPacked) {
         if (!dims.empty()) {
             auto it = dims.begin();
             while (destType->getCanonicalType().kind == arrayKind) {
@@ -419,7 +410,6 @@ void DeclaredType::mergePortTypes(
 
                 auto dim = isPacked ? context.evalPackedDimension(**it)
                                     : context.evalUnpackedDimension(**it);
-                evaluated.push_back(dim);
                 if (!dim.isRange() || destType->getFixedRange() != dim.range) {
                     errorDims(**it);
                     return;
@@ -438,14 +428,8 @@ void DeclaredType::mergePortTypes(
 
     // Unpacked dim checks have to come first because it unwraps the destType
     // for the packed one to look at.
-    SmallVector<EvaluatedDimension> packed;
-    SmallVector<EvaluatedDimension> unpacked;
-    checkDims(unpackedDimensions, SymbolKind::FixedSizeUnpackedArrayType, false, unpacked);
-    checkDims(implicit.dimensions, SymbolKind::PackedArrayType, true, packed);
-
-    // The dimensions this port declaration wrote are the ones it keeps, packed first.
-    packed.append_range(unpacked);
-    resolvedDimensions = packed.ccopy(context.getCompilation());
+    checkDims(unpackedDimensions, SymbolKind::FixedSizeUnpackedArrayType, false);
+    checkDims(implicit.dimensions, SymbolKind::PackedArrayType, true);
 }
 
 void DeclaredType::resolveAt(const ASTContext& context) const {
@@ -565,9 +549,57 @@ T DeclaredType::getASTContext() const {
     return ASTContext(*scope, location, astFlags);
 }
 
-std::span<const EvaluatedDimension> DeclaredType::getResolvedDimensions() const {
+std::vector<EvaluatedDimension> DeclaredType::getResolvedDimensions() const {
+    // Ensure the type has been resolved so that any errors (cycles, invalid dims, etc.)
+    // are already diagnosed before we re-evaluate.
     getType();
-    return resolvedDimensions;
+
+    std::vector<EvaluatedDimension> result;
+    if (hasLink) {
+        // Follow the link; its packed dims are whatever the target has.
+        if (typeOrLink.link)
+            result = typeOrLink.link->getResolvedDimensions();
+
+        // Then append any additional unpacked dims applied on top of the link.
+        // They are evaluated the way the unpacked array type evaluated them, so a
+        // dimension that is not a range (a queue, a dynamic or associative array)
+        // adds no diagnostic the type did not.
+        if (dimensions) {
+            auto ctx = getASTContext<false>();
+            for (auto dim : *dimensions)
+                result.push_back(
+                    ctx.evalDimension(*dim, /* requireRange */ false, /* isPacked */ false));
+        }
+        return result;
+    }
+
+    auto syntax = typeOrLink.typeSyntax;
+    if (!syntax)
+        return result;
+
+    const SyntaxList<VariableDimensionSyntax>* packedDims = nullptr;
+    if (IntegerTypeSyntax::isKind(syntax->kind))
+        packedDims = &syntax->as<IntegerTypeSyntax>().dimensions;
+    else if (syntax->kind == SyntaxKind::StructType || syntax->kind == SyntaxKind::UnionType)
+        packedDims = &syntax->as<StructUnionTypeSyntax>().dimensions;
+    else if (syntax->kind == SyntaxKind::EnumType)
+        packedDims = &syntax->as<EnumTypeSyntax>().dimensions;
+    else if (syntax->kind == SyntaxKind::ImplicitType)
+        packedDims = &syntax->as<ImplicitTypeSyntax>().dimensions;
+
+    auto ctx = getASTContext<false>();
+    if (packedDims) {
+        for (auto dim : *packedDims)
+            result.push_back(ctx.evalPackedDimension(*dim));
+    }
+
+    if (dimensions) {
+        for (auto dim : *dimensions)
+            result.push_back(
+                ctx.evalDimension(*dim, /* requireRange */ false, /* isPacked */ false));
+    }
+
+    return result;
 }
 
 } // namespace slang::ast
