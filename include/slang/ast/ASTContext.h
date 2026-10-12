@@ -22,6 +22,7 @@ namespace slang::ast {
 
 class Expression;
 class InstanceSymbolBase;
+class ParameterSymbol;
 class ProceduralBlockSymbol;
 class Statement;
 class SubroutineSymbol;
@@ -206,9 +207,13 @@ enum class SLANG_EXPORT EvalFlags : uint8_t {
     /// For parameter evaluation, allow unbounded literals to evaluate to
     /// the placeholder value. Other expressions that have an unbounded literal
     /// without a queue target will return an invalid value.
-    AllowUnboundedPlaceholder = 1 << 3
+    AllowUnboundedPlaceholder = 1 << 3,
+
+    /// The evaluation decides which generate blocks are created, which the parameters
+    /// it reads are recorded with (see Compilation::getParameterReads).
+    DecidesGenerateBlocks = 1 << 4
 };
-SLANG_BITMASK(EvalFlags, AllowUnboundedPlaceholder)
+SLANG_BITMASK(EvalFlags, DecidesGenerateBlocks)
 
 /// Information required to instantiate a sequence, property, or checker instance.
 struct SLANG_EXPORT AssertionInstanceDetails {
@@ -414,9 +419,13 @@ public:
 
     /// @brief Evaluates the provided expression as a constant expression.
     ///
-    /// If evaluation fails appropriate diagnostics will be issued.
+    /// If evaluation fails appropriate diagnostics will be issued. When @a valueOf is
+    /// given the expression is that parameter's value, and the parameters it reads are
+    /// recorded as what that value was computed from rather than as constants the
+    /// enclosing instance holds (see Compilation::getParameterReads).
     /// @returns The result of constant evaluation or an empty value if it failed
-    ConstantValue eval(const Expression& expr, bitmask<EvalFlags> extraFlags = {}) const;
+    ConstantValue eval(const Expression& expr, bitmask<EvalFlags> extraFlags = {},
+                       const ParameterSymbol* valueOf = nullptr) const;
 
     /// @brief Evaluates the provided expression as a constant expression.
     ///

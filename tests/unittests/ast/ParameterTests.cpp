@@ -1717,3 +1717,140 @@ endmodule
     REQUIRE(diags.size() == 1);
     CHECK(diags[0].code == diag::InfoTask);
 }
+
+TEST_CASE("Parameter reads are recorded for the constants an instance holds") {
+    auto tree = SyntaxTree::fromText(R"(
+module m #(parameter int W = 4, D = 2, E = 3, F = 5, K = 0, C = 1, S = 0)();
+    localparam int L = K + 1;
+
+    function automatic int width();
+        return F;
+    endfunction
+
+    logic [W/D-1:0] a;
+    logic [width():0] b;
+    typedef enum int { A = E } e_t;
+    e_t c;
+
+    if (C) begin : g
+        logic d;
+    end
+
+    for (genvar i = S; i < 2; i++) begin : l
+    end
+
+    initial a = K + L;
+endmodule
+
+module top #(parameter int P = 8)();
+    m #(.W(P)) u();
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& root = compilation.getRoot();
+    auto& u = root.lookupName<InstanceSymbol>("top.u");
+    auto param = [&](std::string_view name) { return &u.body.find(name)->as<ParameterSymbol>(); };
+
+    // W and D sized a type, D read first by the division's own check and taken from
+    // its cache by the range; F was read inside a constant function; E gave an enum
+    // its value. C selected a block and S started a loop, which are marked as
+    // deciding the generate blocks. K is read only as a value, and L is computed
+    // from K.
+    SmallSet<const ParameterSymbol*, 8> held;
+    SmallSet<const ParameterSymbol*, 8> deciding;
+    for (auto& read : compilation.getParameterReads(u.body)) {
+        if (read.decidesGenerateBlocks)
+            deciding.emplace(read.parameter);
+        else
+            held.emplace(read.parameter);
+    }
+    CHECK(held.size() == 4);
+    CHECK(held.contains(param("W")));
+    CHECK(held.contains(param("D")));
+    CHECK(held.contains(param("E")));
+    CHECK(held.contains(param("F")));
+    CHECK(deciding.size() == 2);
+    CHECK(deciding.contains(param("C")));
+    CHECK(deciding.contains(param("S")));
+
+    // A parameter's own value is recorded as what it was computed from, including an
+    // instantiation's override of it.
+    param("L")->getValue();
+    auto lSources = compilation.getParameterValueSources(*param("L"));
+    REQUIRE(lSources.size() == 1);
+    CHECK(lSources[0] == param("K"));
+
+    auto& p = root.lookupName<ParameterSymbol>("top.P");
+    auto wSources = compilation.getParameterValueSources(*param("W"));
+    REQUIRE(wSources.size() == 1);
+    CHECK(wSources[0] == &p);
+
+    // And the other way, which parameters' values each one was read into.
+    auto pReaders = compilation.getParameterValueReaders(p);
+    REQUIRE(pReaders.size() == 1);
+    CHECK(pReaders[0] == param("W"));
+}
+
+TEST_CASE("Parameter reads are recorded across scopes") {
+    auto tree = SyntaxTree::fromText(R"(
+interface bus_if #(parameter int W = 4);
+endinterface
+
+class C #(parameter int N = 1);
+    typedef logic [N-1:0] t;
+endclass
+
+module leaf #(parameter int V = 0)();
+endmodule
+
+module m #(parameter int Q = 2, R = 1, A = 1)(bus_if b);
+    logic [b.W-1:0] x;
+    C#(Q)::t y;
+
+    wire [3:0] n1, n2;
+    alias n1[A] = n2[A];
+
+    leaf l();
+    defparam l.V = R;
+endmodule
+
+module top;
+    bus_if b();
+    m u(b);
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& root = compilation.getRoot();
+    auto& u = root.lookupName<InstanceSymbol>("top.u");
+    auto param = [&](std::string_view name) { return &u.body.find(name)->as<ParameterSymbol>(); };
+
+    // The interface's W, read through the port, sized a type, and A picked the bits
+    // the alias joins.
+    auto& w = root.lookupName<ParameterSymbol>("top.b.W");
+    SmallSet<const ParameterSymbol*, 4> held;
+    for (auto& read : compilation.getParameterReads(u.body))
+        held.emplace(read.parameter);
+    CHECK(held.size() == 2);
+    CHECK(held.contains(&w));
+    CHECK(held.contains(param("A")));
+
+    // Q was read into the class specialization's N, and R into the value the
+    // defparam gives leaf's V.
+    auto qReaders = compilation.getParameterValueReaders(*param("Q"));
+    REQUIRE(qReaders.size() == 1);
+    CHECK(qReaders[0]->name == "N");
+
+    auto& v = root.lookupName<ParameterSymbol>("top.u.l.V");
+    CHECK(v.getValue().integer() == 1);
+    auto vSources = compilation.getParameterValueSources(v);
+    REQUIRE(vSources.size() == 1);
+    CHECK(vSources[0] == param("R"));
+}

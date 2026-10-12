@@ -35,6 +35,7 @@ void registerAST(py::module_& m) {
         .value("CacheResults", EvalFlags::CacheResults)
         .value("SpecparamsAllowed", EvalFlags::SpecparamsAllowed)
         .value("AllowUnboundedPlaceholder", EvalFlags::AllowUnboundedPlaceholder)
+        .value("DecidesGenerateBlocks", EvalFlags::DecidesGenerateBlocks)
         .finalize();
 
     py::classh<EvalContext> evalCtx(m, "EvalContext");
@@ -176,7 +177,8 @@ void registerAST(py::module_& m) {
              py::overload_cast<const SVInt&, SourceRange>(&ASTContext::requireValidBitWidth,
                                                           py::const_),
              "value"_a, "range"_a)
-        .def("eval", &ASTContext::eval, "expr"_a, "extraFlags"_a = bitmask<ASTFlags>{})
+        .def("eval", &ASTContext::eval, "expr"_a, "extraFlags"_a = bitmask<ASTFlags>{},
+             "valueOf"_a = nullptr)
         .def("tryEval", &ASTContext::tryEval, "expr"_a)
         .def("evalInteger",
              py::overload_cast<const ExpressionSyntax&, bitmask<ASTFlags>>(&ASTContext::evalInteger,

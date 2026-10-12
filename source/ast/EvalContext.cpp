@@ -23,10 +23,26 @@ void EvalContext::reset() {
     queueTarget = nullptr;
     stack.clear();
     lvalStack.clear();
+    parameterReads.clear();
     diags.clear();
     warnings.clear();
     disableRange = {};
     backtraceReported = false;
+}
+
+void EvalContext::noteParameterRead(const ParameterSymbol& param) {
+    parameterReads.push_back(&param);
+}
+
+void EvalContext::noteCachedConstantUsed(const Expression& expr) {
+    parameterReads.append_range(getCompilation().getCachedParameterReads(expr));
+}
+
+void EvalContext::noteConstantCached(const Expression& expr, size_t readsBefore) {
+    if (parameterReads.size() > readsBefore) {
+        getCompilation().noteCachedParameterReads(expr,
+                                                  std::span(parameterReads).subspan(readsBefore));
+    }
 }
 
 ConstantValue* EvalContext::createLocal(const ValueSymbol* symbol, ConstantValue value) {

@@ -39,6 +39,7 @@ class InterfacePortSymbol;
 class MethodPrototypeSymbol;
 class ModportSymbol;
 class PackageSymbol;
+class ParameterSymbol;
 class PrimitiveSymbol;
 class PortConnection;
 class RootSymbol;
@@ -288,6 +289,24 @@ struct SLANG_EXPORT HierarchyOverrideNode {
     /// If the target is null, then the bind is actually targeting the
     /// scope represented by this override node.
     std::vector<std::pair<BindDirectiveInfo, const syntax::SyntaxNode*>> binds;
+};
+
+/// A parameter whose value an evaluation requiring a constant read.
+struct SLANG_EXPORT ParameterRead {
+    /// The parameter whose value was read.
+    const ParameterSymbol* parameter;
+
+    /// The expression whose evaluation read it, which holds the constant that
+    /// evaluation settled to.
+    const Expression* root;
+
+    /// The scope the evaluation happened in.
+    const Scope* scope;
+
+    /// Whether the evaluation decided which generate blocks are created: a
+    /// conditional generate's condition or case items, or a loop generate's
+    /// initial value.
+    bool decidesGenerateBlocks;
 };
 
 /// A centralized location for creating and caching symbols. This includes
@@ -678,6 +697,36 @@ public:
 
     /// Notes the existence of an assignment to a hierarchical reference.
     void noteHierarchicalAssignment(const HierarchicalReference& ref);
+
+    /// Notes the parameters @a reads that evaluating @a root, which required a constant,
+    /// read: as what @a valueOf was computed from where it is given, and otherwise
+    /// against the instance body enclosing @a scope, which holds the constant, marked
+    /// with whether the evaluation decided which generate blocks are created.
+    void noteParameterReads(const Scope& scope, const Expression& root,
+                            std::span<const ParameterSymbol* const> reads,
+                            const ParameterSymbol* valueOf, bool decidesGenerateBlocks);
+
+    /// Gets the parameters each evaluation that required a constant in @a body read,
+    /// other than one computing a parameter's own value, in the order they were made.
+    std::span<const ParameterRead> getParameterReads(const InstanceBodySymbol& body) const;
+
+    /// Gets the parameters the evaluation of @a param's own value read: its initializer,
+    /// an instantiation's override of it, or a defparam's value for it.
+    std::span<const ParameterSymbol* const> getParameterValueSources(
+        const ParameterSymbol& param) const;
+
+    /// Gets the parameters whose own value's evaluation read @a param: the other
+    /// direction of getParameterValueSources.
+    std::span<const ParameterSymbol* const> getParameterValueReaders(
+        const ParameterSymbol& param) const;
+
+    /// Keeps @a reads beside the constant cached on @a expr, so an evaluation that
+    /// takes that constant counts them as read again.
+    void noteCachedParameterReads(const Expression& expr,
+                                  std::span<const ParameterSymbol* const> reads);
+
+    /// Gets the parameters the evaluation that cached a constant on @a expr read.
+    std::span<const ParameterSymbol* const> getCachedParameterReads(const Expression& expr) const;
 
     /// Registers and returns the given virtual interface instance with the compilation,
     /// or if it matches an already existing instance returns that one instead.
@@ -1103,6 +1152,15 @@ private:
     // A map of net aliases to check for duplicates. For any given alias the key is
     // whichever symbol has the lower address in memory.
     flat_hash_map<const Symbol*, AliasIntervalMap> netAliases;
+
+    // The parameters each evaluation requiring a constant read: per instance body,
+    // per parameter's own value in both directions, and beside each cached constant.
+    flat_hash_map<const InstanceBodySymbol*, std::vector<ParameterRead>> parameterReads;
+    flat_hash_map<const ParameterSymbol*, std::vector<const ParameterSymbol*>>
+        parameterValueSources;
+    flat_hash_map<const ParameterSymbol*, std::vector<const ParameterSymbol*>>
+        parameterValueReaders;
+    flat_hash_map<const Expression*, std::vector<const ParameterSymbol*>> cachedParameterReads;
 
     // The name map for system subroutines.
     // This is down here because it should really only be used for custom user-defined

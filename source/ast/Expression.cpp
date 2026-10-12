@@ -25,8 +25,10 @@ using namespace syntax;
 struct Expression::EvalVisitor {
     template<typename T>
     ConstantValue visit(const T& expr, EvalContext& context) {
-        if (expr.getConstant())
+        if (expr.getConstant()) {
+            context.noteCachedConstantUsed(expr);
             return *expr.getConstant();
+        }
 
         if (expr.bad() ||
             !context.checkBitCount(expr.type->getBitstreamWidth(), expr.sourceRange)) {
@@ -37,6 +39,7 @@ struct Expression::EvalVisitor {
             return nullptr;
         }
 
+        auto readsBefore = context.getParameterReads().size();
         ConstantValue cv = expr.evalImpl(context);
         if (cv && context.cacheResults()) {
             // If we're caching results we can't let any reported
@@ -45,6 +48,7 @@ struct Expression::EvalVisitor {
             // to the compilation now.
             context.reportWarnings();
             expr.constant = context.getCompilation().allocConstant(std::move(cv));
+            context.noteConstantCached(expr, readsBefore);
             return *expr.constant;
         }
 

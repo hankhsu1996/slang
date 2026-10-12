@@ -1458,6 +1458,74 @@ void Compilation::noteHierarchicalAssignment(const HierarchicalReference& ref) {
     hierarchicalAssignments.push_back(&ref);
 }
 
+void Compilation::noteParameterReads(const Scope& scope, const Expression& root,
+                                     std::span<const ParameterSymbol* const> reads,
+                                     const ParameterSymbol* valueOf, bool decidesGenerateBlocks) {
+    if (reads.empty())
+        return;
+
+    SLANG_ASSERT(!isFrozen());
+    if (valueOf) {
+        auto& sources = parameterValueSources[valueOf];
+        for (auto param : reads) {
+            if (std::ranges::find(sources, param) == sources.end()) {
+                sources.push_back(param);
+                parameterValueReaders[param].push_back(valueOf);
+            }
+        }
+        return;
+    }
+
+    // A constant held outside every instance -- in a package or a compilation
+    // unit -- is held the same way wherever it is used.
+    auto body = scope.getContainingInstance();
+    if (!body)
+        return;
+
+    auto& held = parameterReads[body];
+    auto first = held.size();
+    for (auto param : reads) {
+        auto counted = std::ranges::subrange(held.begin() + ptrdiff_t(first), held.end());
+        if (std::ranges::find(counted, param, &ParameterRead::parameter) == counted.end())
+            held.push_back({param, &root, &scope, decidesGenerateBlocks});
+    }
+}
+
+std::span<const ParameterRead> Compilation::getParameterReads(
+    const InstanceBodySymbol& body) const {
+    if (auto it = parameterReads.find(&body); it != parameterReads.end())
+        return it->second;
+    return {};
+}
+
+std::span<const ParameterSymbol* const> Compilation::getParameterValueSources(
+    const ParameterSymbol& param) const {
+    if (auto it = parameterValueSources.find(&param); it != parameterValueSources.end())
+        return it->second;
+    return {};
+}
+
+std::span<const ParameterSymbol* const> Compilation::getParameterValueReaders(
+    const ParameterSymbol& param) const {
+    if (auto it = parameterValueReaders.find(&param); it != parameterValueReaders.end())
+        return it->second;
+    return {};
+}
+
+void Compilation::noteCachedParameterReads(const Expression& expr,
+                                           std::span<const ParameterSymbol* const> reads) {
+    SLANG_ASSERT(!isFrozen());
+    auto& kept = cachedParameterReads[&expr];
+    kept.assign(reads.begin(), reads.end());
+}
+
+std::span<const ParameterSymbol* const> Compilation::getCachedParameterReads(
+    const Expression& expr) const {
+    if (auto it = cachedParameterReads.find(&expr); it != cachedParameterReads.end())
+        return it->second;
+    return {};
+}
+
 const InstanceSymbol& Compilation::getOrAddVirtualIface(const InstanceSymbol& symbol) {
     bool valid = true;
     SmallSet<const InstanceSymbol*, 2> visited;
