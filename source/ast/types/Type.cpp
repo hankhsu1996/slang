@@ -1144,8 +1144,7 @@ const Type* Type::getCommonBase(const Type& left, const Type& right) {
 
 const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& node,
                              const ASTContext& context, const Type* typedefTarget,
-                             SmallVectorBase<EvaluatedDimension>* evaluated,
-                             SmallVectorBase<const Symbol*>* specializationParameters) {
+                             SmallVectorBase<EvaluatedDimension>* evaluated) {
     switch (node.kind) {
         case SyntaxKind::BitType:
         case SyntaxKind::LogicType:
@@ -1200,7 +1199,7 @@ const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& nod
         }
         case SyntaxKind::NamedType:
             return lookupNamedType(compilation, *node.as<NamedTypeSyntax>().name, context,
-                                   typedefTarget != nullptr, evaluated, specializationParameters);
+                                   typedefTarget != nullptr);
         case SyntaxKind::ImplicitType: {
             auto& implicit = node.as<ImplicitTypeSyntax>();
             return IntegralType::fromSyntax(compilation, SyntaxKind::LogicType, implicit.dimensions,
@@ -1355,9 +1354,7 @@ void Type::resolveCanonical() const {
 }
 
 const Type& Type::lookupNamedType(Compilation& compilation, const NameSyntax& syntax,
-                                  const ASTContext& context, bool isTypedefTarget,
-                                  SmallVectorBase<EvaluatedDimension>* evaluated,
-                                  SmallVectorBase<const Symbol*>* specializationParameters) {
+                                  const ASTContext& context, bool isTypedefTarget) {
     bitmask<LookupFlags> flags = LookupFlags::Type;
     if (isTypedefTarget)
         flags |= LookupFlags::AllowIncompleteForwardTypedefs;
@@ -1366,20 +1363,14 @@ const Type& Type::lookupNamedType(Compilation& compilation, const NameSyntax& sy
     Lookup::name(syntax, context, flags, result);
     result.reportDiags(context);
 
-    return fromLookupResult(compilation, result, syntax.sourceRange(), context, evaluated,
-                            specializationParameters);
+    return fromLookupResult(compilation, result, syntax.sourceRange(), context);
 }
 
 const Type& Type::fromLookupResult(Compilation& comp, const LookupResult& result,
-                                   SourceRange sourceRange, const ASTContext& context,
-                                   SmallVectorBase<EvaluatedDimension>* evaluated,
-                                   SmallVectorBase<const Symbol*>* specializationParameters) {
+                                   SourceRange sourceRange, const ASTContext& context) {
     const Symbol* symbol = result.found;
     if (!symbol)
         return comp.getErrorType();
-
-    if (specializationParameters)
-        specializationParameters->append_range(result.specializationParameters);
 
     if (!symbol->isType()) {
         if (symbol->kind == SymbolKind::NetType && context.flags.has(ASTFlags::AllowNetType)) {
@@ -1391,9 +1382,6 @@ const Type& Type::fromLookupResult(Compilation& comp, const LookupResult& result
         return comp.getErrorType();
     }
 
-    // The dimensions are evaluated innermost first, so what they record is put
-    // back in declaration order afterward.
-    const size_t firstEvaluated = evaluated ? evaluated->size() : 0;
     const Type* finalType = &symbol->as<Type>();
     size_t count = result.selectors.size();
     for (size_t i = 0; i < count; i++) {
@@ -1403,13 +1391,9 @@ const Type& Type::fromLookupResult(Compilation& comp, const LookupResult& result
         // fail the isType() check above.
         auto selectSyntax = std::get<const ElementSelectSyntax*>(result.selectors[count - i - 1]);
         auto dim = context.evalPackedDimension(*selectSyntax);
-        if (evaluated)
-            evaluated->push_back(dim);
         finalType = &PackedArrayType::fromSyntax(context, *finalType, dim, *selectSyntax);
     }
 
-    if (evaluated)
-        std::ranges::reverse(evaluated->begin() + ptrdiff_t(firstEvaluated), evaluated->end());
     return *finalType;
 }
 

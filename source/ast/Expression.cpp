@@ -1125,12 +1125,8 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
 
     if (context.flags.has(ASTFlags::AllowDataType) && symbol->isType()) {
         // We looked up a named data type and we were allowed to do so, so return it.
-        SmallVector<EvaluatedDimension> evaluated;
-        const Type& resultType = Type::fromLookupResult(comp, result, result.nameRange, context,
-                                                        &evaluated);
+        const Type& resultType = Type::fromLookupResult(comp, result, result.nameRange, context);
         auto expr = comp.emplace<DataTypeExpression>(resultType, result.nameRange);
-        expr->dimensions = evaluated.ccopy(comp);
-        expr->specializationParameters = result.specializationParameters.copy(comp);
         if (!expr->bad() && !errorIfInvoke())
             return badExpr(comp, expr);
 
@@ -1177,8 +1173,7 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
             SourceRange callRange = invocation ? invocation->sourceRange() : result.nameRange;
             CallExpression::NameLookupInfo lookupInfo{
                 .hierRef = HierarchicalReference::fromLookup(comp, result),
-                .viaSuper = result.flags.has(LookupResultFlags::ViaSuper),
-                .specializationParameters = result.specializationParameters.copy(comp)};
+                .viaSuper = result.flags.has(LookupResultFlags::ViaSuper)};
             expr = &CallExpression::fromLookup(comp, &symbol->as<SubroutineSymbol>(), accessViaExpr,
                                                &lookupInfo, invocation, withClause, callRange,
                                                context);
@@ -1239,8 +1234,7 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
 
             auto hierRef = HierarchicalReference::fromLookup(comp, result);
             expr = &ValueExpressionBase::fromSymbol(context, *symbol, &hierRef, result.nameRange,
-                                                    constraintAllowed, isDottedAccess,
-                                                    result.specializationParameters.copy(comp));
+                                                    constraintAllowed, isDottedAccess);
 
             // If we were accessed via a virtual interface wrap the result up
             // in a member access expression, so we don't lose the information

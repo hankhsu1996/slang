@@ -24,10 +24,6 @@ public:
     /// The symbol referred to by name.
     const ValueSymbol& symbol;
 
-    /// The parameters of each class specialization the name was scoped through,
-    /// as this reference wrote them.
-    std::span<const Symbol* const> specializationParameters;
-
     bool requireLValueImpl(const ASTContext& context, SourceLocation location,
                            bitmask<AssignFlags> flags) const;
 
@@ -37,8 +33,7 @@ public:
 
     static Expression& fromSymbol(const ASTContext& context, const Symbol& symbol,
                                   const HierarchicalReference* hierRef, SourceRange sourceRange,
-                                  bool constraintAllowed = false, bool isDottedAccess = false,
-                                  std::span<const Symbol* const> specializationParameters = {});
+                                  bool constraintAllowed = false, bool isDottedAccess = false);
 
     static bool checkLValue(const ASTContext& context, const ValueSymbol& symbol,
                             bitmask<AssignFlags> flags, SourceLocation assignLoc,
@@ -96,14 +91,6 @@ public:
 /// parameter assignment (because of type parameters).
 class SLANG_EXPORT DataTypeExpression final : public Expression {
 public:
-    /// The dimensions written on the type, in declaration order, as they were
-    /// evaluated to build it.
-    std::span<const EvaluatedDimension> dimensions;
-
-    /// The parameters of each class specialization the type names, as this
-    /// expression wrote them.
-    std::span<const Symbol* const> specializationParameters;
-
     DataTypeExpression(const Type& type, SourceRange sourceRange) :
         Expression(ExpressionKind::DataType, type, sourceRange) {}
 

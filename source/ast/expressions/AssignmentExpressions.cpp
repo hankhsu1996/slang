@@ -599,9 +599,10 @@ void NewArrayExpression::serializeTo(ASTSerializer& serializer) const {
         serializer.write("initExpr", *initExpr());
 }
 
-static std::pair<const ClassType*, bool> resolveNewClassTarget(
-    const NameSyntax& nameSyntax, const ASTContext& context, const Type*& assignmentTarget,
-    SourceRange range, SmallVectorBase<const Symbol*>* specializationParameters = nullptr) {
+static std::pair<const ClassType*, bool> resolveNewClassTarget(const NameSyntax& nameSyntax,
+                                                               const ASTContext& context,
+                                                               const Type*& assignmentTarget,
+                                                               SourceRange range) {
     // If the new expression is typed, look up that type as the target.
     // Otherwise, the target must come from the expression context.
     bool isSuperClass = false;
@@ -643,7 +644,7 @@ static std::pair<const ClassType*, bool> resolveNewClassTarget(
         }
         else {
             auto& className = *nameSyntax.as<ScopedNameSyntax>().left;
-            classType = Lookup::findClass(className, context, {}, specializationParameters);
+            classType = Lookup::findClass(className, context);
             if (!classType)
                 return {nullptr, false};
 
@@ -675,10 +676,8 @@ Expression& NewClassExpression::fromSyntax(Compilation& comp,
     }
 
     SourceRange range = syntax.sourceRange();
-    SmallVector<const Symbol*> specializationParameters;
     auto [classType, isSuperClass] = resolveNewClassTarget(*syntax.scopedNew, context,
-                                                           assignmentTarget, range,
-                                                           &specializationParameters);
+                                                           assignmentTarget, range);
     if (!classType)
         return badExpr(comp, nullptr);
 
@@ -696,10 +695,8 @@ Expression& NewClassExpression::fromSyntax(Compilation& comp,
         diag << syntax.argList->parameters.size();
     }
 
-    auto result = comp.emplace<NewClassExpression>(*assignmentTarget, constructorCall, isSuperClass,
-                                                   range);
-    result->specializationParameters = specializationParameters.copy(comp);
-    return *result;
+    return *comp.emplace<NewClassExpression>(*assignmentTarget, constructorCall, isSuperClass,
+                                             range);
 }
 
 Expression& NewClassExpression::fromSyntax(Compilation& comp,

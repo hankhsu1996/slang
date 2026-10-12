@@ -50,10 +50,10 @@ static std::string_view getNonValueName(const Symbol& symbol) {
     return symbol.name;
 }
 
-Expression& ValueExpressionBase::fromSymbol(
-    const ASTContext& context, const Symbol& symbol, const HierarchicalReference* hierRef,
-    SourceRange sourceRange, bool constraintAllowed, bool isDottedAccess,
-    std::span<const Symbol* const> specializationParameters) {
+Expression& ValueExpressionBase::fromSymbol(const ASTContext& context, const Symbol& symbol,
+                                            const HierarchicalReference* hierRef,
+                                            SourceRange sourceRange, bool constraintAllowed,
+                                            bool isDottedAccess) {
     // Automatic variables have additional restrictions.
     bool isUnbounded = false;
     auto& comp = context.getCompilation();
@@ -188,7 +188,7 @@ Expression& ValueExpressionBase::fromSymbol(
 
     context.noteReference(value, isDottedAccess);
 
-    ValueExpressionBase* result;
+    Expression* result;
     if (hierRef && hierRef->target) {
         result = comp.emplace<HierarchicalValueExpression>(*context.scope, value, *hierRef,
                                                            sourceRange);
@@ -197,7 +197,6 @@ Expression& ValueExpressionBase::fromSymbol(
         result = comp.emplace<NamedValueExpression>(value, sourceRange);
     }
 
-    result->specializationParameters = specializationParameters;
     if (isUnbounded)
         result->type = &comp.getUnboundedType();
     return *result;
@@ -525,8 +524,7 @@ bool HierarchicalValueExpression::isEquivalentImpl(const HierarchicalValueExpres
 
 Expression& DataTypeExpression::fromSyntax(Compilation& compilation, const DataTypeSyntax& syntax,
                                            const ASTContext& context) {
-    SmallVector<EvaluatedDimension> evaluated;
-    const Type& type = compilation.getType(syntax, context, nullptr, &evaluated);
+    const Type& type = compilation.getType(syntax, context);
     if (syntax.kind == SyntaxKind::TypeReference &&
         context.flags.has(ASTFlags::AllowTypeReferences)) {
         return *compilation.emplace<TypeReferenceExpression>(compilation.getTypeRefType(), type,
@@ -538,9 +536,7 @@ Expression& DataTypeExpression::fromSyntax(Compilation& compilation, const DataT
         return badExpr(compilation, nullptr);
     }
 
-    auto expr = compilation.emplace<DataTypeExpression>(type, syntax.sourceRange());
-    expr->dimensions = evaluated.ccopy(compilation);
-    return *expr;
+    return *compilation.emplace<DataTypeExpression>(type, syntax.sourceRange());
 }
 
 void TypeReferenceExpression::serializeTo(ASTSerializer& serializer) const {
