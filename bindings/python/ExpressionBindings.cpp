@@ -29,7 +29,6 @@ void registerExpressions(py::module_& m) {
         .def_property_readonly("isUnsizedInteger", &Expression::isUnsizedInteger)
         .def_property_readonly("effectiveWidth", &Expression::getEffectiveWidth)
         .def_property_readonly("hasHierarchicalReference", &Expression::hasHierarchicalReference)
-        .def_property_readonly("hasHierarchicalName", &Expression::hasHierarchicalName)
         .def("eval", &Expression::eval, "context"_a)
         .def("evalLValue", &Expression::evalLValue, "context"_a)
         .def("isImplicitlyAssignableTo", &Expression::isImplicitlyAssignableTo, "compilation"_a,
