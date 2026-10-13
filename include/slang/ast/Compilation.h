@@ -870,6 +870,7 @@ public:
 
 private:
     friend class Lookup;
+    friend class ParameterSymbol;
     friend class Scope;
     friend struct DiagnosticVisitor;
 

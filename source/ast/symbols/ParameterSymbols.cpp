@@ -185,6 +185,35 @@ bool ParameterSymbol::isOverridden() const {
     return getDeclaredType()->getFlags().has(DeclaredTypeFlags::InitializerOverridden);
 }
 
+const Expression* ParameterSymbol::getDefaultValue() const {
+    if (!isOverridden())
+        return getInitializer();
+
+    if (overriddenDefault)
+        return overriddenDefault;
+
+    auto declarator = defaultValSyntax ? defaultValSyntax->as_if<DeclaratorSyntax>() : nullptr;
+    if (!declarator || !declarator->initializer)
+        return nullptr;
+
+    auto scope = getParentScope();
+    SLANG_ASSERT(scope);
+
+    // Bound where the declaration stands, as the initializer of a parameter
+    // that was not overridden is, so it reads the parameters declared before it.
+    // The default is not used here, so what binding it reports is dropped.
+    auto& comp = scope->getCompilation();
+    auto wasDisabled = std::exchange(comp.diagsDisabled, true);
+    auto guard = ScopeGuard([&] { comp.diagsDisabled = wasDisabled; });
+
+    ASTContext context(*scope, LookupLocation::before(*this), ASTFlags::StaticInitializer);
+    auto loc = declarator->initializer->equals.location();
+    overriddenDefault = &Expression::bindRValue(getType(), *declarator->initializer->expr,
+                                                {loc, loc + 1}, context,
+                                                ASTFlags::AllowUnboundedLiteral);
+    return overriddenDefault;
+}
+
 void ParameterSymbol::setValue(Compilation& compilation, ConstantValue newValue,
                                bool newNeedsCoercion) {
     value = compilation.allocConstant(std::move(newValue));

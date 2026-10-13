@@ -4,6 +4,7 @@
 #include "Test.h"
 #include <fmt/format.h>
 
+#include "slang/ast/Expression.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
@@ -1853,4 +1854,53 @@ endmodule
     auto vSources = compilation.getParameterValueSources(v);
     REQUIRE(vSources.size() == 1);
     CHECK(vSources[0] == param("R"));
+}
+
+TEST_CASE("Parameter default value of an overridden parameter") {
+    auto tree = SyntaxTree::fromText(R"(
+module m #(parameter int W = 8, parameter int D = W * 2, parameter int E = W(1),
+           parameter int N)();
+endmodule
+
+module top;
+    m #(.W(4), .D(100), .E(1), .N(3)) a();
+    m #(.W(5), .E(2), .N(3)) b();
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& root = compilation.getRoot();
+    auto param = [&](std::string_view path) -> auto& {
+        return root.lookupName<ParameterSymbol>(path);
+    };
+
+    // Not overridden, the default is the initializer.
+    auto& bd = param("top.b.D");
+    CHECK(bd.getDefaultValue() == bd.getInitializer());
+
+    // Overridden, the default is the declaration's, bound in the parameter's own
+    // scope, so it names the instance's own W.
+    auto& ad = param("top.a.D");
+    auto defaultD = ad.getDefaultValue();
+    REQUIRE(defaultD);
+    CHECK(defaultD != ad.getInitializer());
+    CHECK(ad.getValue().integer() == 100);
+
+    auto& w = param("top.a.W");
+    bool namesW = false;
+    defaultD->visitSymbolReferences(
+        [&](const Expression&, const Symbol& sym) { namesW |= &sym == &w; });
+    CHECK(namesW);
+
+    // A parameter declared with no default has none.
+    CHECK(param("top.a.N").getDefaultValue() == nullptr);
+
+    // A default that is not used is not checked: binding it reports nothing,
+    // which the diagnostics, gathered only now, would hold if it had.
+    auto& ae = param("top.a.E");
+    REQUIRE(ae.getDefaultValue());
+    CHECK(ae.getDefaultValue()->bad());
+    NO_COMPILATION_ERRORS;
 }
