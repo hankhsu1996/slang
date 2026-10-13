@@ -59,6 +59,14 @@ public:
     bool isImplicitString(SourceRange referencingRange) const;
     bool isOverridden() const;
 
+    /// Gets the default value the parameter's declaration states, bound in the
+    /// parameter's own scope, or nullptr if the declaration states none. Where
+    /// the parameter was not overridden this is its initializer. Where it was,
+    /// the default is bound when first asked for and nothing binding it
+    /// reports is kept: the default is not used there, so it need not be valid
+    /// against the values the other parameters were given.
+    const Expression* getDefaultValue() const;
+
     bool isFromConfig() const { return isFromConf; }
     void setIsFromConfig(bool newIsFromConf) { isFromConf = newIsFromConf; }
 
@@ -71,6 +79,7 @@ public:
 
 private:
     mutable const ConstantValue* value = nullptr;
+    mutable const Expression* overriddenDefault = nullptr;
     mutable bool fromStringLit = false;
     mutable bool needsCoercion = false;
     mutable bool evaluating = false;
