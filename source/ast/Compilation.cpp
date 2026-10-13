@@ -1461,7 +1461,8 @@ void Compilation::noteHierarchicalAssignment(const HierarchicalReference& ref) {
 void Compilation::noteParameterReads(const Scope& scope, const Expression& root,
                                      std::span<const ParameterSymbol* const> reads,
                                      const ParameterSymbol* valueOf, bool decidesGenerateBlocks) {
-    if (reads.empty())
+    // Nothing in a scope that is never instantiated holds what was evaluated.
+    if (reads.empty() || scope.isUninstantiated())
         return;
 
     SLANG_ASSERT(!isFrozen());
