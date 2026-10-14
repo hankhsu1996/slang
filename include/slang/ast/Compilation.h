@@ -304,7 +304,7 @@ struct SLANG_EXPORT ParameterRead {
 
     /// Whether the evaluation decided which generate blocks are created: a
     /// conditional generate's condition or case items, or a loop generate's
-    /// initial value.
+    /// initial value, stop condition or iteration.
     bool decidesGenerateBlocks;
 };
 

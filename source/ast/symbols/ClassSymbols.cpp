@@ -1076,10 +1076,7 @@ const Type* GenericClassDefSymbol::getSpecializationImpl(
                 // writing it holds, so the parameters its values were computed
                 // from are read there.
                 if (auto init = ps.getInitializer()) {
-                    comp.noteParameterReads(*context.scope, *init,
-                                            comp.getParameterValueSources(ps),
-                                            /* valueOf */ nullptr,
-                                            /* decidesGenerateBlocks */ false);
+                    context.noteParameterReads(*init, comp.getParameterValueSources(ps));
                 }
             }
             else {

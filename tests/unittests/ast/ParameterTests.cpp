@@ -1723,7 +1723,7 @@ endmodule
 
 TEST_CASE("Parameter reads are recorded for the constants an instance holds") {
     auto tree = SyntaxTree::fromText(R"(
-module m #(parameter int W = 4, D = 2, E = 3, F = 5, K = 0, C = 1, S = 0)();
+module m #(parameter int W = 4, D = 2, E = 3, F = 5, K = 0, C = 1, S = 0, T = 2, U = 1)();
     localparam int L = K + 1;
 
     function automatic int width();
@@ -1739,7 +1739,7 @@ module m #(parameter int W = 4, D = 2, E = 3, F = 5, K = 0, C = 1, S = 0)();
         logic d;
     end
 
-    for (genvar i = S; i < 2; i++) begin : l
+    for (genvar i = S; i < T; i += U) begin : l
     end
 
     initial a = K + L;
@@ -1760,9 +1760,9 @@ endmodule
 
     // W and D sized a type, D read first by the division's own check and taken from
     // its cache by the range; F was read inside a constant function; E gave an enum
-    // its value. C selected a block and S started a loop, which are marked as
-    // deciding the generate blocks. K is read only as a value, and L is computed
-    // from K.
+    // its value. C selected a block, S started a loop, and T and U told it how far to
+    // count, which are marked as deciding the generate blocks. K is read only as a
+    // value, and L is computed from K.
     SmallSet<const ParameterSymbol*, 8> held;
     SmallSet<const ParameterSymbol*, 8> deciding;
     for (auto& read : compilation.getParameterReads(u.body)) {
@@ -1776,9 +1776,11 @@ endmodule
     CHECK(held.contains(param("D")));
     CHECK(held.contains(param("E")));
     CHECK(held.contains(param("F")));
-    CHECK(deciding.size() == 2);
+    CHECK(deciding.size() == 4);
     CHECK(deciding.contains(param("C")));
     CHECK(deciding.contains(param("S")));
+    CHECK(deciding.contains(param("T")));
+    CHECK(deciding.contains(param("U")));
 
     // A parameter's own value is recorded as what it was computed from, including an
     // instantiation's override of it.

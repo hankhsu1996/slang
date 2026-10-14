@@ -435,6 +435,14 @@ public:
     /// a required evaluation's are (see Compilation::getParameterReads).
     void noteTypeRead(const Expression& expr) const;
 
+    /// Notes the parameters @a reads that evaluating @a root, a constant this scope holds,
+    /// read (see Compilation::getParameterReads): as what @a valueOf was computed from where
+    /// it is given, and marked with whether @a flags say the evaluation decided which
+    /// generate blocks are created.
+    void noteParameterReads(const Expression& root, std::span<const ParameterSymbol* const> reads,
+                            bitmask<EvalFlags> flags = {},
+                            const ParameterSymbol* valueOf = nullptr) const;
+
     /// @brief Evaluates the provided expression as a constant expression.
     ///
     /// If evaluation fails no diagnostics will be issued.

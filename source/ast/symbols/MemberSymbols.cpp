@@ -2338,10 +2338,8 @@ struct NetAliasVisitor {
                                 netAliases.push_back({&netSym, &expr, path.lspBounds});
 
                             // Which bits are joined is a constant the alias holds.
-                            context.getCompilation().noteParameterReads(
-                                *context.scope, expr,
-                                evalCtx.getParameterReads().subspan(readsBefore),
-                                /* valueOf */ nullptr, /* decidesGenerateBlocks */ false);
+                            auto reads = evalCtx.getParameterReads().subspan(readsBefore);
+                            context.noteParameterReads(expr, reads);
 
                             auto& nt = netSym.netType;
                             if (!commonNetType) {
