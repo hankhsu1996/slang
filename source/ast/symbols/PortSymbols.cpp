@@ -1362,6 +1362,9 @@ const Type& PortSymbol::getType() const {
                 internalExpr = &Expression::bindSelector(valExpr, *select, context);
                 type = internalExpr->type;
 
+                // The part a port names is part of what the instance publishes.
+                context.noteTypeRead(*internalExpr);
+
                 if (direction == ArgumentDirection::In || direction == ArgumentDirection::InOut) {
                     auto flags = direction == ArgumentDirection::InOut ? AssignFlags::InOutPort
                                                                        : AssignFlags::None;
@@ -1396,6 +1399,9 @@ const Type& PortSymbol::getType() const {
         ASTContext context(*scope, LookupLocation::max, astFlags);
         internalExpr = &Expression::bind(*eaps.expr, context);
         type = internalExpr->type;
+
+        // The part a port names is part of what the instance publishes.
+        context.noteTypeRead(*internalExpr);
 
         auto makeBad = [&] {
             internalExpr = context.getCompilation().emplace<InvalidExpression>(internalExpr,

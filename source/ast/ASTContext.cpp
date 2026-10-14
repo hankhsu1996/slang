@@ -7,6 +7,7 @@
 //------------------------------------------------------------------------------
 #include "slang/ast/ASTContext.h"
 
+#include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/expressions/MiscExpressions.h"
@@ -280,6 +281,31 @@ ConstantValue ASTContext::eval(const Expression& expr, bitmask<EvalFlags> extraF
     getCompilation().noteParameterReads(*scope, expr, ctx.getParameterReads(), valueOf,
                                         extraFlags.has(EvalFlags::DecidesGenerateBlocks));
     return result;
+}
+
+namespace {
+
+struct CachedReadsVisitor : public ASTVisitor<CachedReadsVisitor, VisitFlags::Expressions> {
+    const Compilation& compilation;
+    SmallVector<const ParameterSymbol*> reads;
+
+    explicit CachedReadsVisitor(const Compilation& compilation) : compilation(compilation) {}
+
+    template<std::derived_from<Expression> T>
+    void handle(const T& node) {
+        reads.append_range(compilation.getCachedParameterReads(node));
+        visitDefault(node);
+    }
+};
+
+} // namespace
+
+void ASTContext::noteTypeRead(const Expression& expr) const {
+    auto& compilation = getCompilation();
+    CachedReadsVisitor visitor(compilation);
+    expr.visit(visitor);
+    compilation.noteParameterReads(*scope, expr, visitor.reads, /* valueOf */ nullptr,
+                                   /* decidesGenerateBlocks */ false);
 }
 
 ConstantValue ASTContext::tryEval(const Expression& expr) const {

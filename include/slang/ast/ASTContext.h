@@ -427,6 +427,14 @@ public:
     ConstantValue eval(const Expression& expr, bitmask<EvalFlags> extraFlags = {},
                        const ParameterSymbol* valueOf = nullptr) const;
 
+    /// Notes that the type of @a expr is read as a fact the enclosing instance holds:
+    /// it is the type of a declaration, or an argument a system call reads for its type
+    /// alone, or the shape a port publishes. Binding may have settled that type from
+    /// constants it folded only where it could -- a part-select's position, a condition
+    /// leaving an arm unevaluated -- so the parameters those folds read are recorded as
+    /// a required evaluation's are (see Compilation::getParameterReads).
+    void noteTypeRead(const Expression& expr) const;
+
     /// @brief Evaluates the provided expression as a constant expression.
     ///
     /// If evaluation fails no diagnostics will be issued.
