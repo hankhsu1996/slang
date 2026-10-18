@@ -156,6 +156,7 @@ void registerText(py::module_& m) {
         .def("getFullyOriginalLoc", &SourceManager::getFullyOriginalLoc, "location"_a)
         .def("getFullyOriginalRange", &SourceManager::getFullyOriginalRange, "range"_a)
         .def("getFullyExpandedLoc", &SourceManager::getFullyExpandedLoc, "location"_a)
+        .def("getFullyExpandedRange", &SourceManager::getFullyExpandedRange, "range"_a)
         .def("getMacroCallerLoc", &SourceManager::getMacroCallerLoc, "location"_a)
         .def("getFileLoc", &SourceManager::getFileLoc, "location"_a)
         .def("getSourceText", &SourceManager::getSourceText, "buffer"_a)

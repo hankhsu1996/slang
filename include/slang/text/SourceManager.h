@@ -173,6 +173,10 @@ public:
     /// file expansion location. Otherwise just returns the location itself.
     SourceLocation getFullyExpandedLoc(SourceLocation location) const;
 
+    /// Build the fully expanded location range, from the start of the outermost
+    /// expansion containing the start of @a range to the end of the one containing its end.
+    SourceRange getFullyExpandedRange(SourceRange range) const;
+
     /// If the given location is a macro location, gets the location one level up
     /// toward the text that invoked the macro. For text from a macro argument that is
     /// where the argument is written, and otherwise it is where the macro is expanded.

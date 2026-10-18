@@ -1396,7 +1396,13 @@ endmodule
               "source_line_start": 22,
               "source_line_end": 22,
               "source_column_start": 9,
-              "source_column_end": 9,
+              "source_column_end": 32,
+              "source_original_file_start": "source",
+              "source_original_file_end": "source",
+              "source_original_line_start": 4,
+              "source_original_line_end": 6,
+              "source_original_column_start": 9,
+              "source_original_column_end": 12,
               "kind": "Block",
               "blockKind": "Sequential",
               "body": {
@@ -1405,7 +1411,13 @@ endmodule
                 "source_line_start": 22,
                 "source_line_end": 22,
                 "source_column_start": 9,
-                "source_column_end": 9,
+                "source_column_end": 32,
+                "source_original_file_start": "source",
+                "source_original_file_end": "source",
+                "source_original_line_start": 4,
+                "source_original_line_end": 6,
+                "source_original_column_start": 9,
+                "source_original_column_end": 12,
                 "kind": "Conditional",
                 "conditions": [
                   {
@@ -1415,7 +1427,13 @@ endmodule
                       "source_line_start": 22,
                       "source_line_end": 22,
                       "source_column_start": 9,
-                      "source_column_end": 9,
+                      "source_column_end": 32,
+                      "source_original_file_start": "source",
+                      "source_original_file_end": "source",
+                      "source_original_line_start": 22,
+                      "source_original_line_end": 4,
+                      "source_original_column_start": 30,
+                      "source_original_column_end": 29,
                       "kind": "Call",
                       "type": "logic",
                       "subroutine": "should_print",
@@ -1425,7 +1443,13 @@ endmodule
                         "source_line_start": 22,
                         "source_line_end": 22,
                         "source_column_start": 9,
-                        "source_column_end": 9,
+                        "source_column_end": 32,
+                        "source_original_file_start": "source",
+                        "source_original_file_end": "source",
+                        "source_original_line_start": 22,
+                        "source_original_line_end": 22,
+                        "source_original_column_start": 30,
+                        "source_original_column_end": 31,
                         "kind": "NamedValue",
                         "type": "C",
                         "symbol": "c"
@@ -1437,7 +1461,13 @@ endmodule
                           "source_line_start": 22,
                           "source_line_end": 22,
                           "source_column_start": 9,
-                          "source_column_end": 9,
+                          "source_column_end": 32,
+                          "source_original_file_start": "source",
+                          "source_original_file_end": "source",
+                          "source_original_line_start": 22,
+                          "source_original_line_end": 22,
+                          "source_original_column_start": 20,
+                          "source_original_column_end": 21,
                           "kind": "IntegerLiteral",
                           "type": "int",
                           "value": "0",
@@ -1454,7 +1484,13 @@ endmodule
                   "source_line_start": 22,
                   "source_line_end": 22,
                   "source_column_start": 9,
-                  "source_column_end": 9,
+                  "source_column_end": 32,
+                  "source_original_file_start": "source",
+                  "source_original_file_end": "source",
+                  "source_original_line_start": 22,
+                  "source_original_line_end": 5,
+                  "source_original_column_start": 30,
+                  "source_original_column_end": 32,
                   "kind": "Block",
                   "blockKind": "Sequential",
                   "body": {
@@ -1463,7 +1499,13 @@ endmodule
                     "source_line_start": 22,
                     "source_line_end": 22,
                     "source_column_start": 9,
-                    "source_column_end": 9,
+                    "source_column_end": 32,
+                    "source_original_file_start": "source",
+                    "source_original_file_end": "source",
+                    "source_original_line_start": 22,
+                    "source_original_line_end": 5,
+                    "source_original_column_start": 30,
+                    "source_original_column_end": 32,
                     "kind": "ExpressionStatement",
                     "expr": {
                       "source_file_start": "source",
@@ -1471,7 +1513,13 @@ endmodule
                       "source_line_start": 22,
                       "source_line_end": 22,
                       "source_column_start": 9,
-                      "source_column_end": 9,
+                      "source_column_end": 32,
+                      "source_original_file_start": "source",
+                      "source_original_file_end": "source",
+                      "source_original_line_start": 22,
+                      "source_original_line_end": 5,
+                      "source_original_column_start": 30,
+                      "source_original_column_end": 26,
                       "kind": "Call",
                       "type": "void",
                       "subroutine": "print_msg",
@@ -1481,7 +1529,13 @@ endmodule
                         "source_line_start": 22,
                         "source_line_end": 22,
                         "source_column_start": 9,
-                        "source_column_end": 9,
+                        "source_column_end": 32,
+                        "source_original_file_start": "source",
+                        "source_original_file_end": "source",
+                        "source_original_line_start": 22,
+                        "source_original_line_end": 22,
+                        "source_original_column_start": 30,
+                        "source_original_column_end": 31,
                         "kind": "NamedValue",
                         "type": "C",
                         "symbol": "c"
@@ -1493,7 +1547,13 @@ endmodule
                           "source_line_start": 22,
                           "source_line_end": 22,
                           "source_column_start": 9,
-                          "source_column_end": 9,
+                          "source_column_end": 32,
+                          "source_original_file_start": "source",
+                          "source_original_file_end": "source",
+                          "source_original_line_start": 22,
+                          "source_original_line_end": 22,
+                          "source_original_column_start": 23,
+                          "source_original_column_end": 28,
                           "kind": "Conversion",
                           "type": "string",
                           "operand": {
@@ -1502,7 +1562,13 @@ endmodule
                             "source_line_start": 22,
                             "source_line_end": 22,
                             "source_column_start": 9,
-                            "source_column_end": 9,
+                            "source_column_end": 32,
+                            "source_original_file_start": "source",
+                            "source_original_file_end": "source",
+                            "source_original_line_start": 22,
+                            "source_original_line_end": 22,
+                            "source_original_column_start": 23,
+                            "source_original_column_end": 28,
                             "kind": "StringLiteral",
                             "type": "bit[23:0]",
                             "literal": "msg",
@@ -1516,6 +1582,259 @@ endmodule
                 }
               }
             }
+          }
+        ],
+        "definition": "top"
+      },
+      "connections": [
+      ]
+    }
+  ]
+})");
+}
+
+TEST_CASE("Serializing locations of macro arguments and bodies") {
+    auto tree = SyntaxTree::fromText(R"(
+`define ID(x) x
+`define ADD(x) x + 1
+`define DECL logic q;
+`define DECLN(n) logic n;
+module top;
+    int a, b;
+    initial a = `ID(b);
+    initial a = `ADD(b);
+    `DECL
+    `DECLN(r)
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto result = serialize(compilation, true);
+    CHECK(result == R"(
+{
+  "name": "$root",
+  "kind": "Root",
+  "members": [
+    {
+      "name": "",
+      "kind": "CompilationUnit"
+    },
+    {
+      "name": "top",
+      "kind": "Instance",
+      "source_file": "source",
+      "source_line": 6,
+      "source_column": 8,
+      "body": {
+        "name": "top",
+        "kind": "InstanceBody",
+        "source_file": "source",
+        "source_line": 6,
+        "source_column": 8,
+        "members": [
+          {
+            "name": "a",
+            "kind": "Variable",
+            "source_file": "source",
+            "source_line": 7,
+            "source_column": 9,
+            "type": "int",
+            "lifetime": "Static"
+          },
+          {
+            "name": "b",
+            "kind": "Variable",
+            "source_file": "source",
+            "source_line": 7,
+            "source_column": 12,
+            "type": "int",
+            "lifetime": "Static"
+          },
+          {
+            "name": "",
+            "kind": "ProceduralBlock",
+            "source_file": "source",
+            "source_line": 8,
+            "source_column": 5,
+            "procedureKind": "Initial",
+            "body": {
+              "source_file_start": "source",
+              "source_file_end": "source",
+              "source_line_start": 8,
+              "source_line_end": 8,
+              "source_column_start": 13,
+              "source_column_end": 24,
+              "kind": "ExpressionStatement",
+              "expr": {
+                "source_file_start": "source",
+                "source_file_end": "source",
+                "source_line_start": 8,
+                "source_line_end": 8,
+                "source_column_start": 13,
+                "source_column_end": 23,
+                "source_original_file_start": "source",
+                "source_original_file_end": "source",
+                "source_original_line_start": 8,
+                "source_original_line_end": 8,
+                "source_original_column_start": 13,
+                "source_original_column_end": 22,
+                "kind": "Assignment",
+                "type": "int",
+                "left": {
+                  "source_file_start": "source",
+                  "source_file_end": "source",
+                  "source_line_start": 8,
+                  "source_line_end": 8,
+                  "source_column_start": 13,
+                  "source_column_end": 14,
+                  "kind": "NamedValue",
+                  "type": "int",
+                  "symbol": "a"
+                },
+                "right": {
+                  "source_file_start": "source",
+                  "source_file_end": "source",
+                  "source_line_start": 8,
+                  "source_line_end": 8,
+                  "source_column_start": 17,
+                  "source_column_end": 23,
+                  "source_original_file_start": "source",
+                  "source_original_file_end": "source",
+                  "source_original_line_start": 8,
+                  "source_original_line_end": 8,
+                  "source_original_column_start": 21,
+                  "source_original_column_end": 22,
+                  "kind": "NamedValue",
+                  "type": "int",
+                  "symbol": "b"
+                },
+                "isNonBlocking": false
+              }
+            }
+          },
+          {
+            "name": "",
+            "kind": "ProceduralBlock",
+            "source_file": "source",
+            "source_line": 9,
+            "source_column": 5,
+            "procedureKind": "Initial",
+            "body": {
+              "source_file_start": "source",
+              "source_file_end": "source",
+              "source_line_start": 9,
+              "source_line_end": 9,
+              "source_column_start": 13,
+              "source_column_end": 25,
+              "kind": "ExpressionStatement",
+              "expr": {
+                "source_file_start": "source",
+                "source_file_end": "source",
+                "source_line_start": 9,
+                "source_line_end": 9,
+                "source_column_start": 13,
+                "source_column_end": 24,
+                "source_original_file_start": "source",
+                "source_original_file_end": "source",
+                "source_original_line_start": 9,
+                "source_original_line_end": 3,
+                "source_original_column_start": 13,
+                "source_original_column_end": 21,
+                "kind": "Assignment",
+                "type": "int",
+                "left": {
+                  "source_file_start": "source",
+                  "source_file_end": "source",
+                  "source_line_start": 9,
+                  "source_line_end": 9,
+                  "source_column_start": 13,
+                  "source_column_end": 14,
+                  "kind": "NamedValue",
+                  "type": "int",
+                  "symbol": "a"
+                },
+                "right": {
+                  "source_file_start": "source",
+                  "source_file_end": "source",
+                  "source_line_start": 9,
+                  "source_line_end": 9,
+                  "source_column_start": 17,
+                  "source_column_end": 24,
+                  "source_original_file_start": "source",
+                  "source_original_file_end": "source",
+                  "source_original_line_start": 9,
+                  "source_original_line_end": 3,
+                  "source_original_column_start": 22,
+                  "source_original_column_end": 21,
+                  "kind": "BinaryOp",
+                  "type": "int",
+                  "op": "Add",
+                  "left": {
+                    "source_file_start": "source",
+                    "source_file_end": "source",
+                    "source_line_start": 9,
+                    "source_line_end": 9,
+                    "source_column_start": 17,
+                    "source_column_end": 24,
+                    "source_original_file_start": "source",
+                    "source_original_file_end": "source",
+                    "source_original_line_start": 9,
+                    "source_original_line_end": 9,
+                    "source_original_column_start": 22,
+                    "source_original_column_end": 23,
+                    "kind": "NamedValue",
+                    "type": "int",
+                    "symbol": "b"
+                  },
+                  "right": {
+                    "source_file_start": "source",
+                    "source_file_end": "source",
+                    "source_line_start": 9,
+                    "source_line_end": 9,
+                    "source_column_start": 17,
+                    "source_column_end": 24,
+                    "source_original_file_start": "source",
+                    "source_original_file_end": "source",
+                    "source_original_line_start": 3,
+                    "source_original_line_end": 3,
+                    "source_original_column_start": 20,
+                    "source_original_column_end": 21,
+                    "kind": "IntegerLiteral",
+                    "type": "int",
+                    "value": "1",
+                    "constant": "1"
+                  }
+                },
+                "isNonBlocking": false
+              }
+            }
+          },
+          {
+            "name": "q",
+            "kind": "Variable",
+            "source_file": "source",
+            "source_line": 10,
+            "source_column": 5,
+            "source_original_file": "source",
+            "source_original_line": 4,
+            "source_original_column": 20,
+            "type": "logic",
+            "lifetime": "Static"
+          },
+          {
+            "name": "r",
+            "kind": "Variable",
+            "source_file": "source",
+            "source_line": 11,
+            "source_column": 5,
+            "source_original_file": "source",
+            "source_original_line": 11,
+            "source_original_column": 12,
+            "type": "logic",
+            "lifetime": "Static"
           }
         ],
         "definition": "top"
