@@ -173,6 +173,17 @@ public:
     /// file expansion location. Otherwise just returns the location itself.
     SourceLocation getFullyExpandedLoc(SourceLocation location) const;
 
+    /// If the given location is a macro location, gets the location one level up
+    /// toward the text that invoked the macro. For text from a macro argument that is
+    /// where the argument is written, and otherwise it is where the macro is expanded.
+    /// Otherwise just returns the location itself.
+    SourceLocation getMacroCallerLoc(SourceLocation location) const;
+
+    /// If the given location is a macro location, steps up through its macro callers
+    /// to the file location that a diagnostic at that location is reported at.
+    /// Otherwise just returns the location itself.
+    SourceLocation getFileLoc(SourceLocation location) const;
+
     /// Gets the actual source text for a given file buffer.
     std::string_view getSourceText(BufferID buffer) const;
 
@@ -419,6 +430,9 @@ private:
 
     template<IsLock TLock>
     SourceLocation getOriginalLocImpl(SourceLocation location, TLock& lock) const;
+
+    template<IsLock TLock>
+    SourceLocation getMacroCallerLocImpl(SourceLocation location, TLock& lock) const;
 
     template<IsLock TLock>
     SourceRange getExpansionRangeImpl(SourceLocation location, TLock& lock) const;
