@@ -37,14 +37,24 @@ public:
         /// an index if the parent was an array, or a field name.
         std::variant<int32_t, std::pair<int32_t, int32_t>, std::string_view> selector;
 
+        /// For an index or range selector, the original index or left-bound
+        /// expression as it appeared in the source (e.g. the expression for `W`
+        /// in `g[W]`), or nullptr if not applicable.
+        const Expression* leftExpr = nullptr;
+
+        /// For a range selector only, the original right-bound expression as it
+        /// appeared in the source, or nullptr if not applicable.
+        const Expression* rightExpr = nullptr;
+
         /// Constructs an element with a name selector.
         Element(const Symbol& symbol);
 
         /// Constructs an element with an index selector.
-        Element(const Symbol& symbol, int32_t index);
+        Element(const Symbol& symbol, int32_t index, const Expression* indexExpr = nullptr);
 
         /// Constructs an element with a range selector.
-        Element(const Symbol& symbol, std::pair<int32_t, int32_t> range);
+        Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
+                const Expression* leftExpr = nullptr, const Expression* rightExpr = nullptr);
     };
 
     /// The target symbol of the hierarchical reference.
