@@ -22,12 +22,14 @@ HierarchicalReference::Element::Element(const Symbol& symbol) :
     symbol(&symbol), selector(symbol.name) {
 }
 
-HierarchicalReference::Element::Element(const Symbol& symbol, int32_t index) :
-    symbol(&symbol), selector(index) {
+HierarchicalReference::Element::Element(const Symbol& symbol, int32_t index,
+                                        const Expression* indexExpr) :
+    symbol(&symbol), selector(index), leftExpr(indexExpr) {
 }
 
-HierarchicalReference::Element::Element(const Symbol& symbol, std::pair<int32_t, int32_t> range) :
-    symbol(&symbol), selector(range) {
+HierarchicalReference::Element::Element(const Symbol& symbol, std::pair<int32_t, int32_t> range,
+                                        const Expression* leftExpr, const Expression* rightExpr) :
+    symbol(&symbol), selector(range), leftExpr(leftExpr), rightExpr(rightExpr) {
 }
 
 HierarchicalReference HierarchicalReference::fromLookup(Compilation& compilation,
