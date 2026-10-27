@@ -3,6 +3,7 @@
 
 #include "Test.h"
 
+#include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Lookup.h"
@@ -3046,6 +3047,46 @@ endmodule
 
     auto& local = stmtList[1]->as<ExpressionStatement>().expr.as<CallExpression>();
     CHECK(!local.lookupInfo.hierRef.target);
+}
+
+TEST_CASE("Sequence instance records the path that reached it") {
+    auto tree = SyntaxTree::fromText(R"(
+interface I(input logic clk);
+    logic a;
+    sequence s; a; endsequence
+endinterface
+
+module m(I i);
+    logic b;
+    sequence local_s; b; endsequence
+
+    assert property (@(posedge i.clk) i.s);
+    assert property (@(posedge i.clk) local_s);
+endmodule
+
+module top;
+    logic clk;
+    I i(clk);
+    m m1(i);
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& m = compilation.getRoot().lookupName<InstanceSymbol>("top.m1");
+    SmallVector<const AssertionInstanceExpression*> instances;
+    m.body.visit(makeVisitor(
+        [&](auto&, const AssertionInstanceExpression& expr) { instances.push_back(&expr); }));
+    REQUIRE(instances.size() == 2);
+
+    auto& viaPort = *instances[0];
+    REQUIRE(viaPort.hierRef.target);
+    CHECK(viaPort.hierRef.isViaIfacePort());
+    CHECK(viaPort.hierRef.expr == &viaPort);
+
+    auto& local = *instances[1];
+    CHECK(!local.hierRef.target);
 }
 
 TEST_CASE("Subroutine call records super qualification") {

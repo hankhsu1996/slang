@@ -1187,8 +1187,9 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
             if (result.selectors.empty())
                 localInvoke = std::exchange(invocation, nullptr);
 
-            expr = &AssertionInstanceExpression::fromLookup(*symbol, localInvoke, result.nameRange,
-                                                            context);
+            auto hierRef = HierarchicalReference::fromLookup(comp, result);
+            expr = &AssertionInstanceExpression::fromLookup(*symbol, &hierRef, localInvoke,
+                                                            result.nameRange, context);
 
             if (symbol->kind == SymbolKind::LetDecl &&
                 result.flags.has(LookupResultFlags::IsHierarchical)) {
