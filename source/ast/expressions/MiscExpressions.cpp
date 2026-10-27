@@ -807,10 +807,17 @@ static const AssertionExpr& bindAssertionBody(
 }
 
 Expression& AssertionInstanceExpression::fromLookup(const Symbol& symbol,
+                                                    const HierarchicalReference* hierRef,
                                                     const InvocationExpressionSyntax* syntax,
                                                     SourceRange range,
                                                     const ASTContext& parentContext) {
     auto& comp = parentContext.getCompilation();
+    auto noteHierRef = [&](AssertionInstanceExpression& result) {
+        if (hierRef && hierRef->target) {
+            result.hierRef = *hierRef;
+            result.hierRef.expr = &result;
+        }
+    };
     const Type* type;
     const Scope* symbolScope;
     std::span<const AssertionPortSymbol* const> formalPorts;
@@ -878,9 +885,10 @@ Expression& AssertionInstanceExpression::fromLookup(const Symbol& symbol,
             // the recursion.
             if (currInst->isRecursive) {
                 auto& body = *comp.emplace<InvalidAssertionExpr>(nullptr);
-                return *comp.emplace<AssertionInstanceExpression>(*type, symbol, body,
-                                                                  /* isRecursiveProperty */ true,
-                                                                  range);
+                auto result = comp.emplace<AssertionInstanceExpression>(
+                    *type, symbol, body, /* isRecursiveProperty */ true, range);
+                noteHierRef(*result);
+                return *result;
             }
             instance.isRecursive = true;
         }
@@ -1039,6 +1047,7 @@ Expression& AssertionInstanceExpression::fromLookup(const Symbol& symbol,
                                                             /* isRecursiveProperty */ false, range);
     result->arguments = actualArgs.copy(comp);
     result->localVars = localVars.copy(comp);
+    noteHierRef(*result);
 
     if (instance.isRecursive) {
         if (!context.flags.has(ASTFlags::PropertyTimeAdvance))
@@ -1378,6 +1387,9 @@ void AssertionInstanceExpression::serializeTo(ASTSerializer& serializer) const {
     serializer.writeLink("symbol", symbol);
     serializer.write("body", body);
     serializer.write("isRecursiveProperty", isRecursiveProperty);
+
+    if (hierRef.target)
+        serializer.write("isHierarchical", true);
 
     serializer.startArray("localVars");
     for (auto var : localVars)

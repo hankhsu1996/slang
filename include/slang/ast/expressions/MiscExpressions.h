@@ -240,6 +240,10 @@ public:
     /// Local variables materialized in the body of the assertion item.
     std::span<const LocalAssertionVarSymbol* const> localVars;
 
+    /// Information about the path used to refer to the assertion item,
+    /// if this expression was created via hierarchical reference.
+    HierarchicalReference hierRef;
+
     /// True if this is a recursive property instantiation.
     bool isRecursiveProperty;
 
@@ -251,7 +255,7 @@ public:
     ConstantValue evalImpl(EvalContext&) const { return nullptr; }
     bool isEquivalentImpl(const AssertionInstanceExpression& rhs) const;
 
-    static Expression& fromLookup(const Symbol& symbol,
+    static Expression& fromLookup(const Symbol& symbol, const HierarchicalReference* hierRef,
                                   const syntax::InvocationExpressionSyntax* syntax,
                                   SourceRange range, const ASTContext& context);
 
