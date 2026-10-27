@@ -153,6 +153,7 @@ void CompatSettings::configureDiagnostics(DiagnosticEngine& diagEngine) const {
                  diag::CannotIndexScalar,
                  diag::StringConstraintExpr,
                  diag::VirtualArgNameMismatch,
+                 diag::VirtualVisibilityMismatch,
                  diag::ParameterDoesNotExist,
                  diag::Redefinition,
                  diag::RedefinitionDifferentType,
