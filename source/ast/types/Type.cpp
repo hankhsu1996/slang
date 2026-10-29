@@ -1215,9 +1215,6 @@ const Type& Type::fromSyntax(Compilation& compilation, const DataTypeSyntax& nod
 
                 if (expr.type->isVoid())
                     context.addDiag(diag::TypeRefVoid, exprSyntax.sourceRange());
-
-                // Whatever is declared with this type holds it.
-                context.noteTypeRead(expr);
             }
 
             return *expr.type;

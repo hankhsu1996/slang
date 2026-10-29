@@ -666,14 +666,6 @@ Expression& CallExpression::createSystemCall(
     if (syntax)
         context.setAttributes(*expr, syntax->attributes);
 
-    // An argument the call reads for its type alone gives the call its answer
-    // from that type, wherever the call stands.
-    auto args = expr->arguments();
-    for (size_t i = 0; i < args.size(); i++) {
-        if (subroutine.isArgUnevaluated(i))
-            context.noteTypeRead(*args[i]);
-    }
-
     return *expr;
 }
 

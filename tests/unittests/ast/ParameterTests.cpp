@@ -1835,16 +1835,15 @@ endmodule
     auto& u = root.lookupName<InstanceSymbol>("top.u");
     auto param = [&](std::string_view name) { return &u.body.find(name)->as<ParameterSymbol>(); };
 
-    // The interface's W, read through the port, sized a type, A picked the bits
-    // the alias joins, and Q chose the class specialization y is declared with.
+    // The interface's W, read through the port, sized a type, and A picked the bits
+    // the alias joins.
     auto& w = root.lookupName<ParameterSymbol>("top.b.W");
     SmallSet<const ParameterSymbol*, 4> held;
     for (auto& read : compilation.getParameterReads(u.body))
         held.emplace(read.parameter);
-    CHECK(held.size() == 3);
+    CHECK(held.size() == 2);
     CHECK(held.contains(&w));
     CHECK(held.contains(param("A")));
-    CHECK(held.contains(param("Q")));
 
     // Q was read into the class specialization's N, and R into the value the
     // defparam gives leaf's V.
@@ -1912,56 +1911,6 @@ endmodule
     CHECK(held.contains(param("K")));
     CHECK(held.contains(param("G")));
     CHECK(held.contains(param("B")));
-}
-
-TEST_CASE("Parameter reads are recorded for a type read as a fact") {
-    auto tree = SyntaxTree::fromText(R"(
-class C #(parameter int K = 0);
-endclass
-
-module m #(parameter int B = 1, T = 2, P = 1, R = 2, N = 3, L = 1, S = 1, Q = 1)
-          (input logic [31:0] d, output .o(w[S*8+:8]));
-    logic [$left(d[B*8+:8]):0] a;
-    var type(d[T*8+:8]) b;
-    logic [$left(P ? d[R*8+:8] : d[R*8+:8]):0] c;
-    localparam string s = $typename(d[N*8+:8]);
-    C #(L * 2) h;
-    logic [15:0] w;
-
-    logic [7:0] x;
-    always_comb x = d[Q*8+:8];
-endmodule
-
-module top;
-    logic [7:0] o;
-    m u(.d('0), .o(o));
-endmodule
-)");
-
-    Compilation compilation;
-    compilation.addSyntaxTree(tree);
-    NO_COMPILATION_ERRORS;
-
-    auto& u = compilation.getRoot().lookupName<InstanceSymbol>("top.u");
-    auto param = [&](std::string_view name) { return &u.body.find(name)->as<ParameterSymbol>(); };
-
-    // B placed the part-select whose type $left reads, T the one a type operator
-    // declares b with, and N the one $typename names; R did the same inside a
-    // conditional whose condition P decided which arm's position binding settled.
-    // L chose the class specialization h is declared with, and S placed the part
-    // the port publishes. Q placed a part-select whose type nothing reads as a
-    // fact.
-    SmallSet<const ParameterSymbol*, 8> held;
-    for (auto& read : compilation.getParameterReads(u.body))
-        held.emplace(read.parameter);
-    CHECK(held.size() == 7);
-    CHECK(held.contains(param("B")));
-    CHECK(held.contains(param("T")));
-    CHECK(held.contains(param("P")));
-    CHECK(held.contains(param("R")));
-    CHECK(held.contains(param("N")));
-    CHECK(held.contains(param("L")));
-    CHECK(held.contains(param("S")));
 }
 
 TEST_CASE("Parameter default value of an overridden parameter") {

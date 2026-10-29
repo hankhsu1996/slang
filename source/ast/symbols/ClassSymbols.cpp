@@ -1081,16 +1081,6 @@ const Type* GenericClassDefSymbol::getSpecializationImpl(
             if (sym.kind == SymbolKind::Parameter) {
                 auto& ps = sym.as<ParameterSymbol>();
                 paramValues.push_back(&ps.getValue(instRange));
-
-                // Which specialization a site names is part of what the instance
-                // writing it holds, so the parameters its values were computed
-                // from are read there.
-                if (auto init = ps.getInitializer()) {
-                    comp.noteParameterReads(*context.scope, *init,
-                                            comp.getParameterValueSources(ps),
-                                            /* valueOf */ nullptr,
-                                            /* decidesGenerateBlocks */ false);
-                }
             }
             else {
                 auto& tps = sym.as<TypeParameterSymbol>();
