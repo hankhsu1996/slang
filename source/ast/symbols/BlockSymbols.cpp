@@ -533,7 +533,7 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const IfGenerateS
                                      std::span<const GenerateSelection> enclosing) {
     std::optional<bool> selector;
     auto& cond = Expression::bind(*syntax.condition, context);
-    ConstantValue cv = context.eval(cond, EvalFlags::DecidesGenerateBlocks);
+    ConstantValue cv = context.eval(cond);
     if (cv && context.requireBooleanConvertible(cond) && !isUninstantiated)
         selector = cv.isTrue();
 
@@ -585,7 +585,7 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
     auto condExpr = *boundIt++;
 
     const Type* condType = nullptr;
-    ConstantValue condVal = context.eval(*condExpr, EvalFlags::DecidesGenerateBlocks);
+    ConstantValue condVal = context.eval(*condExpr);
     if (!condVal) {
         if (condExpr->kind == ExpressionKind::TypeReference)
             condType = &condExpr->as<TypeReferenceExpression>().targetType;
@@ -614,7 +614,7 @@ void GenerateBlockSymbol::fromSyntax(Compilation& compilation, const CaseGenerat
             // Have to keep incrementing the iterator here so that we stay in sync.
             auto expr = *boundIt++;
             itemExprs.push_back(expr);
-            ConstantValue val = context.eval(*expr, EvalFlags::DecidesGenerateBlocks);
+            ConstantValue val = context.eval(*expr);
 
             bool match = val && val == condVal;
             if (!val && condType && expr->kind == ExpressionKind::TypeReference)
@@ -843,7 +843,7 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
     auto& initial = Expression::bindRValue(comp.getIntegerType(), *syntax.initialExpr,
                                            syntax.equals.range(), context);
     result->initialExpression = &initial;
-    ConstantValue initialVal = context.eval(initial, EvalFlags::DecidesGenerateBlocks);
+    ConstantValue initialVal = context.eval(initial);
     if (!initialVal)
         return *result;
 

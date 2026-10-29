@@ -266,8 +266,7 @@ bool ASTContext::requireTimingAllowed(SourceRange range) const {
     return true;
 }
 
-ConstantValue ASTContext::eval(const Expression& expr, bitmask<EvalFlags> extraFlags,
-                               const ParameterSymbol* valueOf) const {
+ConstantValue ASTContext::eval(const Expression& expr, bitmask<EvalFlags> extraFlags) const {
     extraFlags |= EvalFlags::CacheResults;
     if (flags.has(ASTFlags::SpecifyBlock | ASTFlags::SpecparamInitializer))
         extraFlags |= EvalFlags::SpecparamsAllowed;
@@ -275,10 +274,6 @@ ConstantValue ASTContext::eval(const Expression& expr, bitmask<EvalFlags> extraF
     EvalContext ctx(*this, extraFlags);
     ConstantValue result = expr.eval(ctx);
     ctx.reportAllDiags();
-
-    // A constant is required here, so note what it was computed from.
-    getCompilation().noteParameterReads(*scope, expr, ctx.getParameterReads(), valueOf,
-                                        extraFlags.has(EvalFlags::DecidesGenerateBlocks));
     return result;
 }
 

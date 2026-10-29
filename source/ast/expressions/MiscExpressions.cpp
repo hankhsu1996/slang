@@ -364,9 +364,7 @@ ConstantValue NamedValueExpression::evalImpl(EvalContext& context) const {
 
     switch (symbol.kind) {
         case SymbolKind::Parameter: {
-            auto& param = symbol.as<ParameterSymbol>();
-            context.noteParameterRead(param);
-            auto v = param.getValue(sourceRange);
+            auto v = symbol.as<ParameterSymbol>().getValue(sourceRange);
             if (v.isUnbounded()) {
                 if (auto target = context.getQueueTarget()) {
                     int32_t size = (int32_t)target->queue()->size();
@@ -495,9 +493,7 @@ ConstantValue HierarchicalValueExpression::evalImpl(EvalContext& context) const 
 
     switch (symbol.kind) {
         case SymbolKind::Parameter: {
-            auto& param = symbol.as<ParameterSymbol>();
-            context.noteParameterRead(param);
-            auto v = param.getValue(sourceRange);
+            auto v = symbol.as<ParameterSymbol>().getValue(sourceRange);
             if (v.isUnbounded()) {
                 if (auto target = context.getQueueTarget()) {
                     int32_t size = (int32_t)target->queue()->size();

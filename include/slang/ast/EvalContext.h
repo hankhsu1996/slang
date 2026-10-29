@@ -17,9 +17,7 @@
 namespace slang::ast {
 
 class Compilation;
-class Expression;
 class LValue;
-class ParameterSymbol;
 class SubroutineSymbol;
 class ValueSymbol;
 
@@ -191,20 +189,6 @@ public:
     /// Reports the current function call stack as notes to the given diagnostic.
     void reportStack(Diagnostic& diag) const;
 
-    /// Notes that @a param's value was read (see Compilation::getParameterReads).
-    void noteParameterRead(const ParameterSymbol& param);
-
-    /// The parameters read so far, in the order they were read, repeats included.
-    std::span<const ParameterSymbol* const> getParameterReads() const { return parameterReads; }
-
-    /// Notes that evaluating @a expr returned the constant cached on it, which reads
-    /// again whatever the evaluation that cached it read.
-    void noteCachedConstantUsed(const Expression& expr);
-
-    /// Keeps with the constant just cached on @a expr what its evaluation read, which
-    /// is every read since the count @a readsBefore returned by getParameterReads.
-    void noteConstantCached(const Expression& expr, size_t readsBefore);
-
 private:
     void reportDiags(Diagnostics& diagSet);
 
@@ -213,7 +197,6 @@ private:
     const ConstantValue* queueTarget = nullptr;
     SmallVector<Frame> stack;
     SmallVector<LValue*> lvalStack;
-    SmallVector<const ParameterSymbol*> parameterReads;
     Diagnostics diags;
     Diagnostics warnings;
     SourceRange disableRange;

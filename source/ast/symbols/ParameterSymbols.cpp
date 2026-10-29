@@ -146,7 +146,7 @@ const ConstantValue& ParameterSymbol::getValue(SourceRange referencingRange) con
         auto init = getInitializer();
         if (init) {
             value = scope->getCompilation().allocConstant(
-                ctx.eval(*init, EvalFlags::AllowUnboundedPlaceholder, this));
+                ctx.eval(*init, EvalFlags::AllowUnboundedPlaceholder));
 
             // If this parameter has an implicit type declared and it was assigned
             // a string literal, make a note so that this parameter gets treated
@@ -475,7 +475,7 @@ void DefParamSymbol::resolve() const {
                                               context);
     }
 
-    context.eval(*initializer, {}, &param);
+    context.eval(*initializer);
     if (!initializer->getConstant())
         makeInvalid();
 }
