@@ -181,10 +181,6 @@ Expression& ElementSelectExpression::fromSyntax(Compilation& compilation, Expres
                 // Don't return an error -- this diagnostic can be suppressed
                 // and the LRM defines what an out of bounds access resolves to.
                 result->warnedAboutIndex = true;
-
-                // The constant decides that the select reaches nothing, so note
-                // what it was computed from as for any required constant.
-                context.eval(*selector);
             }
         }
     }
@@ -562,11 +558,6 @@ Expression& RangeSelectExpression::fromSyntax(Compilation& comp, Expression& val
 
                 selectionRange = *range;
                 validateRange(selectionRange);
-
-                // As for an element select, the base decides that the select
-                // reaches nothing, so note what it was computed from.
-                if (result->warnedAboutRange)
-                    context.eval(left);
             }
             else {
                 // Otherwise, the resulting range will start with the fixed lower bound of the type.

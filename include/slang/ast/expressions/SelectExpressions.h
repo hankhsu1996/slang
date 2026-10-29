@@ -34,10 +34,6 @@ public:
     /// @returns true if this is a constant selection
     bool isConstantSelect(EvalContext& context) const;
 
-    /// @returns true if the selector was found to be a constant out of the bounds
-    /// of the value when the expression was bound
-    bool isOutOfBounds() const { return warnedAboutIndex; }
-
     ConstantValue evalImpl(EvalContext& context) const;
     LValue evalLValueImpl(EvalContext& context) const;
     bool requireLValueImpl(const ASTContext& context, SourceLocation location,
@@ -96,10 +92,6 @@ public:
 
     /// @returns true if this is a constant selection
     bool isConstantSelect(EvalContext& context) const;
-
-    /// @returns true if the selected range was found to be constant and out of the
-    /// bounds of the value when the expression was bound
-    bool isOutOfBounds() const { return warnedAboutRange; }
 
     ConstantValue evalImpl(EvalContext& context) const;
     LValue evalLValueImpl(EvalContext& context) const;

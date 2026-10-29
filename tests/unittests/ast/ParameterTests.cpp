@@ -5,11 +5,9 @@
 #include <fmt/format.h>
 
 #include "slang/ast/Expression.h"
-#include "slang/ast/expressions/SelectExpressions.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
-#include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 
@@ -1856,61 +1854,6 @@ endmodule
     auto vSources = compilation.getParameterValueSources(v);
     REQUIRE(vSources.size() == 1);
     CHECK(vSources[0] == param("R"));
-}
-
-TEST_CASE("Parameter reads are recorded for a constant select out of bounds") {
-    auto tree = SyntaxTree::fromText(R"(
-module m #(parameter int K = 5, J = 1, G = 9, B = 3, U = 7)();
-    function automatic int far();
-        return G;
-    endfunction
-
-    logic [3:0] a;
-    wire y = a[K];
-    wire z = a[J];
-    wire w = a[far()];
-    wire [1:0] p = a[B +: 2];
-
-    if (0) begin : never
-        wire n = a[U];
-    end
-endmodule
-
-module top;
-    m u();
-endmodule
-)");
-
-    Compilation compilation;
-    compilation.addSyntaxTree(tree);
-
-    auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 3);
-    CHECK(diags[0].code == diag::IndexOOB);
-    CHECK(diags[1].code == diag::IndexOOB);
-    CHECK(diags[2].code == diag::RangeOOB);
-
-    auto& u = compilation.getRoot().lookupName<InstanceSymbol>("top.u");
-    auto param = [&](std::string_view name) { return &u.body.find(name)->as<ParameterSymbol>(); };
-    auto select = [&](std::string_view name) -> auto& {
-        return u.body.find(name)->as<NetSymbol>().getInitializer()->unwrapImplicitConversions();
-    };
-
-    CHECK(select("y").as<ElementSelectExpression>().isOutOfBounds());
-    CHECK(!select("z").as<ElementSelectExpression>().isOutOfBounds());
-    CHECK(select("p").as<RangeSelectExpression>().isOutOfBounds());
-
-    // K put an element select out of bounds and G did the same from inside a
-    // constant function; B did it for an indexed part-select. Each decides that
-    // its select reaches nothing. J's select is in bounds, and U's stands in a
-    // block that is never instantiated.
-    SmallSet<const ParameterSymbol*, 4> held;
-    for (auto& read : compilation.getParameterReads(u.body))
-        held.emplace(read.parameter);
-    CHECK(held.size() == 3);
-    CHECK(held.contains(param("K")));
-    CHECK(held.contains(param("G")));
-    CHECK(held.contains(param("B")));
 }
 
 TEST_CASE("Parameter default value of an overridden parameter") {

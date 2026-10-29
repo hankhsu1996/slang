@@ -700,8 +700,7 @@ public:
     /// Notes the parameters @a reads that evaluating @a root, which required a constant,
     /// read: as what @a valueOf was computed from where it is given, and otherwise
     /// against the instance body enclosing @a scope, which holds the constant, marked
-    /// with whether the evaluation decided which generate blocks are created. Nothing is
-    /// noted for a scope that is never instantiated.
+    /// with whether the evaluation decided which generate blocks are created.
     void noteParameterReads(const Scope& scope, const Expression& root,
                             std::span<const ParameterSymbol* const> reads,
                             const ParameterSymbol* valueOf, bool decidesGenerateBlocks);
