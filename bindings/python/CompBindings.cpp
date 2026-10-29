@@ -286,6 +286,10 @@ void registerCompilation(py::module_& m, py::module_& ast, py::module_& driver) 
             PYBIND11_OVERRIDE(bool, SystemSubroutine, allowClockingArgument, argIndex);
         }
 
+        bool hasOutputArgs(const Args& args) const override {
+            PYBIND11_OVERRIDE(bool, SystemSubroutine, hasOutputArgs, args);
+        }
+
         const Expression& bindArgument(size_t argIndex, const ASTContext& context,
                                        const ExpressionSyntax& syntax,
                                        const Args& previousArgs) const override {
@@ -322,10 +326,10 @@ void registerCompilation(py::module_& m, py::module_& ast, py::module_& driver) 
         .def_readwrite("name", &SystemSubroutine::name)
         .def_readwrite("kind", &SystemSubroutine::kind)
         .def_readwrite("knownNameId", &SystemSubroutine::knownNameId)
-        .def_readwrite("hasOutputArgs", &SystemSubroutine::hasOutputArgs)
         .def_readwrite("withClauseMode", &SystemSubroutine::withClauseMode)
         .def("allowEmptyArgument", &SystemSubroutine::allowEmptyArgument, "argIndex"_a)
         .def("allowClockingArgument", &SystemSubroutine::allowClockingArgument, "argIndex"_a)
+        .def("hasOutputArgs", &SystemSubroutine::hasOutputArgs, "args"_a)
         .def("bindArgument", &SystemSubroutine::bindArgument, byrefint, "argIndex"_a, "context"_a,
              "syntax"_a, "previousArgs"_a)
         .def("checkArguments", &SystemSubroutine::checkArguments, byrefint, "context"_a, "args"_a,
@@ -355,6 +359,10 @@ void registerCompilation(py::module_& m, py::module_& ast, py::module_& driver) 
                                  bool isMethod, bool isFirstArgLValue = false) :
             SimpleSystemSubroutine(name, kind, requiredArgs, argTypes, returnType, isMethod,
                                    isFirstArgLValue) {}
+
+        bool hasOutputArgs(const Args& args) const override {
+            PYBIND11_OVERRIDE(bool, SimpleSystemSubroutine, hasOutputArgs, args);
+        }
 
         ConstantValue eval(EvalContext& context, const Args& args, SourceRange range,
                            const CallExpression::SystemCallInfo& callInfo) const override {
