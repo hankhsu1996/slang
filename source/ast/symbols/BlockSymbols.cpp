@@ -928,10 +928,6 @@ GenerateBlockArraySymbol& GenerateBlockArraySymbol::fromSyntax(Compilation& comp
 
     evalContext.reportAllDiags();
 
-    // How far the loop counts decides which blocks it creates, as its initial value does.
-    context.noteParameterReads(stopExpr, evalContext.getParameterReads(),
-                               EvalFlags::DecidesGenerateBlocks);
-
     // If the generate loop completed successfully, go through and create blocks.
     if (result->valid) {
         bool isUninstantiated = context.scope->isUninstantiated();

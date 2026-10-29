@@ -278,16 +278,9 @@ ConstantValue ASTContext::eval(const Expression& expr, bitmask<EvalFlags> extraF
     ctx.reportAllDiags();
 
     // A constant is required here, so note what it was computed from.
-    noteParameterReads(expr, ctx.getParameterReads(), extraFlags, valueOf);
+    getCompilation().noteParameterReads(*scope, expr, ctx.getParameterReads(), valueOf,
+                                        extraFlags.has(EvalFlags::DecidesGenerateBlocks));
     return result;
-}
-
-void ASTContext::noteParameterReads(const Expression& root,
-                                    std::span<const ParameterSymbol* const> reads,
-                                    bitmask<EvalFlags> flags,
-                                    const ParameterSymbol* valueOf) const {
-    getCompilation().noteParameterReads(*scope, root, reads, valueOf,
-                                        flags.has(EvalFlags::DecidesGenerateBlocks));
 }
 
 namespace {
@@ -308,9 +301,11 @@ struct CachedReadsVisitor : public ASTVisitor<CachedReadsVisitor, VisitFlags::Ex
 } // namespace
 
 void ASTContext::noteTypeRead(const Expression& expr) const {
-    CachedReadsVisitor visitor(getCompilation());
+    auto& compilation = getCompilation();
+    CachedReadsVisitor visitor(compilation);
     expr.visit(visitor);
-    noteParameterReads(expr, visitor.reads);
+    compilation.noteParameterReads(*scope, expr, visitor.reads, /* valueOf */ nullptr,
+                                   /* decidesGenerateBlocks */ false);
 }
 
 ConstantValue ASTContext::tryEval(const Expression& expr) const {
