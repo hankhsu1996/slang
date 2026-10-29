@@ -79,8 +79,15 @@ enum class SLANG_EXPORT AnalysisFlags {
     /// The default (flag not set) is to exclude reads that are only reachable
     /// through a path ruled out by a constant.
     IgnoreConstantConditions = 1 << 9,
+
+    /// Signals driven by an always_comb or always_ff are normally not allowed to
+    /// be driven by any other process. The elements of dynamic arrays, associative
+    /// arrays, and queues have no fixed bit range to tell them apart, so a write to
+    /// any one of them counts as a write to the whole array. This flag lifts the
+    /// restriction for such arrays.
+    AllowMultiDrivenDynamicallySizedArrays = 1 << 10,
 };
-SLANG_BITMASK(AnalysisFlags, IgnoreConstantConditions)
+SLANG_BITMASK(AnalysisFlags, AllowMultiDrivenDynamicallySizedArrays)
 
 /// Contains various options that can control analysis behavior.
 struct SLANG_EXPORT AnalysisOptions {

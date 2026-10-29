@@ -200,6 +200,8 @@ void registerAnalysis(py::module_& m, py::module_& ast) {
         .value("AlwaysStarUsesLSPs", AnalysisFlags::AlwaysStarUsesLSPs)
         .value("ContAssignUsesLSPs", AnalysisFlags::ContAssignUsesLSPs)
         .value("IgnoreConstantConditions", AnalysisFlags::IgnoreConstantConditions)
+        .value("AllowMultiDrivenDynamicallySizedArrays",
+               AnalysisFlags::AllowMultiDrivenDynamicallySizedArrays)
         .finalize();
 
     py::classh<AnalysisOptions>(m, "AnalysisOptions")
