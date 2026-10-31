@@ -115,10 +115,16 @@ struct DiagnosticVisitor : public ASTVisitor<DiagnosticVisitor> {
     }
 
     void handle(const ParameterSymbol& symbol) {
+        if (finishedEarly())
+            return;
+
+        // Evaluate the value before binding the initializer on its own, so that
+        // a cycle through the initializer is found while the value is being
+        // evaluated, where it is reported.
+        symbol.getValue();
         if (!handleDefault(symbol))
             return;
 
-        symbol.getValue();
         if (symbol.isOverridden())
             symbol.checkDefaultExpression();
     }
