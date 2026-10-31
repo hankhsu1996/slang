@@ -117,9 +117,14 @@ enum class SLANG_EXPORT LookupResultFlags : uint8_t {
 
     /// The lookup was resolved through a `super` handle, which selects the
     /// base class's member regardless of the dynamic type of the object.
-    ViaSuper = 1 << 6
+    ViaSuper = 1 << 6,
+
+    /// The found symbol is a non-static member of an object being randomized
+    /// via a class handle in an inline constraint block, and so should be
+    /// accessed through that handle.
+    RandomizeTargetMember = 1 << 7
 };
-SLANG_BITMASK(LookupResultFlags, ViaSuper)
+SLANG_BITMASK(LookupResultFlags, RandomizeTargetMember)
 
 /// This type denotes the ordering of symbols within a particular scope, for the purposes of
 /// determining whether a found symbol is visible compared to the given location.
