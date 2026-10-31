@@ -220,6 +220,8 @@ void registerAnalysis(nb::module_& m, nb::module_& ast) {
         .value("InlineContAssignFunctionReads", AnalysisFlags::InlineContAssignFunctionReads)
         .value("AlwaysStarUsesLSPs", AnalysisFlags::AlwaysStarUsesLSPs)
         .value("ContAssignUsesLSPs", AnalysisFlags::ContAssignUsesLSPs)
+        .value("AllowMultiDrivenDynamicallySizedArrays",
+               AnalysisFlags::AllowMultiDrivenDynamicallySizedArrays)
         .value("IgnoreConstantConditions", AnalysisFlags::IgnoreConstantConditions);
 
     nb::class_<AnalysisOptions>(m, "AnalysisOptions")

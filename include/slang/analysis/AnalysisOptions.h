@@ -69,6 +69,13 @@ enum class SLANG_EXPORT AnalysisFlags {
     /// identifiers only, not from LSPs.
     ContAssignUsesLSPs = 1 << 8,
 
+    /// Signals driven by an always_comb or always_ff are normally not allowed to
+    /// be driven by any other process. The elements of dynamic arrays, associative
+    /// arrays, and queues have no fixed bit range to tell them apart, so a write to
+    /// any one of them counts as a write to the whole array. This flag lifts the
+    /// restriction for such arrays.
+    AllowMultiDrivenDynamicallySizedArrays = 1 << 9,
+
     /// When set, flow analysis does not use constant conditions to decide which
     /// paths are reachable: both branches of a conditional, every item of a case
     /// statement, and both operands of a short-circuiting operator are visited
@@ -78,7 +85,7 @@ enum class SLANG_EXPORT AnalysisFlags {
     /// within the block or statement, with no exception for unreachable branches.
     /// The default (flag not set) is to exclude reads that are only reachable
     /// through a path ruled out by a constant.
-    IgnoreConstantConditions = 1 << 9,
+    IgnoreConstantConditions = 1 << 10,
 };
 SLANG_BITMASK(AnalysisFlags, IgnoreConstantConditions)
 
