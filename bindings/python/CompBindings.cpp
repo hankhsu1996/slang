@@ -87,6 +87,8 @@ void registerCompilation(py::module_& m, py::module_& ast, py::module_& driver) 
         .def_readwrite("maxEnumValues", &CompilationOptions::maxEnumValues)
         .def_readwrite("maxRecursiveClassSpecialization",
                        &CompilationOptions::maxRecursiveClassSpecialization)
+        .def_readwrite("maxRecursiveVirtualInterface",
+                       &CompilationOptions::maxRecursiveVirtualInterface)
         .def_readwrite("maxUDPCoverageNotes", &CompilationOptions::maxUDPCoverageNotes)
         .def_readwrite("errorLimit", &CompilationOptions::errorLimit)
         .def_readwrite("typoCorrectionLimit", &CompilationOptions::typoCorrectionLimit)
