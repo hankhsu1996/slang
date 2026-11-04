@@ -155,6 +155,7 @@ cc_library(
         "@fmt",
         "@boost.unordered",
         "@boost.regex",
+        "@tomlplusplus//:toml++-src",
     ],
     linkstatic = True,
     visibility = ["//visibility:public"],
