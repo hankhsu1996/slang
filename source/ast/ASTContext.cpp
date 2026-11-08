@@ -61,6 +61,21 @@ bool ASTContext::inAlwaysCombLatch() const {
     return false;
 }
 
+bool ASTContext::isSavedByQueuedAssertion(const VariableSymbol& var) const {
+    if (!queuedAssertionScope || var.lifetime != VariableLifetime::Automatic)
+        return false;
+
+    // A variable the action block declares itself is in a scope between
+    // the current one and the scope of the assertion statement.
+    for (auto curr = scope.get(); curr != queuedAssertionScope;
+         curr = curr->asSymbol().getParentScope()) {
+        SLANG_ASSERT(curr);
+        if (var.getParentScope() == curr)
+            return false;
+    }
+    return true;
+}
+
 void ASTContext::setInstance(const InstanceSymbolBase& inst) {
     SLANG_ASSERT(!symbolCtx);
     symbolCtx = &inst;

@@ -359,6 +359,14 @@ Statement& ConcurrentAssertionStatement::fromSyntax(
     bool bad = prop.bad();
 
     ctx.flags |= ASTFlags::ConcurrentAssertActionBlock;
+
+    // [16.14.6.1] says that automatic values behave as inputs to the action block
+    // of a procedural concurrent assertion that shall not be modified. An expect
+    // statement blocks its process instead of being queued, so its action block
+    // writes the procedure's variables directly [16.17].
+    if (assertKind != AssertionKind::Expect)
+        ctx.queuedAssertionScope = context.scope;
+
     const Statement* ifTrue = nullptr;
     const Statement* ifFalse = nullptr;
     if (syntax.action->statement)

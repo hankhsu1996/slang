@@ -28,6 +28,7 @@ class SubroutineSymbol;
 class TempVarSymbol;
 class Type;
 class ValueSymbol;
+class VariableSymbol;
 enum class RandMode;
 
 /// Specifies flags that control expression and statement creation.
@@ -308,6 +309,13 @@ public:
     /// property this points to information about that instantiation.
     const AssertionInstanceDetails* assertionInstance = nullptr;
 
+    /// If this context is for an action block of a concurrent assertion that a
+    /// procedure queues, this is the scope in which that assertion statement
+    /// appears. The automatic variables declared there or in an enclosing scope
+    /// are saved when the assertion is queued and cannot be modified by the
+    /// action block.
+    const Scope* queuedAssertionScope = nullptr;
+
     /// Constructs a new ASTContext instance.
     /// @param scope The scope in which the AST is being created
     /// @param lookupLocation The lookup location within the parent
@@ -339,6 +347,11 @@ public:
     /// Indicates whether AST creation is happening within an always_comb
     /// or always_latch procedure.
     bool inAlwaysCombLatch() const;
+
+    /// Indicates whether the given variable is one that the concurrent assertion
+    /// whose action block is being created saved when it was queued, and so cannot
+    /// be modified here.
+    bool isSavedByQueuedAssertion(const VariableSymbol& var) const;
 
     /// Sets the parent instance associated with the context.
     void setInstance(const InstanceSymbolBase& inst);

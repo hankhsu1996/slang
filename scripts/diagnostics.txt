@@ -664,6 +664,7 @@ error AutoFromStaticInit "cannot refer to automatic variable '{}' from static in
 error NonblockingAssignmentToAuto "nonblocking assignment to automatic variable '{}' is not allowed"
 error AutoFromNonProcedural "cannot refer to automatic variable '{}' from non-procedural context"
 error AutoFromNonBlockingTiming "cannot refer to automatic variable '{}' from intra-assignment event control of nonblocking assignment"
+error AutoModifiedInAssertAction "cannot modify automatic variable '{}' in the action block of a procedural concurrent assertion, which reads it as it was when the assertion was queued"
 error CantModifyConst "constant '{}' is not modifiable"
 error AssignmentToConstVar "cannot assign to read-only variable '{}'"
 error BlockingAssignToFreeVar "continuous assignments and blocking procedural assignments to free checker variables are not allowed"

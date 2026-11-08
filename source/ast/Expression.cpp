@@ -341,6 +341,9 @@ static bool canConnectToRefArg(const ASTContext& context, const Expression& expr
         return false;
     }
 
+    if (!argFlags.has(VariableFlags::Const) && context.isSavedByQueuedAssertion(var))
+        return false;
+
     const bool isRefStatic = argFlags.has(VariableFlags::RefStatic);
     if (isRefStatic) {
         if (var.lifetime == VariableLifetime::Automatic &&
@@ -394,6 +397,13 @@ const Expression& Expression::bindRefArg(const Type& lhs, bitmask<VariableFlags>
                                               allowPackedSelects)) {
             // If we can't bind to ref but we can bind to 'const ref', issue a more
             // specific error about constness.
+            auto& var = expr.getSymbolReference(allowPackedSelects)->as<VariableSymbol>();
+            if (context.isSavedByQueuedAssertion(var)) {
+                auto& diag = context.addDiag(diag::AutoModifiedInAssertAction, expr.sourceRange);
+                diag << var.name;
+                diag.addNote(diag::NoteDeclarationHere, var.location);
+                return badExpr(comp, &expr);
+            }
             code = diag::ConstVarToRef;
         }
         else if (argFlags.has(VariableFlags::RefStatic) &&

@@ -1232,6 +1232,53 @@ endmodule
     CHECK(diags[1].code == diag::ConcurrentAssertActionBlock);
 }
 
+TEST_CASE("Procedural concurrent assertion action blocks cannot modify automatics") {
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    logic clk;
+    int s;
+    typedef struct { int f; } st_t;
+
+    function automatic void out_arg(output int o); o = 1; endfunction
+    function automatic void ref_arg(ref int r); r = 1; endfunction
+    function automatic int const_ref_arg(const ref int r); return r; endfunction
+
+    always @(posedge clk) begin
+        automatic int a = 0;
+        automatic int arr[2];
+        automatic st_t st;
+        for (int k = 0; k < 2; k++) begin
+            assert property (@(posedge clk) a == k) else begin
+                automatic int own = k;
+                own++;
+                for (int j = 0; j < 2; j++) own += j;
+                s = k;
+                void'(const_ref_arg(k));
+                a = 1;
+                k++;
+                out_arg(a);
+                ref_arg(a);
+                arr[0] = 1;
+                st.f = 1;
+            end
+        end
+    end
+
+    task automatic wait_for(int value, output bit success);
+        expect (@(posedge clk) s == value) success = 1; else success = 0;
+    endtask
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 6);
+    for (auto& diag : diags)
+        CHECK(diag.code == diag::AutoModifiedInAssertAction);
+}
+
 TEST_CASE("Sequence with dist expression") {
     auto tree = SyntaxTree::fromText(R"(
 module m;

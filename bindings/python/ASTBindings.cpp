@@ -160,6 +160,7 @@ void registerAST(nb::module_& m) {
         .def_prop_ro("getInstance", &ASTContext::getInstance)
         .def_prop_ro("getProceduralBlock", &ASTContext::getProceduralBlock)
         .def_prop_ro("inAlwaysCombLatch", &ASTContext::inAlwaysCombLatch)
+        .def("isSavedByQueuedAssertion", &ASTContext::isSavedByQueuedAssertion, "var"_a)
         .def("addDiag",
              nb::overload_cast<DiagCode, SourceLocation>(&ASTContext::addDiag, nb::const_),
              byrefint, "code"_a, "location"_a)
