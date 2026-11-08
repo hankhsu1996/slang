@@ -283,6 +283,9 @@ bool ValueExpressionBase::checkLValue(const ASTContext& context, const ValueSymb
             return reportErr(diag::NonblockingAssignmentToAuto);
         }
 
+        if (context.isSavedByQueuedAssertion(var))
+            return reportErr(diag::AutoModifiedInAssertAction);
+
         if (var.kind == SymbolKind::ClockVar) {
             if (flags.has(AssignFlags::InConcat))
                 reportErr(diag::ClockVarAssignConcat);
