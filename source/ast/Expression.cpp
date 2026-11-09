@@ -373,42 +373,15 @@ static bool canConnectPartToRefArg(const ASTContext& context, const Expression& 
     }
 }
 
-// Whether `expr` lies in the storage of an unpacked union: it is a member of
-// one, or the member, element or range it selects lies in such a member. A
-// member reached through a class handle lies in the object instead.
-static bool liesInUnionMember(const Expression& expr) {
-    for (auto curr = &expr;;) {
-        switch (curr->kind) {
-            case ExpressionKind::MemberAccess: {
-                auto& value = curr->as<MemberAccessExpression>().value();
-                if (value.type->isUnpackedUnion())
-                    return true;
-                if (value.type->isObjectHandleType())
-                    return false;
-                curr = &value;
-                break;
-            }
-            case ExpressionKind::ElementSelect:
-                curr = &curr->as<ElementSelectExpression>().value();
-                break;
-            case ExpressionKind::RangeSelect:
-                curr = &curr->as<RangeSelectExpression>().value();
-                break;
-            default:
-                return false;
-        }
-    }
-}
-
 static bool canConnectToRefArg(const ASTContext& context, const Expression& expr,
                                bitmask<VariableFlags> argFlags, bool allowPackedSelects) {
     // [13.5.2] says that only a variable, a class property, a member of an
     // unpacked structure, or an element of an unpacked array can be passed by
     // reference. A member of a union is none of these. A union is one storage its
-    // members are alternative readings of [7.3], so a structure's member or an
-    // array's element lying in one has storage only while that member is the one
-    // the union holds, and is refused too.
-    if (liesInUnionMember(expr))
+    // members are alternative readings of [7.3], so a structure's member, an
+    // array's element or a slice lying in one has storage only while that member
+    // is the one the union holds, and is refused too.
+    if (expr.liesInUnionMember())
         return false;
     return canConnectPartToRefArg(context, expr, argFlags, allowPackedSelects);
 }
@@ -433,8 +406,11 @@ const Expression& Expression::bindRefArg(const Type& lhs, bitmask<VariableFlags>
     const bool isConstRef = argFlags.has(VariableFlags::Const);
     if (!canConnectToRefArg(context, expr, argFlags, allowPackedSelects)) {
         DiagCode code = diag::InvalidRefArg;
-        if (!isConstRef && canConnectToRefArg(context, expr, argFlags | VariableFlags::Const,
-                                              allowPackedSelects)) {
+        if (expr.liesInUnionMember()) {
+            code = diag::UnionMemberToRef;
+        }
+        else if (!isConstRef && canConnectToRefArg(context, expr, argFlags | VariableFlags::Const,
+                                                   allowPackedSelects)) {
             // If we can't bind to ref but we can bind to 'const ref', issue a more
             // specific error about constness.
             auto& var = expr.getSymbolReference(allowPackedSelects)->as<VariableSymbol>();
@@ -501,7 +477,9 @@ bool Expression::checkConnectionDirection(const Expression& expr, ArgumentDirect
         case ArgumentDirection::Ref:
             if (!canConnectToRefArg(context, expr, VariableFlags::None,
                                     /* allowPackedSelects */ false)) {
-                context.addDiag(diag::InvalidRefArg, loc) << expr.sourceRange;
+                context.addDiag(
+                    expr.liesInUnionMember() ? diag::UnionMemberToRef : diag::InvalidRefArg, loc)
+                    << expr.sourceRange;
                 return false;
             }
             return true;
@@ -661,6 +639,30 @@ std::optional<bitwidth_t> Expression::getEffectiveWidth() const {
 Expression::EffectiveSign Expression::getEffectiveSign(bool isForConversion) const {
     EffectiveSignVisitor visitor(isForConversion);
     return visit(visitor);
+}
+
+bool Expression::liesInUnionMember() const {
+    for (auto curr = this;;) {
+        switch (curr->kind) {
+            case ExpressionKind::MemberAccess: {
+                auto& value = curr->as<MemberAccessExpression>().value();
+                if (value.type->isUnpackedUnion())
+                    return true;
+                if (value.type->isObjectHandleType())
+                    return false;
+                curr = &value;
+                break;
+            }
+            case ExpressionKind::ElementSelect:
+                curr = &curr->as<ElementSelectExpression>().value();
+                break;
+            case ExpressionKind::RangeSelect:
+                curr = &curr->as<RangeSelectExpression>().value();
+                break;
+            default:
+                return false;
+        }
+    }
 }
 
 const Symbol* Expression::getSymbolReference(bool allowPacked) const {
