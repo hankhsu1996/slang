@@ -213,7 +213,7 @@ public:
 
             // A union is one storage its members are alternative readings of [7.3],
             // so what lies in a member has no storage of its own to randomize, as
-            // [18.4] refuses a random modifier on a union's member.
+            // [18.4] says an unpacked union shall not be declared random at all.
             auto left = &arg->as<AssignmentExpression>().left();
             if (left->liesInUnionMember()) {
                 context.addDiag(diag::UnionMemberRandomized, arg->sourceRange);
