@@ -327,10 +327,10 @@ const Expression& Expression::bindRValue(const Type& lhs, const ExpressionSyntax
     return convertAssignment(ctx, lhs, expr, assignmentRange);
 }
 
-static bool canConnectToRefArg(const ASTContext& context, const Expression& expr,
-                               bitmask<VariableFlags> argFlags, bool allowPackedSelects,
-                               bool allowConstClassHandle = false,
-                               bool disallowDynamicArrays = false) {
+static bool canConnectPartToRefArg(const ASTContext& context, const Expression& expr,
+                                   bitmask<VariableFlags> argFlags, bool allowPackedSelects,
+                                   bool allowConstClassHandle = false,
+                                   bool disallowDynamicArrays = false) {
     auto sym = expr.getSymbolReference(allowPackedSelects);
     if (!sym || !VariableSymbol::isKind(sym->kind))
         return false;
@@ -360,17 +360,31 @@ static bool canConnectToRefArg(const ASTContext& context, const Expression& expr
     // function call or something.
     switch (expr.kind) {
         case ExpressionKind::ElementSelect:
-            return canConnectToRefArg(context, expr.as<ElementSelectExpression>().value(), argFlags,
-                                      allowPackedSelects, false, isRefStatic);
+            return canConnectPartToRefArg(context, expr.as<ElementSelectExpression>().value(),
+                                          argFlags, allowPackedSelects, false, isRefStatic);
         case ExpressionKind::RangeSelect:
-            return canConnectToRefArg(context, expr.as<RangeSelectExpression>().value(), argFlags,
-                                      allowPackedSelects, false, isRefStatic);
+            return canConnectPartToRefArg(context, expr.as<RangeSelectExpression>().value(),
+                                          argFlags, allowPackedSelects, false, isRefStatic);
         case ExpressionKind::MemberAccess:
-            return canConnectToRefArg(context, expr.as<MemberAccessExpression>().value(), argFlags,
-                                      allowPackedSelects, true);
+            return canConnectPartToRefArg(context, expr.as<MemberAccessExpression>().value(),
+                                          argFlags, allowPackedSelects, true);
         default:
             return true;
     }
+}
+
+static bool canConnectToRefArg(const ASTContext& context, const Expression& expr,
+                               bitmask<VariableFlags> argFlags, bool allowPackedSelects) {
+    // [13.5.2] says that only a variable, a class property, a member of an
+    // unpacked structure, or an element of an unpacked array can be passed by
+    // reference. A member of a union is none of these. A member of a structure
+    // or an element of an array that lies within a union's member is one of them
+    // by its own select, so it is not refused here.
+    if (expr.kind == ExpressionKind::MemberAccess &&
+        expr.as<MemberAccessExpression>().value().type->isUnpackedUnion()) {
+        return false;
+    }
+    return canConnectPartToRefArg(context, expr, argFlags, allowPackedSelects);
 }
 
 const Expression& Expression::bindRefArg(const Type& lhs, bitmask<VariableFlags> argFlags,

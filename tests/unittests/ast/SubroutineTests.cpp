@@ -576,6 +576,40 @@ endmodule
     CHECK(diags[6].code == diag::RefArgAutomaticFunc);
 }
 
+TEST_CASE("Subroutine ref argument to a union member") {
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    typedef struct { int x; int y; } s_t;
+    typedef union { int a; s_t s; int arr[2]; } u_t;
+    typedef union tagged { int a; s_t s; } t_t;
+
+    function automatic void set(ref int r); r = 3; endfunction
+    function automatic void set_s(ref s_t r); endfunction
+    function automatic int get(const ref int r); return r; endfunction
+
+    u_t v;
+    t_t t;
+
+    initial begin
+        set(v.a);
+        set_s(v.s);
+        set(t.a);
+        void'(get(v.a));
+        set(v.s.x);
+        set(v.arr[0]);
+    end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 4);
+    for (auto& diag : diags)
+        CHECK(diag.code == diag::InvalidRefArg);
+}
+
 TEST_CASE("Subroutine return lookup location regress") {
     auto tree = SyntaxTree::fromText(R"(
 module test;
