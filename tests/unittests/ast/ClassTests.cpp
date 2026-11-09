@@ -4315,3 +4315,35 @@ endmodule
     REQUIRE(diags.size() == 1);
     CHECK(diags[0].code == diag::MissingConstraintBlock);
 }
+
+TEST_CASE("std::randomize of a union member") {
+    auto tree = SyntaxTree::fromText(R"(
+class C;
+    int p;
+endclass
+
+module m;
+    typedef struct { int x; int y; } s_t;
+    typedef union { int a; s_t s; } u_t;
+    typedef union tagged { int a; C h; } t_t;
+
+    u_t v;
+    t_t t;
+
+    initial begin
+        void'(std::randomize(v.a));
+        void'(std::randomize(v.s.x));
+        void'(std::randomize(t.h.p));
+    end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 3);
+    CHECK(diags[0].code == diag::UnionMemberRandomized);
+    CHECK(diags[1].code == diag::UnionMemberRandomized);
+    CHECK(diags[2].code == diag::NonstandardScopeRandomize);
+}

@@ -211,9 +211,17 @@ public:
                 return comp.getErrorType();
             }
 
+            // A union is one storage its members are alternative readings of [7.3],
+            // so what lies in a member has no storage of its own to randomize, as
+            // [18.4] refuses a random modifier on a union's member.
+            auto left = &arg->as<AssignmentExpression>().left();
+            if (left->liesInUnionMember()) {
+                context.addDiag(diag::UnionMemberRandomized, arg->sourceRange);
+                return comp.getErrorType();
+            }
+
             // Allow element selects and member accesses to support randomizing
             // array elements and struct members (non-standard extension).
-            auto left = &arg->as<AssignmentExpression>().left();
             bool isNonstandard = false;
             while (true) {
                 if (left->kind == ExpressionKind::ElementSelect) {

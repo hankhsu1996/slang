@@ -620,7 +620,7 @@ endmodule
     auto& diags = compilation.getAllDiagnostics();
     REQUIRE(diags.size() == 10);
     for (auto& diag : diags)
-        CHECK(diag.code == diag::InvalidRefArg);
+        CHECK(diag.code == diag::UnionMemberToRef);
 }
 
 TEST_CASE("Subroutine return lookup location regress") {

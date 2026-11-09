@@ -311,6 +311,12 @@ public:
     ///                    and arrays.
     const Symbol* getSymbolReference(bool allowPacked = true) const;
 
+    /// Indicates whether this expression lies in the storage of an unpacked union:
+    /// it is a member of one, or the member, element or range it selects lies in
+    /// such a member. A member reached through a class handle lies in the object
+    /// instead.
+    bool liesInUnionMember() const;
+
     /// Visits all symbols referenced by this expression and all subexpressions.
     void visitSymbolReferences(function_ref<void(const Expression&, const Symbol&)> callback) const;
 
