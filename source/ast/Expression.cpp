@@ -373,17 +373,43 @@ static bool canConnectPartToRefArg(const ASTContext& context, const Expression& 
     }
 }
 
+// Whether `expr` lies in the storage of an unpacked union: it is a member of
+// one, or the member, element or range it selects lies in such a member. A
+// member reached through a class handle lies in the object instead.
+static bool liesInUnionMember(const Expression& expr) {
+    for (auto curr = &expr;;) {
+        switch (curr->kind) {
+            case ExpressionKind::MemberAccess: {
+                auto& value = curr->as<MemberAccessExpression>().value();
+                if (value.type->isUnpackedUnion())
+                    return true;
+                if (value.type->isObjectHandleType())
+                    return false;
+                curr = &value;
+                break;
+            }
+            case ExpressionKind::ElementSelect:
+                curr = &curr->as<ElementSelectExpression>().value();
+                break;
+            case ExpressionKind::RangeSelect:
+                curr = &curr->as<RangeSelectExpression>().value();
+                break;
+            default:
+                return false;
+        }
+    }
+}
+
 static bool canConnectToRefArg(const ASTContext& context, const Expression& expr,
                                bitmask<VariableFlags> argFlags, bool allowPackedSelects) {
     // [13.5.2] says that only a variable, a class property, a member of an
     // unpacked structure, or an element of an unpacked array can be passed by
-    // reference. A member of a union is none of these. A member of a structure
-    // or an element of an array that lies within a union's member is one of them
-    // by its own select, so it is not refused here.
-    if (expr.kind == ExpressionKind::MemberAccess &&
-        expr.as<MemberAccessExpression>().value().type->isUnpackedUnion()) {
+    // reference. A member of a union is none of these. A union is one storage its
+    // members are alternative readings of [7.3], so a structure's member or an
+    // array's element lying in one has storage only while that member is the one
+    // the union holds, and is refused too.
+    if (liesInUnionMember(expr))
         return false;
-    }
     return canConnectPartToRefArg(context, expr, argFlags, allowPackedSelects);
 }
 

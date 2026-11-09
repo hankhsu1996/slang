@@ -578,17 +578,26 @@ endmodule
 
 TEST_CASE("Subroutine ref argument to a union member") {
     auto tree = SyntaxTree::fromText(R"(
+class C;
+    int p;
+    function new(ref int r); endfunction
+endclass
+
 module m;
     typedef struct { int x; int y; } s_t;
-    typedef union { int a; s_t s; int arr[2]; } u_t;
-    typedef union tagged { int a; s_t s; } t_t;
+    typedef union { int a; s_t s; int arr[3]; } u_t;
+    typedef union tagged { int a; s_t s; C h; } t_t;
 
     function automatic void set(ref int r); r = 3; endfunction
     function automatic void set_s(ref s_t r); endfunction
+    function automatic void set_slice(ref int r[2]); endfunction
     function automatic int get(const ref int r); return r; endfunction
-
     u_t v;
     t_t t;
+    C c;
+    int aa[int];
+
+    function automatic void defaulted(ref int r = v.s.x); endfunction
 
     initial begin
         set(v.a);
@@ -597,6 +606,10 @@ module m;
         void'(get(v.a));
         set(v.s.x);
         set(v.arr[0]);
+        set_slice(v.arr[0:1]);
+        c = new(v.s.x);
+        void'(aa.first(v.s.x));
+        set(t.h.p);
     end
 endmodule
 )");
@@ -605,7 +618,7 @@ endmodule
     compilation.addSyntaxTree(tree);
 
     auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 4);
+    REQUIRE(diags.size() == 10);
     for (auto& diag : diags)
         CHECK(diag.code == diag::InvalidRefArg);
 }
