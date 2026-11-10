@@ -1212,6 +1212,60 @@ endmodule
     CHECK(diags[5].code == diag::GlobalSampledValueNested);
 }
 
+TEST_CASE("Sampled value function arguments have no side effects") {
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    logic clk;
+    int x, r;
+    int q[$];
+    always @(posedge clk) begin
+        r <= $past(x + 1);
+        r <= $past(q[0]);
+        r <= $past(x++);
+        r <= $rose(--x);
+        r <= $past((x = 1));
+        r <= $stable(q.pop_front());
+        r <= $sampled(q.pop_back());
+    end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 5);
+    CHECK(diags[0].code == diag::IncDecNotAllowed);
+    CHECK(diags[1].code == diag::IncDecNotAllowed);
+    CHECK(diags[2].code == diag::AssignmentNotAllowed);
+    CHECK(diags[3].code == diag::AssertionFuncArg);
+    CHECK(diags[4].code == diag::AssertionFuncArg);
+}
+
+TEST_CASE("Queue pop methods change their queue") {
+    auto tree = SyntaxTree::fromText(R"(
+module m(input logic clk);
+    int x;
+    int q[$];
+    always @(posedge clk) x = q.pop_front();
+
+    int e1;
+    assign e1 = q.pop_back();
+    a1: assert property (@(posedge clk) q.pop_front() != 0);
+    always @(q.pop_front()) x = 2;
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 3);
+    CHECK(diags[0].code == diag::NonProceduralFuncArg);
+    CHECK(diags[1].code == diag::AssertionFuncArg);
+    CHECK(diags[2].code == diag::EventExpressionFuncArg);
+}
+
 TEST_CASE("Global clock sys func") {
     auto tree = SyntaxTree::fromText(R"(
 module m;

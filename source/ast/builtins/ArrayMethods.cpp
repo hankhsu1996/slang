@@ -726,6 +726,9 @@ public:
     QueuePopMethod(KnownSystemName knownNameId, bool front) :
         SystemSubroutine(knownNameId, SubroutineKind::Function), front(front) {}
 
+    // The queue is the first argument, and popping removes an element from it.
+    bool hasOutputArgs(const Args&) const final { return true; }
+
     const Type& checkArguments(const ASTContext& context, const Args& args, SourceRange range,
                                const Expression*) const final {
         auto& comp = context.getCompilation();

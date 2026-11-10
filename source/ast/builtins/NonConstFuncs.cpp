@@ -275,13 +275,22 @@ private:
     size_t maxArgs;
 };
 
+// The argument of a sampled value function is bound as an expression of a
+// concurrent assertion wherever the call appears, and evaluating such an
+// expression shall have no side effects [16.6].
+static const Expression& bindSampledValueExpr(const ExpressionSyntax& syntax,
+                                              const ASTContext& context) {
+    return Expression::bind(syntax, context,
+                            ASTFlags::AssertionExpr | ASTFlags::AssignmentDisallowed);
+}
+
 class SampledFunc : public SystemSubroutine {
 public:
     SampledFunc() : SystemSubroutine(KnownSystemName::Sampled, SubroutineKind::Function) {}
 
     const Expression& bindArgument(size_t, const ASTContext& context,
                                    const ExpressionSyntax& syntax, const Args&) const final {
-        return Expression::bind(syntax, context, ASTFlags::AssertionExpr);
+        return bindSampledValueExpr(syntax, context);
     }
 
     const Type& checkArguments(const ASTContext& context, const Args& args, SourceRange range,
@@ -310,7 +319,7 @@ public:
 
     const Expression& bindArgument(size_t, const ASTContext& context,
                                    const ExpressionSyntax& syntax, const Args&) const final {
-        return Expression::bind(syntax, context, ASTFlags::AssertionExpr);
+        return bindSampledValueExpr(syntax, context);
     }
 
     bool allowClockingArgument(size_t argIndex) const final { return argIndex == 1; }
@@ -343,12 +352,12 @@ public:
 
     const Expression& bindArgument(size_t argIndex, const ASTContext& context,
                                    const ExpressionSyntax& syntax, const Args&) const final {
-        bitmask<ASTFlags> extraFlags = ASTFlags::None;
-        if (argIndex == 0 || argIndex == 2)
-            extraFlags = ASTFlags::AssertionExpr;
+        if (argIndex == 0)
+            return bindSampledValueExpr(syntax, context);
 
+        bitmask<ASTFlags> extraFlags = ASTFlags::None;
         if (argIndex == 2)
-            extraFlags |= ASTFlags::NonProcedural;
+            extraFlags = ASTFlags::AssertionExpr | ASTFlags::NonProcedural;
 
         return Expression::bind(syntax, context, extraFlags);
     }
@@ -399,7 +408,7 @@ public:
 
     const Expression& bindArgument(size_t, const ASTContext& context,
                                    const ExpressionSyntax& syntax, const Args&) const final {
-        return Expression::bind(syntax, context, ASTFlags::AssertionExpr);
+        return bindSampledValueExpr(syntax, context);
     }
 
     const Type& checkArguments(const ASTContext& context, const Args& args, SourceRange range,
