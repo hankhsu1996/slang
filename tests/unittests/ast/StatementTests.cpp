@@ -1240,9 +1240,24 @@ module m;
         force d = d2;
         force q = q2;
         force aa = aa2;
+        release s;
+        release u;
+        release f;
+        release d;
         release q;
+        release aa;
         assign s = s2;
+        assign u = u2;
+        assign f = f2;
+        assign d = d2;
+        assign q = q2;
+        assign aa = aa2;
+        deassign s;
+        deassign u;
+        deassign f;
+        deassign d;
         deassign q;
+        deassign aa;
         force i = 1;
         force str = "x";
         force w = l;
@@ -1255,11 +1270,11 @@ endmodule
     compilation.addSyntaxTree(tree);
 
     auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 9);
-    for (size_t i = 0; i < 7; i++)
+    REQUIRE(diags.size() == 24);
+    for (size_t i = 0; i < 12; i++)
         CHECK(diags[i].code == diag::BadProceduralForce);
-    CHECK(diags[7].code == diag::BadProceduralAssign);
-    CHECK(diags[8].code == diag::BadProceduralAssign);
+    for (size_t i = 12; i < 24; i++)
+        CHECK(diags[i].code == diag::BadProceduralAssign);
 }
 
 TEST_CASE("Unexpected port decls") {
