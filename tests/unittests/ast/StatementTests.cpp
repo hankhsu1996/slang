@@ -1181,13 +1181,16 @@ endmodule
     CHECK(diags[5].code == diag::AutoFromNonProcedural);
 }
 
-TEST_CASE("Force of a variable select keeps its statement") {
+TEST_CASE("Force of a variable select or an aggregate variable keeps its statement") {
     auto tree = SyntaxTree::fromText(R"(
 module m;
     logic [7:0] v;
+    int q[$], q2[$];
     initial begin
         force v[3] = 1'b1;
         release v[3];
+        force q = q2;
+        release q;
     end
 endmodule
 )");
@@ -1202,14 +1205,61 @@ endmodule
                       ->getBody()
                       .as<BlockStatement>();
     auto& list = block.body.as<StatementList>();
-    REQUIRE(list.list.size() == 2);
+    REQUIRE(list.list.size() == 4);
     CHECK(list.list[0]->kind == StatementKind::ProceduralAssign);
     CHECK(list.list[1]->kind == StatementKind::ProceduralDeassign);
+    CHECK(list.list[2]->kind == StatementKind::ProceduralAssign);
+    CHECK(list.list[3]->kind == StatementKind::ProceduralDeassign);
 
     auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 2);
-    CHECK(diags[0].code == diag::BadProceduralForce);
-    CHECK(diags[1].code == diag::BadProceduralForce);
+    REQUIRE(diags.size() == 4);
+    for (auto& d : diags)
+        CHECK(d.code == diag::BadProceduralForce);
+}
+
+TEST_CASE("Procedural continuous assignment of a whole aggregate variable") {
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    typedef struct { int a; } s_t;
+    typedef union { int a; } u_t;
+    s_t s, s2;
+    u_t u, u2;
+    int f[2], f2[2];
+    int d[], d2[];
+    int q[$], q2[$];
+    int aa[int], aa2[int];
+    int i;
+    string str;
+    wire [3:0] w [2];
+    logic [3:0] l [2];
+
+    initial begin
+        force s = s2;
+        force u = u2;
+        force f = f2;
+        force d = d2;
+        force q = q2;
+        force aa = aa2;
+        release q;
+        assign s = s2;
+        deassign q;
+        force i = 1;
+        force str = "x";
+        force w = l;
+        assign i = 2;
+    end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 9);
+    for (size_t i = 0; i < 7; i++)
+        CHECK(diags[i].code == diag::BadProceduralForce);
+    CHECK(diags[7].code == diag::BadProceduralAssign);
+    CHECK(diags[8].code == diag::BadProceduralAssign);
 }
 
 TEST_CASE("Unexpected port decls") {

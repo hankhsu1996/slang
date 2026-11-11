@@ -565,13 +565,15 @@ void EventTriggerStatement::serializeTo(ASTSerializer& serializer) const {
         serializer.write("timing", *timing);
 }
 
+// [10.6.1] requires an assign / deassign target to be a singular variable
+// or a concatenation of variables.
 static bool isValidAssignLVal(const Expression& expr) {
     switch (expr.kind) {
         case ExpressionKind::NamedValue:
         case ExpressionKind::HierarchicalValue:
         case ExpressionKind::Assignment:
             if (auto sym = expr.getSymbolReference())
-                return VariableSymbol::isKind(sym->kind);
+                return VariableSymbol::isKind(sym->kind) && expr.type->isSingular();
             return false;
         case ExpressionKind::Concatenation:
             for (auto op : expr.as<ConcatenationExpression>().operands()) {
@@ -584,9 +586,9 @@ static bool isValidAssignLVal(const Expression& expr) {
     }
 }
 
-// [10.6.2] disallows both a select of a variable and a net with a user-defined nettype
-// as a force / release target. Neither leaves the statement unusable, so both are
-// reported here and the statement is kept.
+// [10.6.2] disallows a select of a variable, a variable that is not singular, and a
+// net with a user-defined nettype as a force / release target. None leaves the
+// statement unusable, so each is reported here and the statement is kept.
 static bool isValidForceLVal(const Expression& expr, const ASTContext& context,
                              const Expression* select) {
     switch (expr.kind) {
@@ -595,6 +597,8 @@ static bool isValidForceLVal(const Expression& expr, const ASTContext& context,
             if (auto sym = expr.getSymbolReference()) {
                 if (select && VariableSymbol::isKind(sym->kind))
                     context.addDiag(diag::BadProceduralForce, select->sourceRange);
+                else if (VariableSymbol::isKind(sym->kind) && !expr.type->isSingular())
+                    context.addDiag(diag::BadProceduralForce, expr.sourceRange);
                 else if (sym->kind == SymbolKind::Net && !sym->as<NetSymbol>().netType.isBuiltIn())
                     context.addDiag(diag::BadForceNetType, expr.sourceRange);
             }
