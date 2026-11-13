@@ -4646,6 +4646,28 @@ endclass
     CHECK(equality.right().as<CallExpression>().classQualifier == &base);
 }
 
+TEST_CASE("A pure virtual method has no implementation to call through a class") {
+    auto tree = SyntaxTree::fromText(R"(
+virtual class Base;
+    pure virtual function int f;
+endclass
+
+class Leaf extends Base;
+    virtual function int f; return super.f(); endfunction
+    function int h; return Base::f(); endfunction
+    function int dispatched; return f(); endfunction
+endclass
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 2);
+    CHECK(diags[0].code == diag::QualifiedPureVirtualCall);
+    CHECK(diags[1].code == diag::QualifiedPureVirtualCall);
+}
+
 TEST_CASE("Equality with failed super lookups doesn't crash") {
     auto tree = SyntaxTree::fromText(R"(
 class A;

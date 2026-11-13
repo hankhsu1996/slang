@@ -1016,6 +1016,7 @@ error InvalidConstructorAccess "cannot create instance of class '{}' because its
 error SuperOutsideClass "cannot use 'super' handle outside of class scope"
 error SuperNoBase "class '{}' does not have a super class"
 error SuperWithoutMember "'super' must be followed by a class member name"
+error QualifiedPureVirtualCall "pure virtual method '{}' has no implementation to call through 'super' or a class scope"
 error IfaceExtendTypeParam "cannot extend or implement a type parameter"
 error IfaceExtendIncomplete "cannot extend or implement an incomplete forward typedef"
 error ScopeIncompleteTypedef "cannot resolve scoped class member via incomplete forward typedef"

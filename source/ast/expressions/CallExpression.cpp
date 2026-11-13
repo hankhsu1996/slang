@@ -106,6 +106,13 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
         }
     }
 
+    // A name qualified by a class runs that class's own implementation, and a
+    // pure virtual method has none.
+    if (classQualifier && sub->flags.has(MethodFlags::Pure)) {
+        context.addDiag(diag::QualifiedPureVirtualCall, range) << sub->name;
+        return badExpr(compilation, nullptr);
+    }
+
     // The built-in randomize method is found via normal lookup but it has special syntax rules,
     // so translate that into a call to a system subroutine that can handle those rules.
     if (sub->flags.has(MethodFlags::Randomize)) {
