@@ -1625,9 +1625,24 @@ bool Lookup::isAccessibleFrom(const Symbol& target, const Symbol& sourceScope) {
     if (parentScope.kind != SymbolKind::ClassType)
         return false;
 
+    // [8.26.2] says that implementing an interface class inherits nothing from
+    // it, so its members are only reached through a handle.
+    if (parentScope.as<ClassType>().isInterface)
+        return false;
+
     auto& sourceType = sourceScope.as<Type>();
     auto& targetType = parentScope.as<Type>();
     return targetType.isAssignmentCompatible(sourceType);
+}
+
+bool Lookup::isNestedInOwner(const Symbol& target, const Symbol& classSymbol) {
+    auto& owner = target.getParentScope()->asSymbol();
+    for (auto scope = classSymbol.getParentScope(); scope;
+         scope = scope->asSymbol().getParentScope()) {
+        if (&scope->asSymbol() == &owner)
+            return true;
+    }
+    return false;
 }
 
 bool Lookup::ensureVisible(const Symbol& symbol, const ASTContext& context,
@@ -1650,8 +1665,13 @@ bool Lookup::ensureAccessible(const Symbol& symbol, const ASTContext& context,
     auto [parent, inStatic] = getContainingClass(*context.scope);
     if (parent && !isAccessibleFrom(symbol, *parent) && !withinCovergroup(symbol, *context.scope)) {
         if (sourceRange) {
-            auto& diag = context.addDiag(diag::NestedNonStaticClassProperty, *sourceRange);
-            diag << symbol.name << parent->name;
+            if (isNestedInOwner(symbol, *parent)) {
+                auto& diag = context.addDiag(diag::NestedNonStaticClassProperty, *sourceRange);
+                diag << symbol.name << parent->name;
+            }
+            else {
+                context.addDiag(diag::NonStaticClassProperty, *sourceRange) << symbol.name;
+            }
         }
         return false;
     }

@@ -4668,6 +4668,52 @@ endclass
     CHECK(diags[1].code == diag::QualifiedPureVirtualCall);
 }
 
+TEST_CASE("An implemented interface class's method is not reached through its scope") {
+    auto tree = SyntaxTree::fromText(R"(
+interface class Iface;
+    pure virtual function int g;
+endclass
+
+class Impl implements Iface;
+    virtual function int g; return Iface::g(); endfunction
+endclass
+
+virtual class Partial implements Iface;
+    pure virtual function int g;
+    function int h; return g(); endfunction
+endclass
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 1);
+    CHECK(diags[0].code == diag::NonStaticClassMethod);
+}
+
+TEST_CASE("An instance member of an unrelated class named through its scope") {
+    auto tree = SyntaxTree::fromText(R"(
+class Other;
+    int p;
+    function int m; return 1; endfunction
+endclass
+
+class C;
+    function int f; return Other::m(); endfunction
+    function int g; return Other::p; endfunction
+endclass
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 2);
+    CHECK(diags[0].code == diag::NonStaticClassMethod);
+    CHECK(diags[1].code == diag::NonStaticClassProperty);
+}
+
 TEST_CASE("Equality with failed super lookups doesn't crash") {
     auto tree = SyntaxTree::fromText(R"(
 class A;

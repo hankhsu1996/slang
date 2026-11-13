@@ -308,6 +308,10 @@ public:
     /// access of instance members and doesn't look at visibility of the symbol.
     static bool isAccessibleFrom(const Symbol& target, const Symbol& sourceScope);
 
+    /// Returns true if the given class is declared, at any depth, inside the
+    /// scope that declares the target symbol.
+    static bool isNestedInOwner(const Symbol& target, const Symbol& classSymbol);
+
     /// If the given symbol is not a class member, returns true without doing any other work.
     /// Otherwise, if the member is visible from the provided context, returns true.
     /// If it's not visible, and @a sourceRange is provided, an appropriate diganostic will
