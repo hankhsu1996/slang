@@ -115,14 +115,10 @@ enum class SLANG_EXPORT LookupResultFlags : uint8_t {
     /// The lookup was resolved through an interface port connection.
     IfacePort = 1 << 5,
 
-    /// The lookup was resolved through a `super` handle, which selects the
-    /// base class's member regardless of the dynamic type of the object.
-    ViaSuper = 1 << 6,
-
     /// The found symbol is a non-static member of an object being randomized
     /// via a class handle in an inline constraint block, and so should be
     /// accessed through that handle.
-    RandomizeTargetMember = 1 << 7
+    RandomizeTargetMember = 1 << 6
 };
 SLANG_BITMASK(LookupResultFlags, RandomizeTargetMember)
 
@@ -184,6 +180,10 @@ struct SLANG_EXPORT LookupResult {
 
     /// Flags that specify additional information about the result of the lookup.
     bitmask<LookupResultFlags> flags;
+
+    /// If the lookup was resolved through a class scope, with the class scope
+    /// operator or a `super` handle, the class whose scope it was.
+    const ClassType* classQualifier = nullptr;
 
     /// The portion of the name lookup syntax that resulted in this symbol being found.
     SourceRange nameRange;

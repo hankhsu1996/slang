@@ -86,6 +86,7 @@ void registerSymbols(nb::module_& m) {
         .def_ro("systemSubroutine", &LookupResult::systemSubroutine)
         .def_ro("upwardCount", &LookupResult::upwardCount)
         .def_ro("flags", &LookupResult::flags)
+        .def_ro("classQualifier", &LookupResult::classQualifier)
         .def_ro("selectors", &LookupResult::selectors)
         .def_prop_ro("diagnostics", &LookupResult::getDiagnostics)
         .def_prop_ro("hasError", &LookupResult::hasError)

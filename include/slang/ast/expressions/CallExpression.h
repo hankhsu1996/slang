@@ -14,6 +14,7 @@
 
 namespace slang::ast {
 
+class ClassType;
 class FormalArgumentSymbol;
 class VariableSymbol;
 
@@ -69,10 +70,6 @@ public:
         /// The path used to refer to the subroutine, if the name was
         /// resolved via a hierarchical reference.
         HierarchicalReference hierRef;
-
-        /// Set to true if the name was qualified with `super`, which selects
-        /// the base class's implementation regardless of the dynamic type.
-        bool viaSuper = false;
     };
 
     /// The subroutine that is being called.
@@ -81,12 +78,17 @@ public:
     /// How the name that produced this call reached its subroutine.
     NameLookupInfo lookupInfo;
 
+    /// If the subroutine's name was qualified by a class, through `super` or the
+    /// class scope operator, the class it was qualified by.
+    const ClassType* classQualifier = nullptr;
+
     CallExpression(const Subroutine& subroutine, const Type& returnType,
                    const Expression* thisClass, std::span<const Expression*> arguments,
                    LookupLocation lookupLocation, const NameLookupInfo* lookupInfo,
-                   SourceRange sourceRange) :
+                   SourceRange sourceRange, const ClassType* classQualifier = nullptr) :
         Expression(ExpressionKind::Call, returnType, sourceRange), subroutine(subroutine),
-        thisClass_(thisClass), arguments_(arguments), lookupLocation(lookupLocation) {
+        classQualifier(classQualifier), thisClass_(thisClass), arguments_(arguments),
+        lookupLocation(lookupLocation) {
         if (lookupInfo) {
             this->lookupInfo = *lookupInfo;
             if (this->lookupInfo.hierRef.target)
@@ -139,12 +141,14 @@ public:
                                   const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                   const syntax::InvocationExpressionSyntax* syntax,
                                   const syntax::ArrayOrRandomizeMethodExpressionSyntax* withClause,
-                                  SourceRange range, const ASTContext& context);
+                                  SourceRange range, const ASTContext& context,
+                                  const ClassType* classQualifier = nullptr);
 
     static Expression& fromArgs(Compilation& compilation, const Subroutine& subroutine,
                                 const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                 const syntax::ArgumentListSyntax* argSyntax, SourceRange range,
-                                const ASTContext& context);
+                                const ASTContext& context,
+                                const ClassType* classQualifier = nullptr);
 
     static Expression& fromSystemMethod(
         Compilation& compilation, const Expression& expr,
@@ -202,7 +206,8 @@ private:
         Compilation& compilation, const SystemSubroutine& subroutine, const Expression* firstArg,
         const syntax::InvocationExpressionSyntax* syntax,
         const syntax::ArrayOrRandomizeMethodExpressionSyntax* withClause, SourceRange range,
-        const ASTContext& context, const Scope* randomizeScope = nullptr);
+        const ASTContext& context, const Scope* randomizeScope = nullptr,
+        const ClassType* classQualifier = nullptr);
 
     static bool checkConstant(EvalContext& context, const SubroutineSymbol& subroutine,
                               SourceRange range);

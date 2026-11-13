@@ -1284,11 +1284,10 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
             SLANG_ASSERT(result.selectors.empty());
             SourceRange callRange = invocation ? invocation->sourceRange() : result.nameRange;
             CallExpression::NameLookupInfo lookupInfo{
-                .hierRef = HierarchicalReference::fromLookup(comp, result),
-                .viaSuper = result.flags.has(LookupResultFlags::ViaSuper)};
+                .hierRef = HierarchicalReference::fromLookup(comp, result)};
             expr = &CallExpression::fromLookup(comp, &symbol->as<SubroutineSymbol>(), accessViaExpr,
                                                &lookupInfo, invocation, withClause, callRange,
-                                               context);
+                                               context, result.classQualifier);
             invocation = nullptr;
             withClause = nullptr;
 

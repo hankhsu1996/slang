@@ -4583,6 +4583,69 @@ endclass
     CHECK(diags[5].code == diag::SuperWithoutMember);
 }
 
+TEST_CASE("Calls record the class that qualified their name") {
+    auto tree = SyntaxTree::fromText(R"(
+class Base;
+    static Base shared;
+    rand int x;
+    virtual function int f; return 1; endfunction
+endclass
+
+typedef Base Alias;
+
+class Mid extends Base;
+    function int viaSuper; return super.f(); endfunction
+    function int viaThisSuper; return this.super.f(); endfunction
+    function int viaScope; return Base::f(); endfunction
+    function int viaAlias; return Alias::f(); endfunction
+    function int viaOwnScope; return Mid::f(); endfunction
+    function int viaStaticHandle; return Base::shared.f(); endfunction
+    function int unqualified; return f(); endfunction
+    function int inConstraint; return randomize() with { x == Base::f(); }; endfunction
+    function int baseRandomize; return super.randomize(); endfunction
+endclass
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& unit = *compilation.getRoot().compilationUnits[0];
+    auto& base = unit.lookupName<ClassType>("Base");
+    auto& mid = unit.lookupName<ClassType>("Mid");
+    auto callIn = [&](std::string_view name) -> const CallExpression& {
+        return mid.find(name)
+            ->as<SubroutineSymbol>()
+            .getBody()
+            .as<ReturnStatement>()
+            .expr->as<CallExpression>();
+    };
+
+    // Mid does not override f, so every call resolves to the same subroutine and
+    // only the qualifier tells them apart. A name reached through a further
+    // member access is qualified by the handle, not by a class.
+    auto& unqualified = callIn("unqualified");
+    for (auto name : {"viaSuper"sv, "viaThisSuper"sv, "viaScope"sv, "viaAlias"sv}) {
+        INFO(name);
+        auto& call = callIn(name);
+        CHECK(std::get<0>(call.subroutine) == std::get<0>(unqualified.subroutine));
+        CHECK(call.classQualifier == &base);
+        CHECK(!call.isEquivalentTo(unqualified));
+    }
+    CHECK(callIn("viaOwnScope").classQualifier == &mid);
+    CHECK(!callIn("viaStaticHandle").classQualifier);
+    CHECK(!unqualified.classQualifier);
+    CHECK(callIn("baseRandomize").classQualifier == &base);
+
+    auto& randomizeCall = callIn("inConstraint");
+    auto& randInfo = std::get<2>(std::get<1>(randomizeCall.subroutine).extraInfo);
+    auto& equality = randInfo.inlineConstraints->as<ConstraintList>()
+                         .list[0]
+                         ->as<ExpressionConstraint>()
+                         .expr.as<BinaryExpression>();
+    CHECK(equality.right().as<CallExpression>().classQualifier == &base);
+}
+
 TEST_CASE("Equality with failed super lookups doesn't crash") {
     auto tree = SyntaxTree::fromText(R"(
 class A;

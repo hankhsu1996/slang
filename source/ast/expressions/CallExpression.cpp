@@ -72,7 +72,8 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
                                        const NameLookupInfo* lookupInfo,
                                        const InvocationExpressionSyntax* syntax,
                                        const ArrayOrRandomizeMethodExpressionSyntax* withClause,
-                                       SourceRange range, const ASTContext& context) {
+                                       SourceRange range, const ASTContext& context,
+                                       const ClassType* classQualifier) {
     if (subroutine.index() == 1) {
         SLANG_ASSERT(!thisClass);
         const SystemCallInfo& info = std::get<1>(subroutine);
@@ -118,7 +119,7 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
 
         SLANG_ASSERT(ss);
         return createSystemCall(compilation, *ss, thisClass, syntax, withClause, range, context,
-                                sub->getParentScope());
+                                sub->getParentScope(), classQualifier);
     }
 
     if (withClause) {
@@ -136,7 +137,7 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
     }
 
     auto& result = fromArgs(compilation, subroutine, thisClass, lookupInfo,
-                            syntax ? syntax->arguments : nullptr, range, context);
+                            syntax ? syntax->arguments : nullptr, range, context, classQualifier);
     if (syntax)
         context.setAttributes(result, syntax->attributes);
 
@@ -307,7 +308,7 @@ bool CallExpression::bindArgs(const ArgumentListSyntax* argSyntax,
 Expression& CallExpression::fromArgs(Compilation& comp, const Subroutine& subroutine,
                                      const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                      const ArgumentListSyntax* argSyntax, SourceRange range,
-                                     const ASTContext& context) {
+                                     const ASTContext& context, const ClassType* classQualifier) {
     const SubroutineSymbol& symbol = *std::get<0>(subroutine);
     comp.noteReference(symbol);
 
@@ -316,7 +317,7 @@ Expression& CallExpression::fromArgs(Compilation& comp, const Subroutine& subrou
 
     auto result = comp.emplace<CallExpression>(&symbol, symbol.getReturnType(), thisClass,
                                                boundArgs.copy(comp), context.getLocation(),
-                                               lookupInfo, range);
+                                               lookupInfo, range, classQualifier);
     if (bad)
         return badExpr(comp, result);
 
@@ -494,7 +495,7 @@ Expression& CallExpression::createSystemCall(
     Compilation& compilation, const SystemSubroutine& subroutine, const Expression* firstArg,
     const InvocationExpressionSyntax* syntax,
     const ArrayOrRandomizeMethodExpressionSyntax* withClause, SourceRange range,
-    const ASTContext& context, const Scope* randomizeScope) {
+    const ASTContext& context, const Scope* randomizeScope, const ClassType* classQualifier) {
 
     SystemCallInfo callInfo{&subroutine, context.scope, {}};
     SmallVector<const Expression*> buffer;
@@ -669,7 +670,7 @@ Expression& CallExpression::createSystemCall(
     const Type& type = subroutine.checkArguments(context, buffer, range, iterOrThis);
     auto expr = compilation.emplace<CallExpression>(callInfo, type, nullptr,
                                                     buffer.copy(compilation), context.getLocation(),
-                                                    nullptr, range);
+                                                    nullptr, range, classQualifier);
 
     if (type.isError())
         return badExpr(compilation, expr);
@@ -802,7 +803,7 @@ bool CallExpression::isEquivalentImpl(const CallExpression& rhs) const {
             return false;
     }
 
-    return bool(thisClass_) == bool(rhs.thisClass_) &&
+    return classQualifier == rhs.classQualifier && bool(thisClass_) == bool(rhs.thisClass_) &&
            (!thisClass_ || thisClass_->isEquivalentTo(*rhs.thisClass_)) &&
            std::ranges::equal(arguments(), rhs.arguments(),
                               [](const Expression* a, const Expression* b) {
@@ -942,8 +943,8 @@ void CallExpression::serializeTo(ASTSerializer& serializer) const {
     if (lookupInfo.hierRef.target)
         serializer.write("isHierarchical", true);
 
-    if (lookupInfo.viaSuper)
-        serializer.write("viaSuper", true);
+    if (classQualifier)
+        serializer.writeLink("classQualifier", *classQualifier);
 
     if (!arguments().empty()) {
         serializer.startArray("arguments");

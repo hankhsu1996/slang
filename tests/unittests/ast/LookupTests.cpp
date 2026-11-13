@@ -3489,49 +3489,6 @@ endmodule
     CHECK(!local.hierRef.target);
 }
 
-TEST_CASE("Subroutine call records super qualification") {
-    auto tree = SyntaxTree::fromText(R"(
-class Base;
-    virtual function int f; return 1; endfunction
-endclass
-
-class Mid extends Base;
-    function int viaSuper; return super.f(); endfunction
-    function int viaThisSuper; return this.super.f(); endfunction
-    function int unqualified; return f(); endfunction
-endclass
-)");
-    Compilation compilation;
-    compilation.addSyntaxTree(tree);
-    NO_COMPILATION_ERRORS;
-
-    REQUIRE(!compilation.getRoot().compilationUnits.empty());
-    auto* midSym = compilation.getRoot().compilationUnits[0]->lookupName("Mid");
-    REQUIRE(midSym);
-    auto& mid = midSym->as<ClassType>();
-
-    auto callIn = [&](std::string_view name) -> const CallExpression& {
-        auto* sub = mid.find(name);
-        REQUIRE(sub);
-        return sub->as<SubroutineSymbol>()
-            .getBody()
-            .as<ReturnStatement>()
-            .expr->as<CallExpression>();
-    };
-
-    // Mid does not override f, so all three resolve to the same subroutine and
-    // only the qualification tells the dispatching call from the two that must
-    // reach the base implementation directly.
-    auto& viaSuper = callIn("viaSuper");
-    auto& viaThisSuper = callIn("viaThisSuper");
-    auto& unqualified = callIn("unqualified");
-    CHECK(std::get<0>(viaSuper.subroutine) == std::get<0>(unqualified.subroutine));
-
-    CHECK(viaSuper.lookupInfo.viaSuper);
-    CHECK(viaThisSuper.lookupInfo.viaSuper);
-    CHECK(!unqualified.lookupInfo.viaSuper);
-}
-
 TEST_CASE("Hierarchical path records the expressions its selectors were bound from") {
     auto tree = SyntaxTree::fromText(R"(
 interface I;

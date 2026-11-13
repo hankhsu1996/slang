@@ -73,6 +73,7 @@ void LookupResult::clear() {
     systemSubroutine = nullptr;
     upwardCount = 0;
     flags = LookupResultFlags::None;
+    classQualifier = nullptr;
     nameRange = {};
     selectors.clear();
     path.clear();
@@ -891,6 +892,7 @@ bool resolveColonNames(SmallVectorBase<NamePlusLoc>& nameParts, int colonParts,
             symbol = symbol->as<CovergroupType>().getBody().find(name.text);
         }
         else {
+            result.classQualifier = symbol->as_if<ClassType>();
             symbol = symbol->as<Scope>().find(name.text);
         }
 
@@ -1089,10 +1091,6 @@ const Symbol* findSuperHandle(const Scope& scope, bitmask<LookupFlags> flags, So
         result.addDiag(scope, diag::SuperNoBase, range) << parent->name;
         return nullptr;
     }
-
-    // Both "super.foo" and "this.super.foo" resolve the base class here.
-    if (base)
-        result.flags |= LookupResultFlags::ViaSuper;
 
     return base;
 }
