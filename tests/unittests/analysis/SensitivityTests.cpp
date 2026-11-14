@@ -617,7 +617,8 @@ class C;
 endclass
 
 function automatic C foo(int q);
-    return new;
+    C c = new;
+    return c;
 endfunction
 
 module m;
