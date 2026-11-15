@@ -78,17 +78,12 @@ public:
     /// How the name that produced this call reached its subroutine.
     NameLookupInfo lookupInfo;
 
-    /// If the subroutine's name was qualified by a class, through `super` or the
-    /// class scope operator, the class it was qualified by.
-    const ClassType* classQualifier = nullptr;
-
     CallExpression(const Subroutine& subroutine, const Type& returnType,
                    const Expression* thisClass, std::span<const Expression*> arguments,
                    LookupLocation lookupLocation, const NameLookupInfo* lookupInfo,
-                   SourceRange sourceRange, const ClassType* classQualifier = nullptr) :
+                   SourceRange sourceRange) :
         Expression(ExpressionKind::Call, returnType, sourceRange), subroutine(subroutine),
-        classQualifier(classQualifier), thisClass_(thisClass), arguments_(arguments),
-        lookupLocation(lookupLocation) {
+        thisClass_(thisClass), arguments_(arguments), lookupLocation(lookupLocation) {
         if (lookupInfo) {
             this->lookupInfo = *lookupInfo;
             if (this->lookupInfo.hierRef.target)
@@ -141,14 +136,12 @@ public:
                                   const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                   const syntax::InvocationExpressionSyntax* syntax,
                                   const syntax::ArrayOrRandomizeMethodExpressionSyntax* withClause,
-                                  SourceRange range, const ASTContext& context,
-                                  const ClassType* classQualifier = nullptr);
+                                  SourceRange range, const ASTContext& context);
 
     static Expression& fromArgs(Compilation& compilation, const Subroutine& subroutine,
                                 const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                 const syntax::ArgumentListSyntax* argSyntax, SourceRange range,
-                                const ASTContext& context,
-                                const ClassType* classQualifier = nullptr);
+                                const ASTContext& context);
 
     static Expression& fromSystemMethod(
         Compilation& compilation, const Expression& expr,
@@ -206,8 +199,7 @@ private:
         Compilation& compilation, const SystemSubroutine& subroutine, const Expression* firstArg,
         const syntax::InvocationExpressionSyntax* syntax,
         const syntax::ArrayOrRandomizeMethodExpressionSyntax* withClause, SourceRange range,
-        const ASTContext& context, const Scope* randomizeScope = nullptr,
-        const ClassType* classQualifier = nullptr);
+        const ASTContext& context, const Scope* randomizeScope = nullptr);
 
     static bool checkConstant(EvalContext& context, const SubroutineSymbol& subroutine,
                               SourceRange range);
@@ -215,6 +207,19 @@ private:
     const Expression* thisClass_;
     std::span<const Expression*> arguments_;
     LookupLocation lookupLocation;
+
+public:
+    /// If the called method was named via the class scope resolution operator
+    /// (e.g. `Base::f()`) or the 'super' handle (e.g. `super.f()`), this is the
+    /// class whose scope was named; otherwise nullptr. Note that this can differ
+    /// from the class that declares the method if the method is inherited.
+    ///
+    /// For virtual methods this determines how the call is dispatched: a call
+    /// qualified by a base class of the calling class invokes that class's
+    /// implementation directly, while an unqualified call dispatches based on
+    /// the dynamic type of the object. Tools disagree on whether qualifying a
+    /// call with the calling class itself dispatches or not.
+    const ClassType* classQualifier = nullptr;
 };
 
 } // namespace slang::ast

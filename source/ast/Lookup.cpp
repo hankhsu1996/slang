@@ -884,6 +884,8 @@ bool resolveColonNames(SmallVectorBase<NamePlusLoc>& nameParts, int colonParts,
         }
 
         const Symbol* savedSymbol = symbol;
+        result.classQualifier = symbol->kind == SymbolKind::ClassType ? &symbol->as<ClassType>()
+                                                                      : nullptr;
         if (symbol->kind == SymbolKind::Package) {
             symbol = symbol->as<PackageSymbol>().findForImport(name.text);
             result.flags |= LookupResultFlags::WasImported;
@@ -892,7 +894,6 @@ bool resolveColonNames(SmallVectorBase<NamePlusLoc>& nameParts, int colonParts,
             symbol = symbol->as<CovergroupType>().getBody().find(name.text);
         }
         else {
-            result.classQualifier = symbol->as_if<ClassType>();
             symbol = symbol->as<Scope>().find(name.text);
         }
 

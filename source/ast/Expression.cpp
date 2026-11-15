@@ -1287,9 +1287,12 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
                 .hierRef = HierarchicalReference::fromLookup(comp, result)};
             expr = &CallExpression::fromLookup(comp, &symbol->as<SubroutineSymbol>(), accessViaExpr,
                                                &lookupInfo, invocation, withClause, callRange,
-                                               context, result.classQualifier);
+                                               context);
             invocation = nullptr;
             withClause = nullptr;
+
+            if (expr->kind == ExpressionKind::Call)
+                expr->as<CallExpression>().classQualifier = result.classQualifier;
 
             if (result.flags.has(LookupResultFlags::IsHierarchical)) {
                 // A call to a subroutine via a hierarchical name needs to be counted

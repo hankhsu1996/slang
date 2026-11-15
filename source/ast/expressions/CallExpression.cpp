@@ -72,8 +72,7 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
                                        const NameLookupInfo* lookupInfo,
                                        const InvocationExpressionSyntax* syntax,
                                        const ArrayOrRandomizeMethodExpressionSyntax* withClause,
-                                       SourceRange range, const ASTContext& context,
-                                       const ClassType* classQualifier) {
+                                       SourceRange range, const ASTContext& context) {
     if (subroutine.index() == 1) {
         SLANG_ASSERT(!thisClass);
         const SystemCallInfo& info = std::get<1>(subroutine);
@@ -125,7 +124,7 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
 
         SLANG_ASSERT(ss);
         return createSystemCall(compilation, *ss, thisClass, syntax, withClause, range, context,
-                                sub->getParentScope(), classQualifier);
+                                sub->getParentScope());
     }
 
     if (withClause) {
@@ -143,7 +142,7 @@ Expression& CallExpression::fromLookup(Compilation& compilation, const Subroutin
     }
 
     auto& result = fromArgs(compilation, subroutine, thisClass, lookupInfo,
-                            syntax ? syntax->arguments : nullptr, range, context, classQualifier);
+                            syntax ? syntax->arguments : nullptr, range, context);
     if (syntax)
         context.setAttributes(result, syntax->attributes);
 
@@ -314,7 +313,7 @@ bool CallExpression::bindArgs(const ArgumentListSyntax* argSyntax,
 Expression& CallExpression::fromArgs(Compilation& comp, const Subroutine& subroutine,
                                      const Expression* thisClass, const NameLookupInfo* lookupInfo,
                                      const ArgumentListSyntax* argSyntax, SourceRange range,
-                                     const ASTContext& context, const ClassType* classQualifier) {
+                                     const ASTContext& context) {
     const SubroutineSymbol& symbol = *std::get<0>(subroutine);
     comp.noteReference(symbol);
 
@@ -323,7 +322,7 @@ Expression& CallExpression::fromArgs(Compilation& comp, const Subroutine& subrou
 
     auto result = comp.emplace<CallExpression>(&symbol, symbol.getReturnType(), thisClass,
                                                boundArgs.copy(comp), context.getLocation(),
-                                               lookupInfo, range, classQualifier);
+                                               lookupInfo, range);
     if (bad)
         return badExpr(comp, result);
 
@@ -501,7 +500,7 @@ Expression& CallExpression::createSystemCall(
     Compilation& compilation, const SystemSubroutine& subroutine, const Expression* firstArg,
     const InvocationExpressionSyntax* syntax,
     const ArrayOrRandomizeMethodExpressionSyntax* withClause, SourceRange range,
-    const ASTContext& context, const Scope* randomizeScope, const ClassType* classQualifier) {
+    const ASTContext& context, const Scope* randomizeScope) {
 
     SystemCallInfo callInfo{&subroutine, context.scope, {}};
     SmallVector<const Expression*> buffer;
@@ -676,7 +675,7 @@ Expression& CallExpression::createSystemCall(
     const Type& type = subroutine.checkArguments(context, buffer, range, iterOrThis);
     auto expr = compilation.emplace<CallExpression>(callInfo, type, nullptr,
                                                     buffer.copy(compilation), context.getLocation(),
-                                                    nullptr, range, classQualifier);
+                                                    nullptr, range);
 
     if (type.isError())
         return badExpr(compilation, expr);
