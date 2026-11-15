@@ -73,6 +73,7 @@ void LookupResult::clear() {
     systemSubroutine = nullptr;
     upwardCount = 0;
     flags = LookupResultFlags::None;
+    classQualifier = nullptr;
     nameRange = {};
     selectors.clear();
     path.clear();
@@ -883,6 +884,8 @@ bool resolveColonNames(SmallVectorBase<NamePlusLoc>& nameParts, int colonParts,
         }
 
         const Symbol* savedSymbol = symbol;
+        result.classQualifier = symbol->kind == SymbolKind::ClassType ? &symbol->as<ClassType>()
+                                                                      : nullptr;
         if (symbol->kind == SymbolKind::Package) {
             symbol = symbol->as<PackageSymbol>().findForImport(name.text);
             result.flags |= LookupResultFlags::WasImported;
