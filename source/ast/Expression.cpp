@@ -1294,6 +1294,14 @@ Expression& Expression::bindLookupResult(Compilation& comp, LookupResult& result
             if (expr->kind == ExpressionKind::Call)
                 expr->as<CallExpression>().classQualifier = result.classQualifier;
 
+            // A name qualified by a class runs that class's own implementation, and a
+            // pure virtual method has none.
+            if (expr->kind == ExpressionKind::Call && result.classQualifier &&
+                symbol->as<SubroutineSymbol>().flags.has(MethodFlags::Pure)) {
+                context.addDiag(diag::QualifiedPureVirtualCall, callRange) << symbol->name;
+                expr = &badExpr(comp, expr);
+            }
+
             if (result.flags.has(LookupResultFlags::IsHierarchical)) {
                 // A call to a subroutine via a hierarchical name needs to be counted
                 // as a potential "hierachical assignment" since we will need to
