@@ -80,6 +80,23 @@ public:
     /// returns an empty string.
     const std::filesystem::path& getFullPath(BufferID buffer) const;
 
+    /// Gets the file name the `__FILE__` macro expands to at a given source location.
+    /// This is the name @a getFileName gives, unless a macro prefix mapping matches
+    /// the file's full path, or the absolute path a line directive names: then it is
+    /// that path with the mapped prefix replaced.
+    std::string getMacroFileName(SourceLocation location) const;
+
+    /// Gets the file name the `__FILE__` macro expands to in the given source
+    /// buffer, not taking into account any line directives that may be in the file.
+    std::string getRawMacroFileName(BufferID buffer) const;
+
+    /// Adds a mapping that replaces the prefix @a from with @a to in the file names
+    /// the `__FILE__` macro expands to, so that a build's output need not depend on
+    /// where its sources lie or where it is run from. A prefix is a whole number of
+    /// path components, and where several mappings match the one with the most
+    /// components applies. Diagnostics are not affected.
+    void addMacroPrefixMapping(const std::filesystem::path& from, std::string_view to);
+
     /// Gets the column line number for a given source location.
     /// @a location must be a file location.
     size_t getColumnNumber(SourceLocation location) const;
@@ -308,13 +325,16 @@ private:
     // Stores information specified in a `line directive, which alters the
     // line number and file name that we report in diagnostics.
     struct LineDirectiveInfo {
-        std::string name;       // File name set by directive
-        size_t lineInFile;      // Actual file line where directive occurred
-        size_t lineOfDirective; // Line number set by directive
-        uint8_t level;          // Level of directive. Either 0, 1, or 2.
+        std::string name;               // File name set by directive
+        std::filesystem::path fullPath; // The path it named, where that is absolute
+        size_t lineInFile;              // Actual file line where directive occurred
+        size_t lineOfDirective;         // Line number set by directive
+        uint8_t level;                  // Level of directive. Either 0, 1, or 2.
 
-        LineDirectiveInfo(std::string&& fname, size_t lif, size_t lod, uint8_t level) noexcept :
-            name(std::move(fname)), lineInFile(lif), lineOfDirective(lod), level(level) {}
+        LineDirectiveInfo(std::string&& fname, std::filesystem::path&& fullPath, size_t lif,
+                          size_t lod, uint8_t level) noexcept :
+            name(std::move(fname)), fullPath(std::move(fullPath)), lineInFile(lif),
+            lineOfDirective(lod), level(level) {}
     };
 
     // Stores actual file contents and metadata; only one per loaded file
@@ -399,10 +419,19 @@ private:
     // map from buffer to diagnostic directive lists
     flat_hash_map<BufferID, std::vector<DiagnosticDirectiveInfo>> diagDirectives;
 
+    // prefixes replaced in the file names `__FILE__` expands to, and their replacements
+    std::vector<std::pair<std::filesystem::path, std::string>> macroPrefixMappings;
+
     std::atomic<uint32_t> unnamedBufferCount = 0;
     bool disableProximatePaths = false;
     bool disableLocalIncludes = false;
     bool incDirFirst = false;
+
+    // The name a file is given where the `__FILE__` macro names it: its full path
+    // with the longest matching macro prefix mapping applied, or else @a name.
+    // The caller holds the lock.
+    std::string applyMacroPrefixMappings(const std::filesystem::path& fullPath,
+                                         std::string_view name) const;
 
     template<IsLock TLock>
     FileInfo* getFileInfo(BufferID buffer, TLock& lock);

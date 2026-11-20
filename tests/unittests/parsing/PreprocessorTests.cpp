@@ -1197,6 +1197,58 @@ TEST_CASE("`line + FILE + LINE Directive") {
     CHECK_DIAGNOSTICS_EMPTY;
 }
 
+TEST_CASE("FILE Directive under a macro prefix mapping") {
+    // A file whose path begins with a mapped directory is named with that directory's
+    // mapping, the longest one that matches; a `line directive's name is mapped where it
+    // is absolute. A name nothing maps is kept, and diagnostics keep the file's own name.
+    std::string testDir = fs::path(findTestDir()).lexically_normal().string();
+    std::string text = "`include \"file_uses_defn.svh\"\n"
+                       "`line 1 \"" +
+                       testDir +
+                       "/nested/deeper.sv\" 0\n"
+                       "`__FILE__\n"
+                       "`line 1 \"/elsewhere/other.sv\" 0\n"
+                       "`__FILE__\n"
+                       "`line 1 \"relative.sv\" 0\n"
+                       "`__FILE__\n";
+
+    diagnostics.clear();
+
+    SourceManager sourceManager;
+    setupSourceManager(sourceManager);
+    sourceManager.addMacroPrefixMapping(testDir, "lib");
+    sourceManager.addMacroPrefixMapping(testDir + "/nested", "inner");
+
+    Preprocessor preprocessor(sourceManager, alloc, diagnostics);
+    preprocessor.pushSource(text);
+
+    Token token = preprocessor.next();
+    REQUIRE(token.kind == TokenKind::StringLiteral);
+    CHECK(token.valueText() == "lib/file_uses_defn.svh");
+    CHECK(sourceManager.getFileName(token.location()) ==
+          fs::proximate(testDir + "/file_uses_defn.svh").string());
+    CHECK(sourceManager.getRawMacroFileName(
+              sourceManager.getFullyExpandedLoc(token.location()).buffer()) ==
+          "lib/file_uses_defn.svh");
+
+    token = preprocessor.next();
+    REQUIRE(token.kind == TokenKind::StringLiteral);
+    CHECK(token.valueText() == "inner/deeper.sv");
+    BufferID pushed = sourceManager.getFullyExpandedLoc(token.location()).buffer();
+    CHECK(sourceManager.getRawMacroFileName(pushed) == sourceManager.getRawFileName(pushed));
+
+    token = preprocessor.next();
+    REQUIRE(token.kind == TokenKind::StringLiteral);
+    CHECK(token.valueText() ==
+          fs::path("/elsewhere/other.sv").lexically_proximate(fs::current_path()).string());
+
+    token = preprocessor.next();
+    REQUIRE(token.kind == TokenKind::StringLiteral);
+    CHECK(token.valueText() == "relative.sv");
+
+    CHECK_DIAGNOSTICS_EMPTY;
+}
+
 TEST_CASE("Invalid `line directive") {
     auto& text = "`line 6 \"other.sv\" 4";
     preprocess(text);

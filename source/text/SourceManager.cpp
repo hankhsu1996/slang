@@ -176,6 +176,64 @@ const fs::path& SourceManager::getFullPath(BufferID buffer) const {
     return info->data->fullPath;
 }
 
+std::string SourceManager::getMacroFileName(SourceLocation location) const {
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    SourceLocation fileLocation = getFullyExpandedLocImpl(location, lock);
+    auto info = getFileInfo(fileLocation.buffer(), lock);
+    if (!info || !info->data)
+        return "";
+
+    if (!info->lineDirectives.empty()) {
+        size_t rawLine = getRawLineNumber(fileLocation, lock);
+        if (auto lineDirective = info->getPreviousLineDirective(rawLine))
+            return applyMacroPrefixMappings(lineDirective->fullPath, lineDirective->name);
+    }
+
+    return applyMacroPrefixMappings(info->data->fullPath, info->data->name);
+}
+
+std::string SourceManager::getRawMacroFileName(BufferID buffer) const {
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    auto info = getFileInfo(buffer, lock);
+    if (!info || !info->data)
+        return "";
+
+    return applyMacroPrefixMappings(info->data->fullPath, info->data->name);
+}
+
+std::string SourceManager::applyMacroPrefixMappings(const fs::path& fullPath,
+                                                    std::string_view name) const {
+    const std::pair<fs::path, std::string>* best = nullptr;
+    fs::path rest;
+    size_t bestDepth = 0;
+    for (auto& mapping : macroPrefixMappings) {
+        fs::path relative = fullPath.lexically_relative(mapping.first);
+        if (relative.empty() || *relative.begin() == "..")
+            continue;
+
+        size_t depth = (size_t)std::distance(mapping.first.begin(), mapping.first.end());
+        if (!best || depth > bestDepth) {
+            best = &mapping;
+            rest = std::move(relative);
+            bestDepth = depth;
+        }
+    }
+
+    if (!best)
+        return std::string(name);
+    return getU8Str(fs::path(best->second) / rest);
+}
+
+void SourceManager::addMacroPrefixMapping(const fs::path& from, std::string_view to) {
+    // A prefix names a directory, so a trailing separator says nothing more.
+    fs::path prefix = from.lexically_normal();
+    if (!prefix.has_filename() && prefix != prefix.root_path())
+        prefix = prefix.parent_path();
+
+    std::unique_lock<std::shared_mutex> lock(mutex);
+    macroPrefixMappings.emplace_back(std::move(prefix), std::string(to));
+}
+
 template<IsLock TLock>
 SourceLocation SourceManager::getIncludedFromImpl(BufferID buffer, TLock& lock) const {
     auto info = getFileInfo(buffer, lock);
@@ -574,8 +632,10 @@ void SourceManager::addLineDirective(SourceLocation location, size_t lineNum, st
     else
         full = fs::path(info->data->name).replace_filename(linePath);
 
+    fs::path fullPath = linePath.is_absolute() ? linePath.lexically_normal() : fs::path();
     size_t sourceLineNum = getRawLineNumber(fileLocation, lock);
-    info->lineDirectives.emplace_back(std::string(getU8Str(full)), sourceLineNum, lineNum, level);
+    info->lineDirectives.emplace_back(std::string(getU8Str(full)), std::move(fullPath),
+                                      sourceLineNum, lineNum, level);
 }
 
 void SourceManager::addDiagnosticDirective(SourceLocation location, std::string_view name,
