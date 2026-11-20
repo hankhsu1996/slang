@@ -156,6 +156,7 @@ void CompatSettings::configureDiagnostics(DiagnosticEngine& diagEngine) const {
                  diag::ParameterDoesNotExist,
                  diag::Redefinition,
                  diag::RedefinitionDifferentType,
+                 diag::QualifiedPureVirtualCall,
              }) {
             diagEngine.setBaselineSeverity(d, DiagnosticSeverity::Error);
         }
