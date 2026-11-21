@@ -1,0 +1,5 @@
+alias(
+    name = "slang",
+    actual = "//source:slang_core",
+    visibility = ["//visibility:public"],
+)
