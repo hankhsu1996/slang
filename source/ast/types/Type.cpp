@@ -786,11 +786,11 @@ static bool isSameElaborationTarget(const Symbol& l, const Symbol& r) {
     return l.as<ClassType>().genericClass == r.as<ClassType>().genericClass;
 }
 
-bool Type::isMatchingAcrossElaborations(const Type& rhs) const {
-    if (isMatching(rhs))
+static bool isMatchingAcross(const Type& lhs, const Type& rhs, bool acrossInstanceBodies) {
+    if (lhs.isMatching(rhs))
         return true;
 
-    auto& lt = getCanonicalType();
+    auto& lt = lhs.getCanonicalType();
     auto& rt = rhs.getCanonicalType();
     if (lt.kind != rt.kind)
         return false;
@@ -801,10 +801,11 @@ bool Type::isMatchingAcrossElaborations(const Type& rhs) const {
 
         auto li = lt.getAssociativeIndexType();
         auto ri = rt.getAssociativeIndexType();
-        if (bool(li) != bool(ri) || (li && !li->isMatchingAcrossElaborations(*ri)))
+        if (bool(li) != bool(ri) || (li && !isMatchingAcross(*li, *ri, acrossInstanceBodies)))
             return false;
 
-        return lt.getArrayElementType()->isMatchingAcrossElaborations(*rt.getArrayElementType());
+        return isMatchingAcross(*lt.getArrayElementType(), *rt.getArrayElementType(),
+                                acrossInstanceBodies);
     }
 
     // Copies of one declaration come from the same syntax, in different
@@ -815,6 +816,11 @@ bool Type::isMatchingAcrossElaborations(const Type& rhs) const {
     auto lroot = getElaborationRoot(lt);
     auto rroot = getElaborationRoot(rt);
     if (!lroot || !rroot || !isSameElaborationTarget(*lroot, *rroot))
+        return false;
+
+    // Each instance with a user-defined type declared inside it creates
+    // a unique type (LRM 6.22).
+    if (!acrossInstanceBodies && lroot->kind == SymbolKind::InstanceBody)
         return false;
 
     // The declaration may depend on parameters of its elaboration,
@@ -841,14 +847,24 @@ bool Type::isMatchingAcrossElaborations(const Type& rhs) const {
         auto rr = rt.as<Scope>().membersOfType<FieldSymbol>();
         auto rit = rr.begin();
         for (auto& field : lr) {
-            if (rit == rr.end() || !field.getType().isMatchingAcrossElaborations(rit->getType()))
+            if (rit == rr.end() ||
+                !isMatchingAcross(field.getType(), rit->getType(), acrossInstanceBodies)) {
                 return false;
+            }
             ++rit;
         }
         return rit == rr.end();
     }
 
     return true;
+}
+
+bool Type::isMatchingAcrossElaborations(const Type& rhs) const {
+    return isMatchingAcross(*this, rhs, true);
+}
+
+bool Type::isMatchingAcrossSpecializations(const Type& rhs) const {
+    return isMatchingAcross(*this, rhs, false);
 }
 
 bool Type::isIdenticalStructUnion(const Type& rhs) const {

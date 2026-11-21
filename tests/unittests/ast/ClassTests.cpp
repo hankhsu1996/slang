@@ -4684,6 +4684,45 @@ endmodule
     NO_COMPILATION_ERRORS;
 }
 
+TEST_CASE("Class specializations on a type each instance declares") {
+    auto tree = SyntaxTree::fromText(R"(
+package p;
+    class Box #(type T = int);
+        static int count;
+    endclass
+
+    class Defaulted #(type T = struct { int z; });
+    endclass
+endpackage
+
+module M;
+    typedef struct { int a; } own_t;
+    typedef own_t pair_t[2];
+    p::Box #(own_t) b;
+    p::Box #(pair_t) arr;
+    p::Defaulted d;
+endmodule
+
+module top;
+    M m1();
+    M m2();
+    initial begin
+        m1.b = m2.b;
+        m1.arr = m2.arr;
+        m1.d = m2.d;
+    end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+
+    auto& diags = compilation.getAllDiagnostics();
+    REQUIRE(diags.size() == 2);
+    CHECK(diags[0].code == diag::BadAssignment);
+    CHECK(diags[1].code == diag::BadAssignment);
+}
+
 TEST_CASE("string type not valid in constraint expression") {
     auto tree = SyntaxTree::fromText(R"(
 class C;

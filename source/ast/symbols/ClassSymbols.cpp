@@ -1222,7 +1222,7 @@ bool ClassSpecializationKey::operator==(const ClassSpecializationKey& other) con
         if (l && r) {
             // A type declared in the default value of a type parameter (like an
             // inline enum or struct) is created anew in each specialization.
-            if (!l->isMatchingAcrossElaborations(*r))
+            if (!l->isMatchingAcrossSpecializations(*r))
                 return false;
         }
         else {

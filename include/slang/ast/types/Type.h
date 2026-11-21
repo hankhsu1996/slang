@@ -287,6 +287,12 @@ public:
     /// types are compared through their element and field types.
     bool isMatchingAcrossElaborations(const Type& rhs) const;
 
+    /// Like isMatchingAcrossElaborations, but only copies made by specializations
+    /// of the same generic class match: a type each instance of a definition declares
+    /// is a unique type in each instance (LRM 6.22), so copies from different instance
+    /// bodies do not.
+    bool isMatchingAcrossSpecializations(const Type& rhs) const;
+
     /// Gets a combination of flags for integral types; for non-integral types,
     /// this returns all zeros.
     bitmask<IntegralFlags> getIntegralFlags() const;
