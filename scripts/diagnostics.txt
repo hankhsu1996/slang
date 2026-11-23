@@ -911,6 +911,7 @@ error ImmediateAssertNotInProc "immediate assertion statements may only appear i
 error CheckerNotInProc "procedural checkers may only appear in always and initial blocks"
 error CheckerInForkJoin "checkers cannot be instantiated inside fork-join blocks"
 warning string-in-constraint StringConstraintExpr "'string' type is not valid in a constraint expression"
+warning solve-before-type BadSolveBeforeType "{} is not a valid type for a 'solve before' constraint"
 warning case-default CaseDefault "'{}' missing 'default' label"
 warning case-redundant-default CaseRedundantDefault "'{}' marked '{}' has 'default' label"
 warning case-wildcard-2state CaseWildcard2State "'{}' has two-state type so no wildcard matching will be performed"
@@ -1330,7 +1331,7 @@ group default = { real-underflow real-overflow vector-overflow int-overflow unco
                   format-too-many-args clockvar-target-assign cross-ident-in-binsof ref-arg-in-fork-join
                   cannot-index-scalar string-in-constraint virtual-arg-name-mismatch virtual-visibility-mismatch
                   undefined-param-override redefinition redefinition-different-type command-line
-                  qualified-pure-virtual-call }
+                  qualified-pure-virtual-call solve-before-type }
 
 group extra = { empty-member empty-stmt dup-import pointless-void-cast case-gen-none case-gen-dup
                 unused-result format-real ignored-slice task-ignored width-trunc dup-attr event-const

@@ -158,6 +158,7 @@ void CompatSettings::configureDiagnostics(DiagnosticEngine& diagEngine) const {
                  diag::Redefinition,
                  diag::RedefinitionDifferentType,
                  diag::QualifiedPureVirtualCall,
+                 diag::BadSolveBeforeType,
              }) {
             diagEngine.setBaselineSeverity(d, DiagnosticSeverity::Error);
         }
