@@ -275,9 +275,13 @@ std::vector<const PackageSymbol*> Compilation::getPackages() const {
 }
 
 TimeScaleValue Compilation::getSimulationTimeUnit() const {
-    TimeScaleValue result = getDefaultTimeScale().value_or(TimeScale()).precision;
+    // Only precisions the design states count [3.14.3]. A scope that states none
+    // and inherits none, such as the built-in std package or a compilation unit
+    // without a timeunit declaration, takes the default without stating it.
+    std::optional<TimeScaleValue> result;
     auto check = [&](const std::optional<TimeScale>& ts) {
-        result = std::min(result, ts.value_or(TimeScale()).precision);
+        if (ts)
+            result = result ? std::min(*result, ts->precision) : ts->precision;
     };
 
     for (auto unit : getCompilationUnits())
@@ -293,7 +297,7 @@ TimeScaleValue Compilation::getSimulationTimeUnit() const {
         }
     }
 
-    return result;
+    return result.value_or(getDefaultTimeScale().value_or(TimeScale()).precision);
 }
 
 const SourceLibrary* Compilation::getSourceLibrary(std::string_view name) const {

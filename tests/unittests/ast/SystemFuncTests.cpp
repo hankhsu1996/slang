@@ -2940,3 +2940,33 @@ endmodule
     CHECK(compilation.getSimulationTimeUnit() ==
           TimeScaleValue(TimeUnit::Femtoseconds, TimeScaleMagnitude::One));
 }
+
+TEST_CASE("v1800-2023: the simulation time unit is the finest precision the design states") {
+    auto options = optionsFor(LanguageVersion::v1800_2023);
+    auto tree = SyntaxTree::fromText(R"(
+`timescale 1us / 1us
+module top;
+    localparam int RU = $timeunit($root);
+    localparam int RP = $timeprecision($root);
+endmodule
+)",
+                                     options);
+
+    Compilation compilation(options);
+    compilation.addSyntaxTree(tree);
+    NO_COMPILATION_ERRORS;
+
+    auto& root = compilation.getRoot();
+    auto get = [&](std::string_view name) {
+        return root.lookupName<ParameterSymbol>("top."s + std::string(name))
+            .getValue()
+            .integer()
+            .as<int32_t>()
+            .value();
+    };
+
+    // The compilation unit states no time unit, so it takes the default and
+    // states nothing; only stated precisions count [3.14.3].
+    CHECK(get("RU") == -6);
+    CHECK(get("RP") == -6);
+}

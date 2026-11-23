@@ -735,8 +735,9 @@ public:
 
     /// Gets the simulation time unit, which is the smallest time precision specified
     /// anywhere in the design [3.14.3]. This is the value that $timeunit($root) and
-    /// $timeprecision($root) return. Design elements without a time scale contribute
-    /// the default time scale's precision.
+    /// $timeprecision($root) return. Scopes that state no time scale contribute
+    /// nothing; the default time scale's precision is used only when no scope
+    /// states one.
     TimeScaleValue getSimulationTimeUnit() const;
 
     /// Gets the next system ID to use for identifying enum types.
